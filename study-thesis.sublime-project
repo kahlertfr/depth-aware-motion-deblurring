@@ -5,7 +5,8 @@
             "name": "study thesis",
             "follow_symlinks": true,
             "path": ".",
-            //"file_exclude_patterns": ["*.pdf", "*.aux", "*.log", "*.pyc"],
+            "file_exclude_patterns": ["*.pdf", "*.aux", "*.log", "*.out"],
+            "dictionary": "Packages/Language - English/en_US.dic",
         }
     ]
 }
