@@ -1,0 +1,51 @@
+\documentclass[a4paper, 12pt]{scrartcl}
+
+
+% UTF-8 encoding
+\usepackage[utf8]{}
+\usepackage{fontspec}
+\usepackage{csquotes}
+\usepackage{hyperref}
+\pagenumbering{gobble}% Remove page numbers (and reset to 1)
+
+\begin{document}
+\section*{Assignment of Tasks - Study Thesis}
+\begin{description}
+\item[Task:] \enquote{Depth-Aware Motion Deblurring in Stereo Images}
+\\
+\item[Name:] Franziska Krüger
+\item[Course of Studies:] Computer Science (Diploma)  \hfill{\textbf{Mat. Nr.:} 3858788}
+\item[E-mail:] Franziska.Krueger1@tu-dresden.de
+\\
+\item[Tutor:] Dr.-Ing. Anita Sellent
+\item[Professor:] Prof. Carsten Rother
+\item[Start:] 01.11.2015  \hfill{\textbf{End:} 01.02.2016} \hfill{\textbf{Handed in:} ...............}
+\end{description}
+
+
+\subsection*{Motivation and Goal}
+The blur caused by shaking the camera while taking the image is a widely spread problem because a lot of pictures are taken with a mobile telephone or a hand-held camera. There exists several algorithms for removing such a blur from single images or stereo image pairs. The later is interesting due to the additional depth information that can be computed and used for a better deblurring. Furthermore the necessary hardware to obtain stereo images is more and more available even in mobile phones.\\
+One very interesting algorithm for motion deblurring in stereo images is from Xu and Jia that uses a spatially-varying point spread functions (PSF) to deblur the image on each depth level in an iterative way. To make further improvements possible for this algorithm a reference implementation is needed. This is also useful to get to know how the difficult occlusion regions are handled.
+\\
+So the goal for this study thesis is a reference implementation with further improvements to the PSF estimation and an evalutaion of the results.
+
+
+
+\subsection*{Tasks}
+\begin{itemize}
+\item literature research on deblurring - especially on stereo motion deblurring
+\item reference implementation of the depth aware stereo deblurring approach from Xu and Jia
+\item evaluation of this algorithm on pictures taken with a stereo camera
+\item improvement of the PSF estimation with depth-dependent assumptions \\(PSF is scaled between each depth layer)
+\end{itemize}
+
+\subsection*{References}
+\textbf{Xu L., Jia J.}: Depth-Aware Motion Deblurring \\
+\url{http://www.cse.cuhk.edu.hk/leojia/papers/depth_deblur_iccp12.pdf}
+
+% \begin{tabular}{lp{2em}l}
+%  \hspace{5cm}   && \hspace{5cm} \\\cline{1-1}\cline{3-3}
+%  Signature of Student     && Signature of Professor
+% \end{tabular}
+
+\end{document}
