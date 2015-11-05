@@ -24,11 +24,13 @@
 \end{description}
 
 
+
 \subsection*{Motivation and Goal}
-The blur caused by shaking the camera while taking the image is a widely spread problem because a lot of pictures are taken with a mobile telephone or a hand-held camera. There exists several algorithms for removing such a blur from single images or stereo image pairs. The later is interesting due to the additional depth information that can be computed and used for a better deblurring. Furthermore the necessary hardware to obtain stereo images is more and more available even in mobile phones.\\
-One very interesting algorithm for motion deblurring in stereo images is from Xu and Jia that uses a spatially-varying point spread functions (PSF) to deblur the image on each depth level in an iterative way. To make further improvements possible for this algorithm a reference implementation is needed. This is also useful to get to know how the difficult occlusion regions are handled.
-\\
-So the goal for this study thesis is a reference implementation with further improvements to the PSF estimation and an evalutaion of the results.
+A lot of pictures are taken with a mobile phone or a hand-held camera. Therefore blur is a widely spread problem. This blur mostly occur due to the shaking of the camera during the exposure. There exists several algorithms for removing such blur from single images or stereo image pairs. The later is interesting because of the additional depth information that can be computed and used for a better deblurring. Furthermore the necessary hardware to obtain stereo image pairs is more and more available – even in mobile phones.
+
+A very interesting iterative algorithm for motion deblurring with stereo images was developed by Xu and Jia. It uses a spatially-varying point spread functions (PSF) to deblur the image on each depth level. For further improvements of this algorithm a reference implementation is needed. This is also useful to get a better understanding of the difficult occlusion handling.
+
+The goal for this study thesis is a reference implementation and an evaluation of the results. An optional goal are further improvements of the PSF estimation.
 
 
 
@@ -39,6 +41,8 @@ So the goal for this study thesis is a reference implementation with further imp
 \item Evaluation of this algorithm on pictures taken with a stereo camera
 \item Optional: improvement of the PSF estimation with depth-dependent assumptions \\(PSF is scaled between each depth layer)
 \end{itemize}
+
+
 
 \subsection*{References}
 \textbf{Xu L., Jia J.}: Depth-Aware Motion Deblurring \\
