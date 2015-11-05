@@ -1,1 +1,11 @@
 *.sublime-workspace
+
+# everything in build
+build/
+
+# cmake
+*CMakeCache.txt
+*CMakeFiles
+*Makefile
+*cmake_install.cmake
+bin/
