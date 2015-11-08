@@ -3,3 +3,6 @@
 *.log
 *.pdf
 *.out
+
+# restructured text compiling
+*.tex
