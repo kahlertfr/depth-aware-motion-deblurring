@@ -29,6 +29,8 @@ For a fany syntax highlighting in Sublime Text, you can install *RestructuredTex
 
 ### Generate PDF from restructured Text
 
+Use *watch* for automatically compiling the PDF everytime the text file is saved.
+
 Use the *compile.sh* from the docs folder. For cleaning up everything use the *clear.sh*
 
 
@@ -36,7 +38,7 @@ Use the *compile.sh* from the docs folder. For cleaning up everything use the *c
 ### Generate PDF from latex file
 
 ```bash
-xelatex assignment-of-tasks.tex
+xelatex -output-directory=../build/ assignment-of-tasks.tex 
 ```
 
 [rst]: http://docutils.sourceforge.net/rst.html
