@@ -24,6 +24,7 @@ They use spatially-varying point spread functions to deblur the image depending 
 
 - L. Xu, J. Jia. [Two-phase Kernel Estimation for Robust Motion Deblurring, ECCV 2010][Xu10]
     - technique used for top level PSF computation
+    - strong edges not always good for kernel estimation
 - O. Whyte, J. Sivic, A. Zisserman, and J. Ponce.  [Non-uniform Deblurring for Shaken Images, CVPR 2010][Whyte10]
     - models 3D rotation of camera
     - single image and sharp + noisy image approach
@@ -41,19 +42,25 @@ They use spatially-varying point spread functions to deblur the image depending 
 #### Additional Papers
 
 - H. Qiu. [State-of-the-Art Image Motion Deblurring Technique][Qiu]
-    - conclusion on several single image and stereo image, blind and non-blind deblurring algorithms 
+    - conclusion on several single image and stereo image, blind and non-blind deblurring algorithms
+- B. Kalaiyarasi, S. Kalpana. [Blind Deconvolution of Camera Motioned Picture using Depth Map][Kalaiyarashi2012]
 
 
 
 #### interesting ?
 
 - T. Kobayashi, F. Sakaue, & J. Sato. [Depth and Arbitrary Motion Deblurring Using Integrated PSF, ECCV 2014][Kobayashi14]
+    - motion deblurring and all-in-focus imaging can be achieved simultaneously
+    - motion blur caused by arbitrary multiple motions can be recovered
+-Z. Hu, L. Xu, M. Yang [Joint Depth Estimation and Camera Shake Removal from Single Blurry Image, CVPR2014][Hu2014]
 
 
 
 [Cho09]: http://rosaec.snu.ac.kr/publish/2009/ID/ChLe-SIGGRAPH-2009.pdf
 [Gupta10]: http://grail.cs.washington.edu/projects/mdf_deblurring/gupta_mdf_deblurring.pdf
+[Hu2014]: https://eng.ucmerced.edu/people/zhu/CVPR14_deblurdepth.pdf
 [Joshi10]: http://202.114.89.42/resource/pdf/7570.pdf
+[Kalaiyarashi2012]: http://ijarece.org/wp-content/uploads/2015/02/IJARECE-VOL-4-ISSUE-2-142-148.pdf
 [Kobayashi14]: http://vigir.missouri.edu/~gdesouza/Research/Conference_CDs/ECCV_2014/workshops/w14/Kobayashi-et-al-LF4CV2014.pdf
 [Qiu]: http://iwct.sjtu.edu.cn/Personal/xwang8/research/hang/State-of-the-Art%20Image%20Motion%20Deblurring.pdf
 [Whyte10]: http://www.di.ens.fr/willow/pdfs/cvpr10d.pdf

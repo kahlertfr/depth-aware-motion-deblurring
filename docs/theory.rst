@@ -2,25 +2,96 @@
 Theory
 ======
 
-Blur
-====
+Depth-Aware Motion Blur
+=======================
 
-latent image + blur kernel = blurred image
+
+Blur
+++++
+
+Defocus Blur
+------------
+
+Blur because the object is out of focus.
+
+
+Motion Blur
+-----------
+
+- camera
+    - shake during exposure
+        - movement parallel to image plane
+    - moving camera
+        - Translation and Rotation
+- moving objects
+
+.. raw:: LaTex
+
+    \newpage
+
+
+
+Deblurring
+++++++++++
 
 Goal of deblurring: find blur kernel to get latent image
 
-.. .. math::
+latent image + blur kernel = blurred image
 
-..    \frac{ \sum_{t=0}^{N}f(t,k) }{N}
+Deconvolution
+-------------
 
-
-Reasons
--------
-
-- camera shake during exposure
-    + movement parallel to image plane
-- moving objects
-- moving camera
-    + 
+- non-blind
+- semi-blind estimation with depth map or sensor data
+- blind: blur kernel is unknown
+    - point spread function (PSF) estimation
 
 
+Different Approaches of deblurring
+----------------------------------
+
+- spatially kernel
+    - invariant (uniform kernel)
+    - variant (non-uniform kernel)
+
+- input 
+    - single image
+        - sensor (intertial measurement)
+        - motion density function
+    - stereo image pairs
+        - Hybrid Camera
+
+
+Problems
+--------
+
+- noise in latent image
+- artifacts in deblurred image
+
+.. raw:: LaTex
+
+    \newpage
+
+
+
+Depth-Aware Motion Deblurring
++++++++++++++++++++++++++++++
+
+Two view Stereopsis
+-------------------
+
+*Formulas*
+
+
+Point Spread Function (PSF)
+---------------------------
+
+*Definition, Tree Approach*
+
+This function is not robust on small regions, therefore larger regions are necessary.
+
+
+Shock Filter
+------------
+
+cartoonize image: large regions with same color and clear object boundaries
