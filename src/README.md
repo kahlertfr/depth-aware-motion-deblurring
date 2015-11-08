@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- (OpenCV 3.0)[http://opencv.org/].
+- [OpenCV 3.0](http://opencv.org/).
 
 
 
