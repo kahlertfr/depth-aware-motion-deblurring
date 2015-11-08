@@ -1,8 +1,3 @@
-# latex
-*.aux
-*.log
-*.pdf
-*.out
-
-# restructured text compiling
-*.tex
+# Ignores the build directory where all the output files
+# are stored
+build/

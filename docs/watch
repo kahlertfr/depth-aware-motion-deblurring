@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+import sys
+import time
+import subprocess
+from pathlib import Path
+from watchdog.observers import Observer
+from watchdog.events import FileCreatedEvent, RegexMatchingEventHandler
+
+
+class Action(object):
+    """Simple context wrapper that can be used to catch and silenty ignore
+    exceptions and print a processing message.
+    """
+
+    def __init__(self, message, suppress=True, color=True):
+        """:param message   The message, that should be printed, when
+                            the context is entered
+           :param suppress  If set to True, all exceptions are silenty
+                            ignored.
+           :param color     Flag indicating, if xterm colors should be
+                            used for printing
+        """
+        self.message = message
+        self.suppress = suppress
+        self.color = color
+
+    def __enter__(self):
+        sys.stdout.write(self.message)
+        sys.stdout.write(" ... ")
+        sys.stdout.flush()
+
+    def __exit__(self, errno, exec, trace):
+        if errno is not None:
+            if self.color:
+                sys.stdout.write("\033[0;31m")
+                sys.stdout.write("Error")
+                sys.stdout.write("\033[0m\n")
+        else:
+            sys.stdout.write("\033[0;32m")
+            sys.stdout.write("OK")
+            sys.stdout.write("\033[0m\n")
+
+        return self.suppress
+
+
+class CompileHandler(RegexMatchingEventHandler):
+
+    def __init__(self, regexes=['.+\.rst'], ignore_regexes=[],
+                       ignore_directories=True, case_sensitive=False):
+        RegexMatchingEventHandler.__init__(self, regexes=regexes,
+                                                 ignore_regexes=ignore_regexes,
+                                                 ignore_directories=ignore_directories,
+                                                 case_sensitive=case_sensitive)
+
+    def compile(self):
+        infile  = "theory.rst"
+        outfile = "build/theory.tex"
+
+        # Generate LaTex from restructuedText source file
+        subprocess.check_call("rst2latex.py %(infile)s > %(outfile)s" % dict(infile=infile,
+                                                                             outfile=outfile),
+                              shell=True)
+
+        # Run xelatex twice to use up-to-date references
+        for i in range(2):
+            proc = subprocess.Popen([
+                                        'xelatex',
+                                        '-output-directory=build/',
+                                        outfile,
+                                    ], 
+                                    stdin=subprocess.PIPE,
+                                    # Redirect output into nirvana
+                                    stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL)
+            # Close stdin immediately to force xelatex not stuck on
+            # errors
+            proc.stdin.close()
+
+            # Wait until the child process terminates
+            proc.communicate()
+
+            if proc.returncode != 0:
+                raise subprocess.CalledProcessError(proc.returncode,
+                                                    ' '.join(proc.args))
+
+    def on_any_event(self, event):
+        print(event)
+
+        if isinstance(event, FileCreatedEvent):
+            return
+
+        with Action("Compile"):
+            self.compile()
+
+
+if __name__ == "__main__":
+    interval = 1
+    path     = sys.argv[1] if len(sys.argv) > 1 else '.'
+    handler  = CompileHandler()
+
+    # Assert that the output directory exists
+    builddir = Path('./build')
+    if not builddir.exists():
+        builddir.mkdir(0o755)
+
+    # Initial compilation
+    with Action("Initial compilation", suppress=False):
+        handler.compile()
+
+    observer = Observer()
+    observer.schedule(handler, path, recursive=True)
+    observer.start()
+
+    try:
+        while True:
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        observer.stop()
+
+    observer.join()

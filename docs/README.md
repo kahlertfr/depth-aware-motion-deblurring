@@ -20,7 +20,7 @@ sudo apt-get install virtualenvwrapper
 mkvirtualenv --python=$(which python3) study-thesis
 
 # Install the required Python packages in the newly created environment
-pip install docutils
+pip install docutils watchdog
 ```
 
 For a fany syntax highlighting in Sublime Text, you can install *RestructuredText Improved* via [Package Control][subl-control].
