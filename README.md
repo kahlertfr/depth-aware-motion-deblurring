@@ -44,21 +44,22 @@ They use spatially-varying point spread functions to deblur the image depending 
 - H. Qiu. [State-of-the-Art Image Motion Deblurring Technique][Qiu]
     - conclusion on several single image and stereo image, blind and non-blind deblurring algorithms
 - B. Kalaiyarasi, S. Kalpana. [Blind Deconvolution of Camera Motioned Picture using Depth Map][Kalaiyarashi2012]
-
-
-
-#### interesting ?
-
+    - camera shake and large depth range scene leads to non-uniform blur
+    - single image with depth map
+- J. Jia. [Single Image Motion Deblurring Using Transparency, IEEE 2007][Jia2007]
+    - can handle camera motion blur and object motion blur
+    - investigates relationship between object boundary transparency and image motion blur
 - T. Kobayashi, F. Sakaue, & J. Sato. [Depth and Arbitrary Motion Deblurring Using Integrated PSF, ECCV 2014][Kobayashi14]
     - motion deblurring and all-in-focus imaging can be achieved simultaneously
     - motion blur caused by arbitrary multiple motions can be recovered
--Z. Hu, L. Xu, M. Yang [Joint Depth Estimation and Camera Shake Removal from Single Blurry Image, CVPR2014][Hu2014]
+- Z. Hu, L. Xu, M. Yang [Joint Depth Estimation and Camera Shake Removal from Single Blurry Image, CVPR2014][Hu2014]
 
 
 
 [Cho09]: http://rosaec.snu.ac.kr/publish/2009/ID/ChLe-SIGGRAPH-2009.pdf
 [Gupta10]: http://grail.cs.washington.edu/projects/mdf_deblurring/gupta_mdf_deblurring.pdf
 [Hu2014]: https://eng.ucmerced.edu/people/zhu/CVPR14_deblurdepth.pdf
+[Jia2007]: http://www.cse.cuhk.edu.hk/~leojia/all_final_papers/motion_deblur_cvpr07.pdf
 [Joshi10]: http://202.114.89.42/resource/pdf/7570.pdf
 [Kalaiyarashi2012]: http://ijarece.org/wp-content/uploads/2015/02/IJARECE-VOL-4-ISSUE-2-142-148.pdf
 [Kobayashi14]: http://vigir.missouri.edu/~gdesouza/Research/Conference_CDs/ECCV_2014/workshops/w14/Kobayashi-et-al-LF4CV2014.pdf
