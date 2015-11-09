@@ -1,3 +1,6 @@
+.. section-numbering::
+    :depth: 2
+
 ======
 Theory
 ======
@@ -5,18 +8,24 @@ Theory
 Depth-Aware Motion Blur
 =======================
 
+++++++++++++++++++++++
+General Theory of Blur
+++++++++++++++++++++++
 
 Blur
 ++++
 
+Blur is the result of averaging of intensities from different real world point in on image point.
+
+
 Defocus Blur
 ------------
-
 Blur because the object is out of focus.
 
 
 Motion Blur
 -----------
+Blur because of relative motion between camera and a scene during exposure time.
 
 - camera
     - shake during exposure
@@ -24,10 +33,6 @@ Motion Blur
     - moving camera
         - Translation and Rotation
 - moving objects
-
-.. raw:: LaTex
-
-    \newpage
 
 
 
@@ -42,8 +47,10 @@ Deconvolution
 -------------
 
 - non-blind
-- semi-blind estimation with depth map or sensor data
-- blind: blur kernel is unknown
+    - blur kernel is known or assumed to be of a simple form (uniform camera motion)
+    - try to reduce artifacts
+- blind
+    - blur kernel and latent image is unknown
     - point spread function (PSF) estimation
 
 
@@ -56,10 +63,11 @@ Different Approaches of deblurring
 
 - input 
     - single image
-        - sensor (intertial measurement)
-        - motion density function
+        - additional devices, e.g. sensor (intertial measurement)
+        - without additional hardware, e.g. motion density function
     - stereo image pairs
-        - Hybrid Camera
+        - Stereo camera
+        - Hybrid camera
 
 
 Problems
@@ -67,6 +75,7 @@ Problems
 
 - noise in latent image
 - artifacts in deblurred image
+    - ringing artifacts at strong egdes
 
 .. raw:: LaTex
 
@@ -74,17 +83,18 @@ Problems
 
 
 
++++++++++++++++++++++++++++++
 Depth-Aware Motion Deblurring
 +++++++++++++++++++++++++++++
 
 Two view Stereopsis
--------------------
++++++++++++++++++++
 
 *Formulas*
 
 
 Point Spread Function (PSF)
----------------------------
++++++++++++++++++++++++++++
 
 *Definition, Tree Approach*
 
@@ -92,6 +102,6 @@ This function is not robust on small regions, therefore larger regions are neces
 
 
 Shock Filter
-------------
+++++++++++++
 
 cartoonize image: large regions with same color and clear object boundaries
