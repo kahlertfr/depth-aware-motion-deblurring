@@ -29,7 +29,16 @@ For a fany syntax highlighting in Sublime Text, you can install *RestructuredTex
 
 ### Generate PDF from restructured Text
 
-Use *watch* for automatically compiling the PDF everytime the text file is saved.
+Use *watch* for automatically compiling the PDF everytime the text file is saved:
+
+```bash
+# activate virutal environment
+workon study-thesis
+
+# start watch script
+cd docs
+./watch
+```
 
 Use the *compile.sh* from the docs folder. For cleaning up everything use the *clear.sh*
 
