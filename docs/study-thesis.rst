@@ -1,3 +1,4 @@
+.. include:: utils.rst
 
 ==============================================
 Depth-Aware Motion Deblurring in Stereo Images
@@ -75,8 +76,7 @@ Evaluation
     \newpage
 
 
-++++++++++++
-Bibliography
-++++++++++++
+.. raw:: LaTex
 
-.. include:: chapters/bibliography.rst
+    \bibliography{references}
+    \bibliographystyle{alpha}
