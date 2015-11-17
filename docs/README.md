@@ -5,7 +5,7 @@
 
 The study thesis are written in [restructuredText][rst] because of its
 simplicity and better readability compared with pure LaTex. I use the following
-pipline to generate the final PDF:
+pipeline to generate the final PDF:
 
     restructuredText -> LaTex -> PDF
 
@@ -23,13 +23,13 @@ mkvirtualenv --python=$(which python3) study-thesis
 pip install docutils watchdog
 ```
 
-For a fany syntax highlighting in Sublime Text, you can install *RestructuredText Improved* via [Package Control][subl-control].
+For a fancy syntax highlighting in Sublime Text, you can install *RestructuredText Improved* via [Package Control][subl-control].
 
 
 
 ### Generate PDF from restructured Text
 
-Use *watch* for automatically compiling the PDF everytime the text file is saved:
+Use *watch* for automatically compiling the PDF every time the text file is saved:
 
 ```bash
 # activate virutal environment
@@ -40,7 +40,18 @@ cd docs
 ./watch
 ```
 
-Use the *compile.sh* from the docs folder. For cleaning up everything use the *clear.sh*
+For manually compiling use the following command:
+
+```bash
+# activate virutal environment
+workon study-thesis
+
+# compile study-thesis.rst
+cd docs
+./compile.sh study-thesis
+```
+
+The PDF file can be found in docs/build. For cleaning up everything use the *clear.sh*
 
 
 
