@@ -1,12 +1,16 @@
 #!/bin/bash
+#
+# usage ./compile <filename>
+
+filename=$1
 
 # Generate LaTex source with Python's docutils
-rst2latex theory.rst > build/theory.tex
+rst2latex.py $filename.rst > build/$filename.tex
 
 cd build
 
 # First compiler pass
-xelatex theory.tex
+xelatex $filename.tex
 
 # Compile twice to get the correct references
-xelatex theory.tex
+xelatex $filename.tex
