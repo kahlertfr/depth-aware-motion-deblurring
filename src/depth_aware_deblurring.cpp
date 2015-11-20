@@ -66,16 +66,20 @@ namespace DepthAwareDeblurring {
                                                   150,   // speckleWindowSize (default: 0, 50-200)
                                                   2);    // speckleRange (default: 0)
                                                   
-
-        sgbm->compute(blurredLeftSmall, blurredRightSmall, disparityMap);
+        Mat disparityMapSmall;
+        sgbm->compute(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
 
         // check its extreme values
         double minVal; double maxVal;
-        minMaxLoc( disparityMap, &minVal, &maxVal );
-        cout << "Min disp: " << minVal << " Max value: " << maxVal<< endl;
+        minMaxLoc( disparityMapSmall, &minVal, &maxVal );
+        cout << "disparity min: " << minVal << " max: " << maxVal<< endl;
 
         // convert disparity map to grayvalues
-        disparityMap.convertTo(disparityMap, CV_8UC1, 255/(maxVal - minVal));
+        disparityMapSmall.convertTo(disparityMapSmall, CV_8UC1, 255/(maxVal - minVal));
+
+        // upsample disparity map to original resolution
+        pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
+
         imshow("disparity", disparityMap);
     }
 
