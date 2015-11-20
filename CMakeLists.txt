@@ -7,7 +7,9 @@ if (CMAKE_COMPILER_IS_GNUCC)
   set(CMAKE_CXX_FLAGS "-std=c++0x")
 endif()
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3 REQUIRED)
+
+message(STATUS "${OpenCV_INCLUDE_DIRS}")
 
 # were does the binaries and libs are delivered?
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)

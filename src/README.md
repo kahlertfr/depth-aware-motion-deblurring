@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- [OpenCV 3.0](http://opencv.org/).
+- [OpenCV 3.0](http://opencv.org/). [Installation guide][OpenCV-install]
 
 
 
@@ -21,3 +21,6 @@ make
 
 # Executable can be found in build/bin
 ```
+
+
+[OpenCV-install]: http://docs.opencv.org/3.0-beta/doc/tutorials/introduction/table_of_content_introduction/table_of_content_introduction.html#table-of-content-introduction
