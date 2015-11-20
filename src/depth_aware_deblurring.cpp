@@ -10,15 +10,27 @@
 */
 
 #include <iostream>  // cout, cerr, endl
+#include <opencv2/highgui/highgui.hpp>
 
 using namespace std;
+using namespace cv;
 
 namespace DepthAwareDeblurring {
 
     /**
      * Starts the algorithm
      */
-    void runAlgorithm(string imageLeft, string imageRight) {
-        cout << "start..." << endl;
+    void runAlgorithm(string filenameLeft, string filenameRight) {
+        cout << "loads images..." << endl;
+
+        Mat blurredLeft, blurredRight;
+        blurredLeft = imread(filenameLeft, 1);
+        blurredRight = imread(filenameRight, 1);
+
+        imshow("Blurred left image", blurredLeft);
+        imshow("Blurred right image", blurredRight);
+
+        // Wait for a key stroke
+        waitKey(0);
     }
 }
