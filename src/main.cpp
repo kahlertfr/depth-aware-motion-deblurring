@@ -4,8 +4,8 @@
  *
  * Description:
  * ------------
- * Reference Implemenatation of Depth-Aware Motion Deblurring Algorithm
- * by Xu and Jia.
+ * Reference Implemenatation of the Depth-Aware Motion Deblurring
+ * Algorithm by Xu and Jia.
  *
  ************************************************************************
 */
@@ -14,12 +14,13 @@
 #include <string>       // stoi
 
 #include "argtable3.h"  // cross platform command line parsing
+#include "depth_aware_deblurring.cpp"
 
 using namespace std;
 
 // global structs for command line parsing
 struct arg_lit *help;
-struct arg_file *left_image, *right_image;
+struct arg_file *leftImage, *rightImage;
 struct arg_end *end_args;
 
 /**
@@ -34,8 +35,8 @@ static bool parse_commandline_args(int argc, char** argv,
     // the global arg_xxx structs are initialised within the argtable
     void *argtable[] = {
         help        = arg_litn("h", "help", 0, 1, "display this help and exit"),
-        left_image  = arg_filen(nullptr, nullptr, "<left image>", 1, 1, "left image"),
-        right_image = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
+        leftImage  = arg_filen(nullptr, nullptr, "<left image>", 1, 1, "left image"),
+        rightImage = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
         end_args    = arg_end(20),
     };
 
@@ -70,8 +71,8 @@ static bool parse_commandline_args(int argc, char** argv,
 
     // saving arguments in variables
     // path to input model
-    left = left_image->filename[0];
-    right = right_image->filename[0];
+    left = leftImage->filename[0];
+    right = rightImage->filename[0];
 
     // deallocate each non-null entry in argtable[]
     arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
@@ -82,12 +83,12 @@ static bool parse_commandline_args(int argc, char** argv,
 
 int main(int argc, char** argv) {
     // path to models
-    string image_left;
-    string image_right;
+    string imageLeft;
+    string imageRight;
 
     // parse commandline arguments
     int exitcode = 0;
-    bool success = parse_commandline_args(argc, argv, image_left, image_right, exitcode);
+    bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, exitcode);
 
     if (success == false) {
         return exitcode;
@@ -95,10 +96,11 @@ int main(int argc, char** argv) {
 
     // run algorithm
     cout << "Start Depth-Aware Motion Deblurring with" << endl;
-    cout << "   image:  " << image_left << endl;
+    cout << "   image left:  " << imageLeft << endl;
+    cout << "   image right: " << imageRight << endl;
     cout << endl;
 
-    // TODO: algorithm
+    DepthAwareDeblurring::runAlgorithm(imageLeft, imageRight);
     
     return 0;
 }
