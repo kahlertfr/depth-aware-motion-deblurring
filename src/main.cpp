@@ -12,6 +12,7 @@
 
 #include <iostream>     // cout, cerr, endl
 #include <string>       // stoi
+#include <stdexcept>
 
 #include "argtable3.h"  // cross platform command line parsing
 #include "depth_aware_deblurring.cpp"
@@ -100,7 +101,13 @@ int main(int argc, char** argv) {
     cout << "   image right: " << imageRight << endl;
     cout << endl;
 
-    DepthAwareDeblurring::runAlgorithm(imageLeft, imageRight);
+    try {
+        DepthAwareDeblurring::runAlgorithm(imageLeft, imageRight);
+    }
+    catch(const exception& e) {
+        cerr << "ERROR: " << e.what() << endl;
+        return EXIT_FAILURE;
+    }
     
     return 0;
 }
