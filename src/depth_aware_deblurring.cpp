@@ -5,7 +5,22 @@
  * Description:
  * ------------
  * Reference Implemenatation of the Depth-Aware Motion Deblurring
- * Algorithm by Xu and Jia.
+ * Algorithm by Xu and Jia (2012).
+ *
+ * Algorithm:
+ * First-Pass Estimation
+ * 1. Stereo-matching-based disparity estimation
+ * 2. Region-tree construction
+ * 3. PSF estimation for top-level regions in trees
+ *     3.1 PSF refinement
+ *     3.2 PSF candidate generation and selection
+ * 4. If not leaf-level propagate PSF estimation to lower-level regions
+ *   and go to step 3.1
+ * 5. Blur removal given the PSF estimation
+ *
+ * Second-Pass Estimation
+ * 6. Update disparities based on the deblurred images
+ * 7. PSF estimation by repeating STeps 2-5
  * 
  ************************************************************************
 */
@@ -79,7 +94,7 @@ namespace DepthAwareDeblurring {
 
         // upsample disparity map to original resolution
         pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
-
+        
         imshow("disparity", disparityMap);
     }
 
