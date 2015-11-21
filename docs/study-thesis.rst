@@ -22,7 +22,7 @@ Study Thesis
     \newpage
 
 .. contents:: Table of Contents
-   :depth: 2
+   :depth: 3
 
 .. raw:: LaTex
 
@@ -30,7 +30,7 @@ Study Thesis
 
 
 .. section-numbering::
-    :depth: 2
+    :depth: 3
 
 ++++++++++++
 Introduction
