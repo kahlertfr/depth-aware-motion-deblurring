@@ -37,7 +37,42 @@ using namespace cv;
 namespace DepthAwareDeblurring {
 
     /**
-     * Disparity estimation of two blurred images.
+     * Uses OpenCV semi global block matching algorithmus to obtain
+     * a disparity map with occlusion as black regions
+     *
+     */
+    void semiGlobalBlockMatching(const Mat &left, const Mat &right, Mat &disparityMap) {
+        // set up stereo block match algorithm
+        // (found nice parameter values for a good result on many images)
+        Ptr<StereoSGBM> sgbm = StereoSGBM::create(-64,   // minimum disparity
+                                                  16*12, // Range of disparity
+                                                  5,     // Size of the block window. Must be odd
+                                                  800,   // P1 disparity smoothness (default: 0)
+                                                         // penalty for disparity changes +/- 1
+                                                  2400,  // P2 disparity smoothness (default: 0)
+                                                         // penalty for disparity changes more than 1
+                                                  10,    // disp12MaxDiff (default: 0)
+                                                  4,     // preFilterCap (default: 0)
+                                                  1,     // uniquenessRatio (default: 0)
+                                                  150,   // speckleWindowSize (default: 0, 50-200)
+                                                  2);    // speckleRange (default: 0)
+                                                  
+        sgbm->compute(left, right, disparityMap);
+
+        // get its extreme values
+        double minVal; double maxVal;
+        minMaxLoc(disparityMap, &minVal, &maxVal);
+        cout << minVal << " " << maxVal << endl;
+
+        // convert disparity map to values between 0 and 255
+        // scale factor for convertion is: 255 / (max - min)
+        disparityMap.convertTo(disparityMap, CV_8UC1, 255/(maxVal - minVal));
+    }
+
+
+    /**
+     * Disparity estimation of two blurred images
+     * from both direction left to right and right to left
      *  
      */
     void disparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
@@ -57,52 +92,24 @@ namespace DepthAwareDeblurring {
         imshow("blurred left image", blurredLeftSmall);
         imshow("blurred right image", blurredRightSmall);
 
-        // the following steps aren't exactly the ones from the paper.
-        // We will use a different algorithm to obtain the disparity map
-        // because this shouldn't have any effect of the overall result,
-        // 
         // convert color images to gray images
         cvtColor(blurredLeftSmall, blurredLeftSmall, CV_BGR2GRAY);
         cvtColor(blurredRightSmall, blurredRightSmall, CV_BGR2GRAY);
 
-        // set up stereo block match algorithm
-        // (found nice parameter values for a good result on many images)
-        Ptr<StereoSGBM> sgbm = StereoSGBM::create(-64,   // minimum disparity
-                                                  16*12, // Range of disparity
-                                                  5,     // Size of the block window. Must be odd
-                                                  800,   // P1 disparity smoothness (default: 0)
-                                                         // penalty for disparity changes +/- 1
-                                                  2400,  // P2 disparity smoothness (default: 0)
-                                                         // penalty for disparity changes more than 1
-                                                  10,    // disp12MaxDiff (default: 0)
-                                                  4,     // preFilterCap (default: 0)
-                                                  1,     // uniquenessRatio (default: 0)
-                                                  150,   // speckleWindowSize (default: 0, 50-200)
-                                                  2);    // speckleRange (default: 0)
-                                                  
+        // disparity map with occlusions as black regions
+        // 
+        // here a different algorithm as the paper approach is used
+        // because it is more convinient to use a OpenCV implementation.
         Mat disparityMapSmall;
-        sgbm->compute(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
+        semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
 
-        // get its extreme values
-        double minVal; double maxVal;
-        minMaxLoc( disparityMapSmall, &minVal, &maxVal );
-
-        // convert disparity map to values between 0 and 255
-        // scale factor for convertion is: 255 / (max - min)
-        disparityMapSmall.convertTo(disparityMapSmall, CV_8UC1, 255/(maxVal - minVal));
-        minMaxLoc(disparityMapSmall, &minVal, &maxVal);
+        // TODO: fill occlusion with smallest neighborhood disparity
+        // (because just relatively small disparities can be occluded)
         
-        // // black regions are occlusions
-        // // make them white for better visualization
-        // Mat mask;
-        // inRange(disparityMapSmall, Scalar(0), Scalar(0), mask);
-        // Mat white_image(disparityMapSmall.size(), CV_8U, Scalar(255));
-        // white_image.copyTo(disparityMapSmall, mask);
-
         // upsample disparity map to original resolution
         pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
         
-        imshow("disparity", disparityMap);
+        imshow("disparity left to right", disparityMap);
     }
 
 
