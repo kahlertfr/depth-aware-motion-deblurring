@@ -37,7 +37,58 @@ using namespace cv;
 namespace DepthAwareDeblurring {
 
     /**
-     * Uses OpenCV semi global block matching algorithmus to obtain
+     * Fills pixel in a given range with a given uchar.
+     * 
+     */
+    void fillPixel(Mat &iamge, Point start, Point end, uchar color) {
+        for (int row = start.y; row <= end.y; row++) {
+            for (int col = start.x; col <= end.x; col++) {
+                iamge.at<uchar>(row, col) = color;
+            }
+        }
+    }
+
+
+    /**
+     * Fills occlusion regions with smallest neighborhood disparity (in a row)
+     * because just relatively small disparities can be occluded.
+     * 
+     */
+    void fillOcclusionRegions(Mat &disparityMap, int threshold = 0) {
+        uchar minDisparity = 255;
+        Point start(-1,-1);
+
+        // go through each pixel
+        for (int row = 0; row < disparityMap.rows; row++) {
+            for (int col = 0; col < disparityMap.cols; col++) {
+                uchar value = disparityMap.at<uchar>(row, col);
+
+                // check if in occluded region
+                if (start != Point(-1, -1)) {
+                    // found next disparity or reached end of the row
+                    if (value > threshold || col == disparityMap.cols - 1) {
+
+                        // compare current disparity - find smallest
+                        minDisparity = (minDisparity < value || col == disparityMap.cols - 1) ? minDisparity : value;
+                        // fill whole region and reset the start point of the region
+                        fillPixel(disparityMap, start, Point(col, row), minDisparity);
+                        start = Point(-1,-1);
+                    }
+                } else {
+                    // found new occluded pixel
+                    if (value <= threshold) {
+                        // there is no left neighbor at column 0 so check it
+                        minDisparity = (col > 0) ? disparityMap.at<uchar>(row, col - 1) : 255;
+                        start = Point(col, row);
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Uses OpenCVs semi global block matching algorithmus to obtain
      * a disparity map with occlusion as black regions
      *
      */
@@ -62,7 +113,6 @@ namespace DepthAwareDeblurring {
         // get its extreme values
         double minVal; double maxVal;
         minMaxLoc(disparityMap, &minVal, &maxVal);
-        cout << minVal << " " << maxVal << endl;
 
         // convert disparity map to values between 0 and 255
         // scale factor for convertion is: 255 / (max - min)
@@ -100,11 +150,16 @@ namespace DepthAwareDeblurring {
         // 
         // here a different algorithm as the paper approach is used
         // because it is more convinient to use a OpenCV implementation.
+        // TODO: functions pointer
         Mat disparityMapSmall;
         semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
 
-        // TODO: fill occlusion with smallest neighborhood disparity
-        // (because just relatively small disparities can be occluded)
+        // fill occlusion regions (= value < 10)
+        fillOcclusionRegions(disparityMapSmall, 10);
+
+        double minVal; double maxVal;
+        minMaxLoc(disparityMapSmall, &minVal, &maxVal);
+        cout << maxVal << " " << minVal << endl;
         
         // upsample disparity map to original resolution
         pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
