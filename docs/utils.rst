@@ -6,3 +6,12 @@
 .. raw:: LaTex
 
    \providecommand*\DUrolecite[1]{\cite{#1}}
+
+
+.. colored text
+
+.. role:: red
+
+.. raw:: LaTex
+
+    \providecommand*\DUrolered[1]{{\color{red} {#1}}}
