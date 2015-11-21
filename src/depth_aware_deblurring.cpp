@@ -66,8 +66,7 @@ namespace DepthAwareDeblurring {
         cvtColor(blurredRightSmall, blurredRightSmall, CV_BGR2GRAY);
 
         // set up stereo block match algorithm
-        int ndisparities = 16*5;  
-        int SADWindowSize = 21;   
+        // (found nice parameter values for a good result on many images)
         Ptr<StereoSGBM> sgbm = StereoSGBM::create(-64,   // minimum disparity
                                                   16*12, // Range of disparity
                                                   5,     // Size of the block window. Must be odd
@@ -84,19 +83,28 @@ namespace DepthAwareDeblurring {
         Mat disparityMapSmall;
         sgbm->compute(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
 
-        // check its extreme values
+        // get its extreme values
         double minVal; double maxVal;
         minMaxLoc( disparityMapSmall, &minVal, &maxVal );
-        cout << "disparity min: " << minVal << " max: " << maxVal<< endl;
 
-        // convert disparity map to grayvalues
+        // convert disparity map to values between 0 and 255
+        // scale factor for convertion is: 255 / (max - min)
         disparityMapSmall.convertTo(disparityMapSmall, CV_8UC1, 255/(maxVal - minVal));
+        minMaxLoc(disparityMapSmall, &minVal, &maxVal);
+        
+        // // black regions are occlusions
+        // // make them white for better visualization
+        // Mat mask;
+        // inRange(disparityMapSmall, Scalar(0), Scalar(0), mask);
+        // Mat white_image(disparityMapSmall.size(), CV_8U, Scalar(255));
+        // white_image.copyTo(disparityMapSmall, mask);
 
         // upsample disparity map to original resolution
         pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
         
         imshow("disparity", disparityMap);
     }
+
 
     /**
      * Starts alogrithm with given blurred images as
@@ -117,6 +125,7 @@ namespace DepthAwareDeblurring {
         // Wait for a key stroke
         waitKey(0);
     }
+
 
     /**
      * Loads images from given filenames and starts the algorithm
