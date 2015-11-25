@@ -39,8 +39,12 @@ namespace DepthAwareDeblurring {
     /**
      * Fills pixel in a given range with a given uchar.
      * 
+     * @param image image to work on
+     * @param start starting point
+     * @param end   end point
+     * @param color color for filling
      */
-    void fillPixel(Mat &image, Point start, Point end, uchar color) {
+    void fillPixel(Mat &image, const Point start, const Point end, const uchar color) {
         for (int row = start.y; row <= end.y; row++) {
             for (int col = start.x; col <= end.x; col++) {
                 image.at<uchar>(row, col) = color;
@@ -54,8 +58,10 @@ namespace DepthAwareDeblurring {
      * with smallest neighborhood disparity (in a row) because just relatively small 
      * disparities can be occluded.
      * 
+     * @param disparityMap disparity map where occlusions will be filled
+     * @param threshold    threshold for detecting occluded regions
      */
-    void fillOcclusionRegions(Mat &disparityMap, int threshold = 0) {
+    void fillOcclusionRegions(Mat &disparityMap, const int threshold = 0) {
         uchar minDisparity = 255;
         Point start(-1,-1);
 
@@ -93,7 +99,10 @@ namespace DepthAwareDeblurring {
     /**
      * Uses OpenCVs semi global block matching algorithm to obtain
      * a disparity map with occlusion as black regions
-     *
+     * 
+     * @param left         left image
+     * @param right        right image
+     * @param disparityMap disparity with occlusions
      */
     void semiGlobalBlockMatching(const Mat &left, const Mat &right, Mat &disparityMap) {
         // set up stereo block match algorithm
@@ -124,11 +133,16 @@ namespace DepthAwareDeblurring {
 
 
     /**
-     * Disparity estimation of two blurred images
-     *  
+     * Step 1: Disparity estimation of two blurred images
+     * where occluded regions are filled and the disparity map quantized.
+     * 
+     * @param blurredLeft  left blurred input image
+     * @param blurredRight right blurred input image
+     * @param l            quantizes disparity values until l regions remains
+     * @param disparityMap quantized disparity map
      */
-    void disparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
-                             Mat &disparityMap) {
+    void quantizedDisparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
+                                      const int l, Mat &disparityMap) {
 
         // down sample images to roughly reduce blur for disparity estimation
         Mat blurredLeftSmall, blurredRightSmall;
@@ -167,13 +181,15 @@ namespace DepthAwareDeblurring {
         // up sample disparity map to original resolution
         pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
         
-        imshow("disparity left to right", disparityMap);
+        imshow("disparity map", disparityMap);
     }
 
 
     /**
-     * Starts algorithm with given blurred images as OpenCV matrices
+     * Starts depth-aware motion deblurring algorithm with given blurred images (matrices)
      * 
+     * @param blurredLeft  OpenCV matrix of blurred left image
+     * @param blurredRight OpenCV matrix of blurred right image
      */
     void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight) {
         // check if images have the same size
@@ -183,7 +199,10 @@ namespace DepthAwareDeblurring {
 
         // initial disparity estimation of blurred images
         Mat disparityMap;
-        disparityEstimation(blurredLeft, blurredRight, disparityMap);
+
+        // quantization factor is approximated PSF width/height
+        int l = 10;
+        quantizedDisparityEstimation(blurredLeft, blurredRight, l, disparityMap);
         
         // to be continued ...
 
@@ -193,10 +212,13 @@ namespace DepthAwareDeblurring {
 
 
     /**
-     * Loads images from given filenames and starts the algorithm
+     * Loads images from given filenames and then starts the depth-aware motion 
+     * deblurring algorithm
      * 
+     * @param filenameLeft  relative or absolute path to blurred left image
+     * @param filenameRight relative or absolute path to blurred right image
      */
-    void runAlgorithm(string filenameLeft, string filenameRight) {
+    void runAlgorithm(const string filenameLeft, const string filenameRight) {
         cout << "loads images..." << endl;
 
         Mat blurredLeft, blurredRight;
