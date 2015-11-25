@@ -4,7 +4,7 @@
  *
  * Description:
  * ------------
- * Reference Implemenatation of the Depth-Aware Motion Deblurring
+ * Reference Implementation of the Depth-Aware Motion Deblurring
  * Algorithm by Xu and Jia.
  *
  ************************************************************************
@@ -33,7 +33,7 @@ static bool parse_commandline_args(int argc, char** argv,
                                    int &exitcode) {
     
     // command line options
-    // the global arg_xxx structs are initialised within the argtable
+    // the global arg_xxx structs are initialized within the argtable
     void *argtable[] = {
         help        = arg_litn("h", "help", 0, 1, "display this help and exit"),
         leftImage  = arg_filen(nullptr, nullptr, "<left image>", 1, 1, "left image"),
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     string imageLeft;
     string imageRight;
 
-    // parse commandline arguments
+    // parse command line arguments
     int exitcode = 0;
     bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, exitcode);
 

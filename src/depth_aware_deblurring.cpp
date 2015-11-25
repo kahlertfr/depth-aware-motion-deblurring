@@ -4,7 +4,7 @@
  *
  * Description:
  * ------------
- * Reference Implemenatation of the Depth-Aware Motion Deblurring
+ * Reference Implementation of the Depth-Aware Motion Deblurring
  * Algorithm by Xu and Jia (2012).
  *
  * Algorithm:
@@ -20,16 +20,16 @@
  *
  * Second-Pass Estimation
  * 6. Update disparities based on the deblurred images
- * 7. PSF estimation by repeating STeps 2-5
+ * 7. PSF estimation by repeating Steps 2-5
  * 
  ************************************************************************
 */
 
-#include <iostream>   // cout, cerr, endl
-#include <stdexcept>  // throw exception
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/calib3d/calib3d.hpp>
+#include <iostream>                     // cout, cerr, endl
+#include <stdexcept>                    // throw exception
+#include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
+#include <opencv2/imgproc/imgproc.hpp>  // convert
+#include <opencv2/calib3d/calib3d.hpp>  // sgbm
 
 using namespace std;
 using namespace cv;
@@ -40,18 +40,19 @@ namespace DepthAwareDeblurring {
      * Fills pixel in a given range with a given uchar.
      * 
      */
-    void fillPixel(Mat &iamge, Point start, Point end, uchar color) {
+    void fillPixel(Mat &image, Point start, Point end, uchar color) {
         for (int row = start.y; row <= end.y; row++) {
             for (int col = start.x; col <= end.x; col++) {
-                iamge.at<uchar>(row, col) = color;
+                image.at<uchar>(row, col) = color;
             }
         }
     }
 
 
     /**
-     * Fills occlusion regions with smallest neighborhood disparity (in a row)
-     * because just relatively small disparities can be occluded.
+     * Fills occlusion regions (where the value is smaller than a given threshold) 
+     * with smallest neighborhood disparity (in a row) because just relatively small 
+     * disparities can be occluded.
      * 
      */
     void fillOcclusionRegions(Mat &disparityMap, int threshold = 0) {
@@ -67,9 +68,11 @@ namespace DepthAwareDeblurring {
                 if (start != Point(-1, -1)) {
                     // found next disparity or reached end of the row
                     if (value > threshold || col == disparityMap.cols - 1) {
-
                         // compare current disparity - find smallest
-                        minDisparity = (minDisparity < value || col == disparityMap.cols - 1) ? minDisparity : value;
+                        minDisparity = (minDisparity < value || col == disparityMap.cols - 1)
+                                       ? minDisparity
+                                       : value;
+
                         // fill whole region and reset the start point of the region
                         fillPixel(disparityMap, start, Point(col, row), minDisparity);
                         start = Point(-1,-1);
@@ -88,7 +91,7 @@ namespace DepthAwareDeblurring {
 
 
     /**
-     * Uses OpenCVs semi global block matching algorithmus to obtain
+     * Uses OpenCVs semi global block matching algorithm to obtain
      * a disparity map with occlusion as black regions
      *
      */
@@ -115,27 +118,27 @@ namespace DepthAwareDeblurring {
         minMaxLoc(disparityMap, &minVal, &maxVal);
 
         // convert disparity map to values between 0 and 255
-        // scale factor for convertion is: 255 / (max - min)
+        // scale factor for conversion is: 255 / (max - min)
         disparityMap.convertTo(disparityMap, CV_8UC1, 255/(maxVal - minVal));
     }
 
 
     /**
      * Disparity estimation of two blurred images
-     * from both direction left to right and right to left
      *  
      */
     void disparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
                              Mat &disparityMap) {
+
         // down sample images to roughly reduce blur for disparity estimation
-        // (down sampling ratio is 2)
         Mat blurredLeftSmall, blurredRightSmall;
 
         // because we checked that both images are of the same size
         // the new size is the same for both too
+        // (down sampling ratio is 2)
         Size downsampledSize = Size(blurredLeftSmall.cols / 2, blurredLeftSmall.rows / 2);
 
-        // downsample with Gaussian pyramid
+        // down sample with Gaussian pyramid
         pyrDown(blurredLeft, blurredLeftSmall, downsampledSize);
         pyrDown(blurredRight, blurredRightSmall, downsampledSize);
 
@@ -149,7 +152,7 @@ namespace DepthAwareDeblurring {
         // disparity map with occlusions as black regions
         // 
         // here a different algorithm as the paper approach is used
-        // because it is more convinient to use a OpenCV implementation.
+        // because it is more convenient to use a OpenCV implementation.
         // TODO: functions pointer
         Mat disparityMapSmall;
         semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
@@ -161,7 +164,7 @@ namespace DepthAwareDeblurring {
         minMaxLoc(disparityMapSmall, &minVal, &maxVal);
         cout << maxVal << " " << minVal << endl;
         
-        // upsample disparity map to original resolution
+        // up sample disparity map to original resolution
         pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
         
         imshow("disparity left to right", disparityMap);
@@ -169,8 +172,7 @@ namespace DepthAwareDeblurring {
 
 
     /**
-     * Starts alogrithm with given blurred images as
-     * OpenCV matrices
+     * Starts algorithm with given blurred images as OpenCV matrices
      * 
      */
     void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight) {
@@ -183,6 +185,7 @@ namespace DepthAwareDeblurring {
         Mat disparityMap;
         disparityEstimation(blurredLeft, blurredRight, disparityMap);
         
+        // to be continued ...
 
         // Wait for a key stroke
         waitKey(0);
