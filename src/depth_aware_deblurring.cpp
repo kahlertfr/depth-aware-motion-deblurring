@@ -133,6 +133,51 @@ namespace DepthAwareDeblurring {
 
 
     /**
+     * Quantizes a given picture with kmeans algorithm.
+     * 
+     * @param image          input image
+     * @param k              cluster number
+     * @param quantizedImage clustered image
+     */
+    void quantizeImage(const Mat& image, const int k, Mat& quantizedImage) {
+        // map the image to the samples
+        Mat samples(image.total(), 1, CV_32F);
+
+        for (int row = 0; row < image.rows; row++) {
+            for (int col = 0; col < image.cols; col++) {
+                    samples.at<float>(row + col * image.rows, 0) = image.at<uchar>(row, col);
+            }    
+        }
+
+        // kmeans clustering
+        Mat labels;
+        Mat centers;
+
+        kmeans(samples,                // input
+               k,                      // number of cluster
+               labels,                 // found labeling (1D array)
+               TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.0001), 
+                                       // termination criterion: here number of iterations
+               5,                      // attempts - execution with different inital labelings
+               KMEANS_RANDOM_CENTERS,  // flags: random initial centers
+               centers);               // output of cluster center
+
+        // map the clustering to an image
+        Mat newImage(image.size(), CV_32F);
+        for (int row = 0; row < image.rows; row++) {
+            for (int col = 0; col < image.cols; col++) {
+                // use color of cluster center for clustered image
+                int cluster_idx = labels.at<int>(row + col * image.rows, 0);
+
+                newImage.at<float>(row,col) = centers.at<float>(cluster_idx, 0);
+            }
+        }
+
+        newImage.copyTo(quantizedImage);
+    }
+
+
+    /**
      * Step 1: Disparity estimation of two blurred images
      * where occluded regions are filled and the disparity map quantized.
      * 
@@ -171,17 +216,27 @@ namespace DepthAwareDeblurring {
         Mat disparityMapSmall;
         semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
 
+        imshow("original disparity map", disparityMapSmall);
+
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(disparityMapSmall, 10);
 
-        double minVal; double maxVal;
-        minMaxLoc(disparityMapSmall, &minVal, &maxVal);
-        cout << maxVal << " " << minVal << endl;
+        imshow("disparity map with filled occlusion", disparityMapSmall);
+
+        // quantize the image
+        Mat quantizedDisparity;
+        cout << "quantize ..." << endl;
+        quantizeImage(disparityMapSmall, l, quantizedDisparity);
+
+        // convert quantized image to be displayable
+        double min; double max;
+        minMaxLoc(quantizedDisparity, &min, &max);
+        quantizedDisparity.convertTo(quantizedDisparity, CV_8U, 255.0/(max-min));
+
+        imshow("quantized disparity map", quantizedDisparity);
         
         // up sample disparity map to original resolution
-        pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
-        
-        imshow("disparity map", disparityMap);
+        pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
     }
 
 
@@ -198,12 +253,14 @@ namespace DepthAwareDeblurring {
         }
 
         // initial disparity estimation of blurred images
+        cout << "Step 1: disparity estimation ..." << endl;
         Mat disparityMap;
 
         // quantization factor is approximated PSF width/height
-        int l = 10;
+        int l = 13;
         quantizedDisparityEstimation(blurredLeft, blurredRight, l, disparityMap);
         
+        cout << "Step 2: region tree reconstruction ..." << endl;
         // to be continued ...
 
         // Wait for a key stroke
