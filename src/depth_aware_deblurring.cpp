@@ -222,11 +222,16 @@ namespace DepthAwareDeblurring {
         fillOcclusionRegions(disparityMapSmall, 10);
 
         imshow("disparity map with filled occlusion", disparityMapSmall);
+   
+        // additional step deviate from paper: smooth the disparity with a median filter
+        // to eliminate noise
+        Mat smooth(disparityMapSmall.size(), CV_8U);
+        medianBlur(disparityMapSmall, smooth, 7);
 
         // quantize the image
         Mat quantizedDisparity;
         cout << "quantize ..." << endl;
-        quantizeImage(disparityMapSmall, l, quantizedDisparity);
+        quantizeImage(smooth, l, quantizedDisparity);
 
         // convert quantized image to be displayable
         double min; double max;
