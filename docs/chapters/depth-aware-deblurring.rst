@@ -26,6 +26,17 @@ Occlusions are filled with smallest neighbor disparity. Assumption: just objects
 disparity can be occluded.
 
 
+Quantization
+''''''''''''
+
+:red:`PSF estimation is less extensive if the disparity layers are reduced.` quantize disparity 
+values to l regions, where l is set to approximate PSF width or height. :red:`how to approximate
+the PSF width/height?`
+
+Added smoothing with median filter (:red:`add reason for this filter`) before quantization to
+eliminate noise in disparity map
+
+
 Region-Tree Construction
 ------------------------
 
