@@ -25,6 +25,7 @@ pip install docutils watchdog
 
 For a fancy syntax highlighting in Sublime Text, you can install *RestructuredText Improved* via [Package Control][subl-control].
 
+A docutils.config has to be created to support subfigures.
 
 
 ### Generate PDF from restructured Text
