@@ -107,18 +107,40 @@ namespace DepthAwareDeblurring {
     void semiGlobalBlockMatching(const Mat &left, const Mat &right, Mat &disparityMap) {
         // set up stereo block match algorithm
         // (found nice parameter values for a good result on many images)
-        Ptr<StereoSGBM> sgbm = StereoSGBM::create(-64,   // minimum disparity
-                                                  16*12, // Range of disparity
-                                                  5,     // Size of the block window. Must be odd
-                                                  800,   // P1 disparity smoothness (default: 0)
-                                                         // penalty for disparity changes +/- 1
-                                                  2400,  // P2 disparity smoothness (default: 0)
-                                                         // penalty for disparity changes more than 1
-                                                  10,    // disp12MaxDiff (default: 0)
-                                                  4,     // preFilterCap (default: 0)
-                                                  1,     // uniquenessRatio (default: 0)
-                                                  150,   // speckleWindowSize (default: 0, 50-200)
-                                                  2);    // speckleRange (default: 0)
+        int minDis = -64;             // minimum disparity
+        int disRange = 16 * 10;       // range: Maximum disparity minus minimum disparity
+        int blockSize = 9;            // Matched block size (have to be odd: 3-11)
+        int p1 = 900;                 // P1 disparity smoothness (default: 0)
+                                      // penalty for disparity changes +/- 1
+        int p2 = 3000;                // P2 disparity smoothness (default: 0)
+                                      // penalty for disparity changes more than 1
+        int disp12MaxDiff = 2;        // Maximum allowed difference in the left-right disparity check
+        int preFilterCap = 20;        // Truncation value for the prefiltered image pixels
+        int uniquenessRatio = 1;      // Margin in percentage by which the best (minimum) computed cost
+                                      // function value should “win” the second best value to consider 
+                                      // the found match correct (5-15)
+        int speckleWindowSize = 150;  // Maximum size of smooth disparity regions (50-200)
+        int speckleRange = 1;         // Maximum disparity variation within each connected component (1-2)
+        bool fullDP = true;          // Set it to true to run the full-scale two-pass dynamic programming algorithm
+
+        // #ifndef NDEBUG
+        //     cout << "  parameter of SGBM" << endl;
+        //     cout << "    min disparity     " << minDis << endl;
+        //     cout << "    disparity range   " << disRange << endl;
+        //     cout << "    block size        " << blockSize << endl;
+        //     cout << "    P1                " << p1 << endl;
+        //     cout << "    P2                " << p2 << endl;
+        //     cout << "    disp12MaxDiff     " << disp12MaxDiff << endl;
+        //     cout << "    preFilterCap      " << preFilterCap << endl;
+        //     cout << "    uniquenessRatio   " << uniquenessRatio << endl;
+        //     cout << "    speckleWindowSize " << speckleWindowSize << endl;
+        //     cout << "    speckleRange      " << speckleRange << endl;
+        //     cout << "    fullDP            " << fullDP << endl;
+        // #endif
+
+        Ptr<StereoSGBM> sgbm = StereoSGBM::create(minDis, disRange, blockSize // );
+                                                , p1, p2, disp12MaxDiff, preFilterCap, uniquenessRatio,
+                                                speckleWindowSize, speckleRange, fullDP);
                                                   
         sgbm->compute(left, right, disparityMap);
 
@@ -187,7 +209,7 @@ namespace DepthAwareDeblurring {
      * @param disparityMap quantized disparity map
      */
     void quantizedDisparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
-                                      const int l, Mat &disparityMap) {
+                                      const int l, Mat &disparityMap, bool inverse=false) {
 
         // down sample images to roughly reduce blur for disparity estimation
         Mat blurredLeftSmall, blurredRightSmall;
@@ -216,42 +238,64 @@ namespace DepthAwareDeblurring {
         // because it is more convenient to use a OpenCV implementation.
         // TODO: functions pointer
         Mat disparityMapSmall;
+
+        // if the disparity is caculated from right to left flip the images
+        // because otherwise SGBM will not work
+        if (inverse) {
+            Mat blurredLeftFlipped, blurredRightFlipped;
+            flip(blurredLeftSmall, blurredLeftFlipped, 1);
+            flip(blurredRightSmall, blurredRightFlipped, 1);
+            blurredLeftFlipped.copyTo(blurredLeftSmall);
+            blurredRightFlipped.copyTo(blurredRightSmall);
+        }
+
         semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
 
+        // flip back the disparity map
+        if (inverse) {
+            Mat disparityFlipped;
+            flip(disparityMapSmall, disparityFlipped, 1);
+            disparityFlipped.copyTo(disparityMapSmall);
+        }
+
         #ifndef NDEBUG
-            imshow("original disparity map", disparityMapSmall);
-            imwrite("dmap_small.jpg", disparityMapSmall);
+            string prefix = (inverse) ? "inverse" : "";
+            imshow("original disparity map " + prefix, disparityMapSmall);
+            imwrite("dmap_small_" + prefix + ".jpg", disparityMapSmall);
         #endif
 
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(disparityMapSmall, 10);
 
-        #ifndef NDEBUG
-            imshow("disparity map with filled occlusion", disparityMapSmall);
-            imwrite("dmap_small_filled.jpg", disparityMapSmall);
-        #endif
-
-        // additional step deviate from paper: smooth the disparity with a median filter
-        // to eliminate noise
-        Mat smooth(disparityMapSmall.size(), CV_8U);
-        medianBlur(disparityMapSmall, smooth, 7);
-
-        // quantize the image
-        Mat quantizedDisparity;
-        quantizeImage(smooth, l, quantizedDisparity);
-
-        // convert quantized image to be displayable
-        double min; double max;
-        minMaxLoc(quantizedDisparity, &min, &max);
-        quantizedDisparity.convertTo(quantizedDisparity, CV_8U, 255.0/(max-min));
 
         #ifndef NDEBUG
-            imshow("quantized disparity map", quantizedDisparity);
-            imwrite("dmap_final.jpg", quantizedDisparity);
+            imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
+            imwrite("dmap_small_filled_" + prefix + ".jpg", disparityMapSmall);
         #endif
+
+        // // // additional step deviate from paper: smooth the disparity with a median filter
+        // // // to eliminate noise
+        // // Mat smooth(disparityMapSmall.size(), CV_8U);
+        // // medianBlur(disparityMapSmall, smooth, 7);
+
+        // // quantize the image
+        // Mat quantizedDisparity;
+        // quantizeImage(disparityMapSmall, l, quantizedDisparity);
+
+        // // convert quantized image to be displayable
+        // double min; double max;
+        // minMaxLoc(quantizedDisparity, &min, &max);
+        // quantizedDisparity.convertTo(quantizedDisparity, CV_8U, 255.0/(max-min));
+
+        // #ifndef NDEBUG
+        //     imshow("quantized disparity map " + prefix, quantizedDisparity);
+        //     imwrite("dmap_final_" + prefix + ".jpg", quantizedDisparity);
+        // #endif
+        
 
         // up sample disparity map to original resolution
-        pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
+        // pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
+        pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
     }
 
 
@@ -269,11 +313,15 @@ namespace DepthAwareDeblurring {
 
         // initial disparity estimation of blurred images
         cout << "Step 1: disparity estimation ..." << endl;
-        Mat disparityMap;
+        Mat disparityMap1;
+        Mat disparityMap2;
 
         // quantization factor is approximated PSF width/height
-        int l = 13;
-        quantizedDisparityEstimation(blurredLeft, blurredRight, l, disparityMap);
+        int l = 25;
+        cout << "... left to right" << endl;
+        quantizedDisparityEstimation(blurredLeft, blurredRight, l, disparityMap1);
+        cout << "... right to left" << endl;
+        quantizedDisparityEstimation(blurredRight, blurredLeft, l, disparityMap2, true);
         
         cout << "Step 2: region tree reconstruction ..." << endl;
         // to be continued ...
