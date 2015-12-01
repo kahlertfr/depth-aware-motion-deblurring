@@ -201,8 +201,10 @@ namespace DepthAwareDeblurring {
         pyrDown(blurredLeft, blurredLeftSmall, downsampledSize);
         pyrDown(blurredRight, blurredRightSmall, downsampledSize);
 
-        imshow("blurred left image", blurredLeftSmall);
-        imshow("blurred right image", blurredRightSmall);
+        #ifndef NDEBUG
+            imshow("blurred left image", blurredLeftSmall);
+            imshow("blurred right image", blurredRightSmall);
+        #endif
 
         // convert color images to gray images
         cvtColor(blurredLeftSmall, blurredLeftSmall, CV_BGR2GRAY);
@@ -216,13 +218,19 @@ namespace DepthAwareDeblurring {
         Mat disparityMapSmall;
         semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
 
-        imshow("original disparity map", disparityMapSmall);
+        #ifndef NDEBUG
+            imshow("original disparity map", disparityMapSmall);
+            imwrite("dmap_small.jpg", disparityMapSmall);
+        #endif
 
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(disparityMapSmall, 10);
 
-        imshow("disparity map with filled occlusion", disparityMapSmall);
-   
+        #ifndef NDEBUG
+            imshow("disparity map with filled occlusion", disparityMapSmall);
+            imwrite("dmap_small_filled.jpg", disparityMapSmall);
+        #endif
+
         // additional step deviate from paper: smooth the disparity with a median filter
         // to eliminate noise
         Mat smooth(disparityMapSmall.size(), CV_8U);
@@ -230,7 +238,6 @@ namespace DepthAwareDeblurring {
 
         // quantize the image
         Mat quantizedDisparity;
-        cout << "quantize ..." << endl;
         quantizeImage(smooth, l, quantizedDisparity);
 
         // convert quantized image to be displayable
@@ -238,8 +245,11 @@ namespace DepthAwareDeblurring {
         minMaxLoc(quantizedDisparity, &min, &max);
         quantizedDisparity.convertTo(quantizedDisparity, CV_8U, 255.0/(max-min));
 
-        imshow("quantized disparity map", quantizedDisparity);
-        
+        #ifndef NDEBUG
+            imshow("quantized disparity map", quantizedDisparity);
+            imwrite("dmap_final.jpg", quantizedDisparity);
+        #endif
+
         // up sample disparity map to original resolution
         pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
     }

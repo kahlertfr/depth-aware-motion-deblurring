@@ -16,7 +16,8 @@ mkdir build
 cd build
 
 # Create a build configuration
-cmake ..
+# CMAKE_BUILD_TYPE= Release for disabling output (doesn't show/save images ...)
+cmake -D CMAKE_BUILD_TYPE=Release ..
 make
 
 # Executable can be found in build/bin
