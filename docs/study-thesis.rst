@@ -76,6 +76,17 @@ Evaluation
     \newpage
 
 
+++++++++++
+Conclusion
+++++++++++
+
+.. include:: chapters/conclusion.rst
+
+.. raw:: LaTex
+
+    \newpage
+
+
 .. raw:: LaTex
 
     \bibliography{references}
