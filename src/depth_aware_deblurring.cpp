@@ -121,7 +121,7 @@ namespace DepthAwareDeblurring {
                                       // the found match correct (5-15)
         int speckleWindowSize = 150;  // Maximum size of smooth disparity regions (50-200)
         int speckleRange = 1;         // Maximum disparity variation within each connected component (1-2)
-        bool fullDP = true;          // Set it to true to run the full-scale two-pass dynamic programming algorithm
+        bool fullDP = true;           // Set it to true to run the full-scale two-pass dynamic programming algorithm
 
         // #ifndef NDEBUG
         //     cout << "  parameter of SGBM" << endl;
@@ -155,7 +155,17 @@ namespace DepthAwareDeblurring {
 
 
     /**
-     * Quantizes a given picture with kmeans algorithm.
+     * Compares a pair depending on its second value.
+     */
+    bool comparePairOnSecond (const pair<int, float> i, const pair<int, float>  j) { 
+        return (i.second < j.second);
+    }
+
+
+    /**
+     * Quantizes a given picture with kmeans algorithm and sorts the
+     * clustering depending on the color value of the cluster centers
+     * such that the clustering represents depth graduation.
      * 
      * @param image          input image
      * @param k              cluster number
@@ -184,14 +194,33 @@ namespace DepthAwareDeblurring {
                KMEANS_RANDOM_CENTERS,  // flags: random initial centers
                centers);               // output of cluster center
 
+        // sort clusters such that they represent the ordered disparities
+        // store pairs of (cluster, color) in a vector and sort it depending on the color
+        vector<pair<int, float>> clusters;
+        clusters.reserve(k);
+
+        for (int i = 0; i < k; i++) {
+            pair<int, float> cluster(i, centers.at<float>(i, 0));
+            clusters.push_back(cluster);
+        }
+
+        sort(clusters.begin(), clusters.end(), comparePairOnSecond);
+
+        // create mapping of old cluster to new (ordered) cluster
+        vector<int> mapping;
+        mapping.resize(k);
+
+        for (int i = 0; i < k; i++) {
+            mapping[clusters[i].first] = i;
+        }
+
         // map the clustering to an image
-        Mat newImage(image.size(), CV_32F);
+        Mat newImage(image.size(), CV_8U);
         for (int row = 0; row < image.rows; row++) {
             for (int col = 0; col < image.cols; col++) {
-                // use color of cluster center for clustered image
+                // store new cluster
                 int cluster_idx = labels.at<int>(row + col * image.rows, 0);
-
-                newImage.at<float>(row,col) = centers.at<float>(cluster_idx, 0);
+                newImage.at<uchar>(row,col) = mapping[cluster_idx];
             }
         }
 
@@ -201,12 +230,14 @@ namespace DepthAwareDeblurring {
 
     /**
      * Step 1: Disparity estimation of two blurred images
-     * where occluded regions are filled and the disparity map quantized.
+     * where occluded regions are filled and where the disparity map is 
+     * quantized to l regions.
      * 
      * @param blurredLeft  left blurred input image
      * @param blurredRight right blurred input image
      * @param l            quantizes disparity values until l regions remains
      * @param disparityMap quantized disparity map
+     * @param inverse      determine if the disparity is calculated from right to left
      */
     void quantizedDisparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
                                       const int l, Mat &disparityMap, bool inverse=false) {
@@ -259,43 +290,36 @@ namespace DepthAwareDeblurring {
         }
 
         #ifndef NDEBUG
-            string prefix = (inverse) ? "inverse" : "";
+            string prefix = (inverse) ? "_inverse" : "";
             imshow("original disparity map " + prefix, disparityMapSmall);
-            imwrite("dmap_small_" + prefix + ".jpg", disparityMapSmall);
+            imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
         #endif
 
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(disparityMapSmall, 10);
 
-
         #ifndef NDEBUG
             imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
-            imwrite("dmap_small_filled_" + prefix + ".jpg", disparityMapSmall);
+            imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
         #endif
 
-        // // // additional step deviate from paper: smooth the disparity with a median filter
-        // // // to eliminate noise
-        // // Mat smooth(disparityMapSmall.size(), CV_8U);
-        // // medianBlur(disparityMapSmall, smooth, 7);
+        // quantize the image
+        Mat quantizedDisparity;
+        quantizeImage(disparityMapSmall, l, quantizedDisparity);
 
-        // // quantize the image
-        // Mat quantizedDisparity;
-        // quantizeImage(disparityMapSmall, l, quantizedDisparity);
+        #ifndef NDEBUG
+            // convert quantized image to be displayable
+            Mat disparityViewable;
+            double min; double max;
+            minMaxLoc(quantizedDisparity, &min, &max);
+            quantizedDisparity.convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
-        // // convert quantized image to be displayable
-        // double min; double max;
-        // minMaxLoc(quantizedDisparity, &min, &max);
-        // quantizedDisparity.convertTo(quantizedDisparity, CV_8U, 255.0/(max-min));
-
-        // #ifndef NDEBUG
-        //     imshow("quantized disparity map " + prefix, quantizedDisparity);
-        //     imwrite("dmap_final_" + prefix + ".jpg", quantizedDisparity);
-        // #endif
-        
+            imshow("quantized disparity map " + prefix, disparityViewable);
+            imwrite("dmap_final" + prefix + ".jpg", disparityViewable);
+        #endif
 
         // up sample disparity map to original resolution
-        // pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
-        pyrUp(disparityMapSmall, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
+        pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
     }
 
 
