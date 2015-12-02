@@ -30,16 +30,12 @@ Disparity Estimation
 Disparity Map
 '''''''''''''
 
-- :red:`Find disparity map of a blurred stereo image pair.`
+- :red:`Find disparity maps of a blurred stereo image pair: left to right and right to left`
 - :red:`down-sampling for blur reducing`
 - :red:`different stereo algorithm as in paper. This shouldn't effect overall result.` Using SGBM :cite:`Hi2007`
+- :red:`comments on SGBM parameters: choose of regularization term for smoothing, min disparity?`
+- :red:`right to left: flip images such that SGBM works`
 - :red:`violation of stereo matching condition. handle boundary pixel separately`
-
-.. figure:: ../images/dmap_small.jpg
-   :width: 250 pt
-   :alt: disparity map
-
-   disparity map with occlusions
 
 
 Occlusions
@@ -51,11 +47,22 @@ because SGBM handles occluded regions already.
 Occlusions are filled with smallest neighbor disparity. Assumption: just objects with small
 disparity can be occluded.
 
-.. figure:: ../images/dmap_small_filled.jpg
-   :width: 250 pt
-   :alt: disparity map filled
+.. raw:: LaTex
 
-   disparity map with filled occlusions
+    \begin{figure}[!ht]
+        \centering
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/dmap_small.jpg}
+            \caption{with occlusions}
+        \end{subfigure}%
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/dmap_small_filled.jpg}
+            \caption{with filled occlusions}
+        \end{subfigure}
+        \caption{disparity map}
+    \end{figure}
 
 
 Quantization
@@ -65,14 +72,14 @@ Quantization
 values to l regions, where l is set to approximate PSF width or height. :red:`how to approximate
 the PSF width/height?`
 
-Added smoothing with median filter (:red:`add reason for this filter`) before quantization to
-eliminate noise in disparity map
+- :red:`using k-means for clustering`
+- :red:`sort clusters for representing depth graduation`
 
 .. figure:: ../images/dmap_final.jpg
-   :width: 250 pt
+   :width: 200 pt
    :alt: disparity map quantized
 
-   Final disparity map
+   quantized disparity map with 25 regions
 
 
 Region-Tree Construction
