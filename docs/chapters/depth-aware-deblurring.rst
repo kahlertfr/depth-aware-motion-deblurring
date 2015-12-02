@@ -32,7 +32,7 @@ Disparity Map
 
 - :red:`Find disparity map of a blurred stereo image pair.`
 - :red:`down-sampling for blur reducing`
-- :red:`different stereo algorithm as in paper. This shouldn't effect overall result`
+- :red:`different stereo algorithm as in paper. This shouldn't effect overall result.` Using SGBM :cite:`Hi2007`
 - :red:`violation of stereo matching condition. handle boundary pixel separately`
 
 .. figure:: ../images/dmap_small.jpg
