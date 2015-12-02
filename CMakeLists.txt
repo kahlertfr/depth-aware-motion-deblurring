@@ -16,5 +16,34 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# include src directory
-add_subdirectory(src/)
+# Header files are separated from the source to increase
+# interface abstraction
+include_directories(include/)
+
+# -------------------------
+# Motion deblurring library
+# -------------------------
+set(LIB_SOURCES src/depth_aware_deblurring.cpp
+                src/disparity_estimation.cpp)
+add_library(libmdeblur SHARED ${LIB_SOURCES})
+set_target_properties(libmdeblur PROPERTIES
+                                 OUTPUT_NAME "mdeblur")
+target_link_libraries(libmdeblur ${OpenCV_LIBS})
+
+# The main.cc is just the command line interface for the library. Using this
+# separation you can use the library functions independently of the 
+# executable
+add_executable(motion-deblurring src/main.cpp src/argtable3.c)
+target_link_libraries(motion-deblurring libmdeblur)
+
+# ------------
+# Installation
+# ------------
+#install(TARGETS libmdeblur motion-deblurring 
+#        RUNTIME DESTINATION bin
+#        LIBRARY DESTINATION lib
+#        ARCHIVE DESTINATION lib)
+
+#install(DIRECTORY include/
+#        DESTINATION include/motion_deblurring
+#        FILES_MATCHING PATTERN "*.hpp")

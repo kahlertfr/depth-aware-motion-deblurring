@@ -15,7 +15,7 @@
 #include <stdexcept>
 
 #include "argtable3.h"  // cross platform command line parsing
-#include "depth_aware_deblurring.cpp"
+#include "depth_aware_deblurring.hpp"
 
 using namespace std;
 
