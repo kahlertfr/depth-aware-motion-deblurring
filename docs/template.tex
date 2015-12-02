@@ -1,0 +1,32 @@
+% Custom xelatex template for my study thesis. It ignores some of the template
+% variables and replaces its content by own defintions. Doing so, we have more
+% control over the output.
+%
+% The following tempate variables are ignored:
+% 
+%   - head_prefix
+%   - requirements  (loads wrong encoding packages)
+%   - latex_preamble
+%
+\documentclass[a4paper]{article}
+
+\usepackage[no-sscript]{xltxtra}  % loads fixltx2e, metalogo, xunicode, fontspec
+\usepackage{ifthen}
+\usepackage{float}          % float configuration
+\floatplacement{figure}{H}  % place figures here definitely
+\usepackage{graphicx}
+\setcounter{secnumdepth}{0}
+\usepackage{tabularx}
+\usepackage{subcaption}
+
+%%% User specified packages and stylesheets
+$stylesheet
+
+%%% Fallback definitions for Docutils-specific commands
+$fallbacks$pdfsetup
+$titledata
+
+%%% Body
+\begin{document}
+$body_pre_docinfo$docinfo$dedication$abstract$body
+\end{document}

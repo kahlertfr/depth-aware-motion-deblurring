@@ -7,7 +7,7 @@ Depth-Aware Motion Deblurring in Stereo Images
 Study Thesis
 ============
 
-:Author: Franziska Krueger
+:Author: Franziska Krüger
 :Organization: TU Dresden
 :Contact: Franziska.Krueger1@tu-dresden.de
 :Date: 21/03/2016

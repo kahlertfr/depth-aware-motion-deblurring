@@ -5,7 +5,7 @@
 filename=$1
 
 # Generate LaTex source with Python's docutils
-rst2latex.py $filename.rst > build/$filename.tex
+rst2latex.py --template=template.tex $filename.rst > build/$filename.tex
 
 
 cp references.bib build/references.bib
