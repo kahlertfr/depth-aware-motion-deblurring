@@ -9,7 +9,7 @@ endif()
 
 find_package(OpenCV 3 REQUIRED)
 
-message(STATUS "${OpenCV_INCLUDE_DIRS}")
+message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
 
 # were does the binaries and libs are delivered?
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -23,6 +23,11 @@ include_directories(include/)
 # -------------------------
 # Motion deblurring library
 # -------------------------
+
+# Add paths to linker search and installed rpath
+# @see: https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 set(LIB_SOURCES src/depth_aware_deblurring.cpp
                 src/disparity_estimation.cpp)
 add_library(libmdeblur SHARED ${LIB_SOURCES})
@@ -39,11 +44,11 @@ target_link_libraries(motion-deblurring libmdeblur)
 # ------------
 # Installation
 # ------------
-#install(TARGETS libmdeblur motion-deblurring 
-#        RUNTIME DESTINATION bin
-#        LIBRARY DESTINATION lib
-#        ARCHIVE DESTINATION lib)
+install(TARGETS libmdeblur motion-deblurring 
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)
 
-#install(DIRECTORY include/
-#        DESTINATION include/motion_deblurring
-#        FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/
+        DESTINATION include/motion_deblurring
+        FILES_MATCHING PATTERN "*.hpp")
