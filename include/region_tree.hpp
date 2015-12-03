@@ -30,10 +30,30 @@
 #include <opencv2/opencv.hpp>
 
 namespace DepthAwareDeblurring {
+
+    typedef std::pair<std::vector<int>, std::vector<int>> node;
+
     class RegionTree {
 
       public:
         RegionTree();
+
+        /**
+         * Stores nodes as pairs with their containing layers and the node ids
+         * of the children.
+         */
+        std::vector<node> tree;
+
+        /**
+         * Walk through the tree in a top to bottom manner
+         */
+        std::vector<int> topLevelNodeIds;
+
+        /**
+         * Each node gets a Point Spread Function
+         */
+        std::vector<cv::Mat> pointSpreadFunctions;
+
 
         /**
          * Creates the binary masks of each disparity layer and sets up the tree
@@ -43,7 +63,13 @@ namespace DepthAwareDeblurring {
          */
         void create(const cv::Mat &quantizedDisparityMap, const int layers, const cv::Mat &image);
 
+        // void getImage(const int nodeId, cv::Mat regionImage);
+
+
       private:
+        /**
+         * Binary masks of each disparity layer
+         */
         std::vector<cv::Mat> masks;
 
     };
