@@ -1,6 +1,7 @@
 #include <iostream>                     // cout, cerr, endl
-#include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
 #include <math.h>                       // pow
+#include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
+#include <opencv2/imgproc/imgproc.hpp>  // convert
 
 #include "region_tree.hpp"
 
@@ -12,14 +13,17 @@ namespace DepthAwareDeblurring {
 
     RegionTree::RegionTree(){}
 
-    void RegionTree::create(const Mat &quantizedDisparityMap, const int layers, const Mat &image){
-        masks.reserve(layers);
+    void RegionTree::create(const Mat &quantizedDisparityMap, const int layers, const Mat *image){
+        // save the original image
+        _originalImage = image;
+
+        _masks.reserve(layers);
 
         // save each disparity layer as binary mask
         for (int l = 0; l < layers; l++) {
             Mat mask;
             inRange(quantizedDisparityMap, l, l, mask);
-            masks.push_back(mask);
+            _masks.push_back(mask);
 
             // store leaf nodes
             node n;
@@ -100,4 +104,20 @@ namespace DepthAwareDeblurring {
         }
         cout << endl;
     }
+
+
+    void RegionTree::getImage(const int nodeId, Mat &regionImage) {
+        vector<int> layers = tree[nodeId].first;
+
+        Mat mask = Mat::zeros(_originalImage->rows, _originalImage->cols, CV_8U);
+
+        // adding all masks contained by this node
+        for (int i = 0; i < layers.size(); i++) {
+            add(mask, _masks[layers[i]], mask);
+        }
+
+        // create an image with this mask
+        _originalImage->copyTo(regionImage, mask);
+    }
+
 }

@@ -61,17 +61,26 @@ namespace DepthAwareDeblurring {
          * @param layers                 number of different disparity values
          * @param image                  image to which the disparity map belongs
          */
-        void create(const cv::Mat &quantizedDisparityMap, const int layers, const cv::Mat &image);
+        void create(const cv::Mat &quantizedDisparityMap, const int layers, const cv::Mat *image);
 
-        // void getImage(const int nodeId, cv::Mat regionImage);
+
+        /**
+         * Creates an image where everything is black but the region of the image
+         * that is determined by the disparity layers contained in the node
+         * 
+         * @param nodeId       Id of the node in the region tree
+         * @param regionImage  image with the resulting region
+         */
+        void getImage(const int nodeId, cv::Mat &regionImage);
 
 
       private:
         /**
          * Binary masks of each disparity layer
          */
-        std::vector<cv::Mat> masks;
+        std::vector<cv::Mat> _masks;
 
+        const cv::Mat* _originalImage;
     };
 }
 

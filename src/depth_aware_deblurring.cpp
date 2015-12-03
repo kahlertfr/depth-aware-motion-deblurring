@@ -110,9 +110,13 @@ namespace DepthAwareDeblurring {
      * Step 2: Constructing a region tree ... 
      * 
      */
-    void regionTreeConstruction(const Mat &disparityMap, const int layers, const Mat &image) {
+    void regionTreeConstruction(const Mat &disparityMap, const int layers, const Mat *image) {
         RegionTree tree;
         tree.create(disparityMap, layers, image);
+
+        // Mat regionImage;
+        // tree.getImage(44, regionImage);
+        // imshow("region", regionImage);
     }
 
 
@@ -147,9 +151,9 @@ namespace DepthAwareDeblurring {
         
         cout << "Step 2: region tree reconstruction ..." << endl;
         cout << " ... tree for d_m" << endl;
-        regionTreeConstruction(disparityMapM, regions, blurredLeft);
+        regionTreeConstruction(disparityMapM, regions, &blurredLeft);
         cout << " ... tree for d_r" << endl;
-        regionTreeConstruction(disparityMapR, regions, blurredRight);
+        regionTreeConstruction(disparityMapR, regions, &blurredRight);
 
         // to be continued ...
 
