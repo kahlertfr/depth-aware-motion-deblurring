@@ -74,7 +74,7 @@ namespace DepthAwareDeblurring {
 
         #ifndef NDEBUG
             string prefix = (inverse) ? "_inverse" : "";
-            imshow("original disparity map " + prefix, disparityMapSmall);
+            // imshow("original disparity map " + prefix, disparityMapSmall);
             imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
         #endif
 
@@ -82,7 +82,7 @@ namespace DepthAwareDeblurring {
         DisparityEstimation::fillOcclusionRegions(disparityMapSmall, 10);
 
         #ifndef NDEBUG
-            imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
+            // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
             imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
         #endif
 
@@ -110,9 +110,9 @@ namespace DepthAwareDeblurring {
      * Step 2: Constructing a region tree ... 
      * 
      */
-    void regionTreeConstruction(const Mat &disparityMap, const Mat &image) {
+    void regionTreeConstruction(const Mat &disparityMap, const int layers, const Mat &image) {
         RegionTree tree;
-        tree.create(disparityMap, image);
+        tree.create(disparityMap, layers, image);
     }
 
 
@@ -147,9 +147,9 @@ namespace DepthAwareDeblurring {
         
         cout << "Step 2: region tree reconstruction ..." << endl;
         cout << " ... tree for d_m" << endl;
-        regionTreeConstruction(disparityMapM, blurredLeft);
+        regionTreeConstruction(disparityMapM, regions, blurredLeft);
         cout << " ... tree for d_r" << endl;
-        regionTreeConstruction(disparityMapR, blurredRight);
+        regionTreeConstruction(disparityMapR, regions, blurredRight);
 
         // to be continued ...
 

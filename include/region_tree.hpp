@@ -34,7 +34,14 @@ namespace DepthAwareDeblurring {
 
       public:
         RegionTree();
-        void create(const cv::Mat &disparityMap, const cv::Mat &image);
+
+        /**
+         * Creates the binary masks of each disparity layer and sets up the tree
+         * @param quantizedDisparityMap  disparity map with values from [0, layers - 1]
+         * @param layers                 number of different disparity values
+         * @param image                  image to which the disparity map belongs
+         */
+        void create(const cv::Mat &quantizedDisparityMap, const int layers, const cv::Mat &image);
 
       private:
         std::vector<cv::Mat> masks;

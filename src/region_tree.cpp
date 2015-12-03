@@ -11,7 +11,16 @@ namespace DepthAwareDeblurring {
 
     RegionTree::RegionTree(){}
 
-    void RegionTree::create(const Mat &disparityMap, const Mat &image){
-        cout << "create region tree " << endl;
+    void RegionTree::create(const Mat &quantizedDisparityMap, const int layers, const Mat &image){
+        cout << "create region tree " << endl; 
+
+        masks.reserve(layers);
+
+        // save each disparity layer as binary mask
+        for (int l = 0; l < layers; l++) {
+            Mat mask;
+            inRange(quantizedDisparityMap, l, l, mask);
+            masks.push_back(mask);
+        }
     }
 }
