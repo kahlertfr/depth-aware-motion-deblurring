@@ -1,3 +1,14 @@
+/***********************************************************************
+ * Author:       Franziska Krüger
+ * Requirements: OpenCV 3
+ *
+ * Description:
+ * ------------
+ * Some utils for disparity estimation.
+ * 
+ ***********************************************************************
+ */
+
 #ifndef DISPARITY_ESTIMATION_H
 #define DISPARITY_ESTIMATION_H
 
