@@ -21,8 +21,10 @@ using namespace std;
 
 // global structs for command line parsing
 struct arg_lit *help;
-struct arg_file *leftImage, *rightImage;
+struct arg_file *left_image, *right_image;
 struct arg_end *end_args;
+struct arg_int *psf_width;
+
 
 /**
  * Saves the user input in given variables.
@@ -30,16 +32,21 @@ struct arg_end *end_args;
  */
 static bool parse_commandline_args(int argc, char** argv, 
                                    string &left, string &right,
+                                   int &psfWidth,
                                    int &exitcode) {
     
     // command line options
     // the global arg_xxx structs are initialized within the argtable
     void *argtable[] = {
         help        = arg_litn("h", "help", 0, 1, "display this help and exit"),
-        leftImage  = arg_filen(nullptr, nullptr, "<left image>", 1, 1, "left image"),
-        rightImage = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
+        psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width"),
+        left_image  = arg_filen(nullptr, nullptr, "<left image>",  1, 1, "left image"),
+        right_image = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
         end_args    = arg_end(20),
     };
+
+    // default values (they weren't set if there is a value given)
+    psf_width->ival[0] = 25;
 
     // parsing arguments
     int nerrors = arg_parse(argc,argv,argtable);
@@ -72,8 +79,9 @@ static bool parse_commandline_args(int argc, char** argv,
 
     // saving arguments in variables
     // path to input model
-    left = leftImage->filename[0];
-    right = rightImage->filename[0];
+    left = left_image->filename[0];
+    right = right_image->filename[0];
+    psfWidth = psf_width->ival[0];
 
     // deallocate each non-null entry in argtable[]
     arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
@@ -83,13 +91,14 @@ static bool parse_commandline_args(int argc, char** argv,
 
 
 int main(int argc, char** argv) {
-    // path to models
+    // path to models and other parameter
     string imageLeft;
     string imageRight;
+    int psfWidth;
 
     // parse command line arguments
     int exitcode = 0;
-    bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, exitcode);
+    bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, psfWidth, exitcode);
 
     if (success == false) {
         return exitcode;
@@ -97,12 +106,13 @@ int main(int argc, char** argv) {
 
     // run algorithm
     cout << "Start Depth-Aware Motion Deblurring with" << endl;
-    cout << "   image left:  " << imageLeft << endl;
-    cout << "   image right: " << imageRight << endl;
+    cout << "   image left:        " << imageLeft << endl;
+    cout << "   image right:       " << imageRight << endl;
+    cout << "   approx. PSF width: " << psfWidth << endl;
     cout << endl;
 
     try {
-        DepthAwareDeblurring::runAlgorithm(imageLeft, imageRight);
+        DepthAwareDeblurring::runAlgorithm(imageLeft, imageRight, psfWidth);
     }
     catch(const exception& e) {
         cerr << "ERROR: " << e.what() << endl;

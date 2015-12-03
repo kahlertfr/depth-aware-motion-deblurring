@@ -39,8 +39,9 @@ namespace DepthAwareDeblurring {
      * 
      * @param blurredLeft  OpenCV matrix of blurred left image
      * @param blurredRight OpenCV matrix of blurred right image
+     * @param psfWidth     approximate PSF width
      */
-    void runAlgorithm(const cv::Mat &blurredLeft, const cv::Mat &blurredRight);
+    void runAlgorithm(const cv::Mat &blurredLeft, const cv::Mat &blurredRight, const int psfWidth=24);
 
     /**
      * Loads images from given filenames and then starts the depth-aware motion 
@@ -48,8 +49,9 @@ namespace DepthAwareDeblurring {
      * 
      * @param filenameLeft  relative or absolute path to blurred left image
      * @param filenameRight relative or absolute path to blurred right image
+     * @param psfWidth      approximate PSF width
      */
-    void runAlgorithm(const std::string filenameLeft, const std::string filenameRight);
+    void runAlgorithm(const std::string filenameLeft, const std::string filenameRight, const int psfWidth=24);
 
 }
 
