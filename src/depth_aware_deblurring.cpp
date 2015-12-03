@@ -4,6 +4,7 @@
 #include <opencv2/imgproc/imgproc.hpp>  // convert
 
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
+#include "region_tree.hpp"
 
 using namespace std;
 using namespace cv;
@@ -109,8 +110,9 @@ namespace DepthAwareDeblurring {
      * Step 2: Constructing a region tree ... 
      * 
      */
-    void regionTreeConstruction() {
-
+    void regionTreeConstruction(const Mat &disparityMap, const Mat &image) {
+        RegionTree tree;
+        tree.create(disparityMap, image);
     }
 
 
@@ -138,13 +140,17 @@ namespace DepthAwareDeblurring {
         int regions = (psfWidth % 2 == 0) ? psfWidth : psfWidth - 1;
         cout << "quantized to " << regions << " regions ..." << endl;
 
-        cout << "... d_m: left to right" << endl;
+        cout << " ... d_m: left to right" << endl;
         quantizedDisparityEstimation(blurredLeft, blurredRight, regions, disparityMapM);
-        cout << "... d_r: right to left" << endl;
+        cout << " ... d_r: right to left" << endl;
         quantizedDisparityEstimation(blurredRight, blurredLeft, regions, disparityMapR, true);
         
         cout << "Step 2: region tree reconstruction ..." << endl;
-        regionTreeConstruction();
+        cout << " ... tree for d_m" << endl;
+        regionTreeConstruction(disparityMapM, blurredLeft);
+        cout << " ... tree for d_r" << endl;
+        regionTreeConstruction(disparityMapR, blurredRight);
+
         // to be continued ...
 
         #ifndef NDEBUG
