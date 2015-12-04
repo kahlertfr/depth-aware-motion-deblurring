@@ -82,15 +82,21 @@ the PSF width/height?`
    quantized disparity map with 25 regions
 
 
+
 Region-Tree Construction
 ------------------------
 
 This is needed for robust PSF estimation.
 
+- :red:`see documentation of RegionTree class`
+
 
 
 PSF Estimation for Top-Level Regions
 ------------------------------------
+
+This follows the algorithm of :cite:`XU2010`
+
 
 
 PSF Propagation
