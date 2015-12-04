@@ -12,7 +12,7 @@ using namespace cv;
 namespace DepthAwareDeblurring {
 
     /**
-     * Step 1: Disparity estimation of two blurred images
+     * Disparity estimation of two blurred images
      * where occluded regions are filled and where the disparity map is 
      * quantized to l regions.
      * 
@@ -106,20 +106,6 @@ namespace DepthAwareDeblurring {
     }
 
 
-    /**
-     * Step 2: Constructing a region tree ... 
-     * 
-     */
-    void regionTreeConstruction(const Mat &disparityMap, const int layers, const Mat *image) {
-        RegionTree tree;
-        tree.create(disparityMap, layers, image);
-
-        // Mat regionImage;
-        // tree.getImage(44, regionImage);
-        // imshow("region", regionImage);
-    }
-
-
     void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight,
                       const int psfWidth) {
         // check if images have the same size
@@ -146,14 +132,20 @@ namespace DepthAwareDeblurring {
 
         cout << " ... d_m: left to right" << endl;
         quantizedDisparityEstimation(blurredLeft, blurredRight, regions, disparityMapM);
+
         cout << " ... d_r: right to left" << endl;
         quantizedDisparityEstimation(blurredRight, blurredLeft, regions, disparityMapR, true);
         
+
         cout << "Step 2: region tree reconstruction ..." << endl;
         cout << " ... tree for d_m" << endl;
-        regionTreeConstruction(disparityMapM, regions, &blurredLeft);
+        RegionTree treeM;
+        treeM.create(disparityMapM, regions, &blurredLeft);
+
         cout << " ... tree for d_r" << endl;
-        regionTreeConstruction(disparityMapR, regions, &blurredRight);
+        RegionTree treeR;
+        treeR.create(disparityMapR, regions, &blurredRight);
+
 
         // to be continued ...
 

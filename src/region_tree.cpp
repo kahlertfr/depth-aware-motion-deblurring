@@ -5,6 +5,7 @@
 
 #include "region_tree.hpp"
 
+
 using namespace cv;
 using namespace std;
 
@@ -13,21 +14,29 @@ namespace DepthAwareDeblurring {
 
     RegionTree::RegionTree(){}
 
-    void RegionTree::create(const Mat &quantizedDisparityMap, const int layers, const Mat *image){
-        // save the original image
+    void RegionTree::create(const Mat &quantizedDisparityMap, const int layers, const Mat *image,
+                            const int maxTopLevelNodes){
+        // save a pointer to the original image
         _originalImage = image;
 
+        // the size of masks is determinded by the number of disparity layers
         _masks.reserve(layers);
 
         // save each disparity layer as binary mask
         for (int l = 0; l < layers; l++) {
             Mat mask;
+
+            // find all pixels that have the color l
+            //      1 - pixel has color
+            //      0 - pixel has other color
             inRange(quantizedDisparityMap, l, l, mask);
+
             _masks.push_back(mask);
 
-            // store leaf nodes
+            // store leaf node in tree
+            // which doesn't have any child nodes
             node n;
-            n.first = {l};
+            n.layers = {l};
             tree.push_back(n);
         }
 
@@ -38,15 +47,12 @@ namespace DepthAwareDeblurring {
         int startId = 0;
         int endId = layers;
 
-        int numberOfTopLevelNodes = 3;
-
         while (true) {
-            // next level starts at current tree size
-            int nextStart = tree.size();
-            int counter = 0;
-
             // reached level with top level nodes
-            if ((layers / pow(2, level)) < numberOfTopLevelNodes) {
+            // the number of the nodes of the previous level in the binary tree
+            // can be caculated by: layers / (2^level)
+            // where the leafs are at level 0
+            if ((layers / pow(2, level)) <= maxTopLevelNodes) {
                 for (int i = startId; i < tree.size(); i++) {
                     topLevelNodeIds.push_back(i);
                 }
@@ -55,7 +61,7 @@ namespace DepthAwareDeblurring {
 
             // go through all nodes of the previous level
             for (int i = startId; i < endId; i++) {
-                // there is no neighbor (just one child)
+                // there is no neighbor so stop building this subtree
                 if (i + 1 >= endId) {
                     // found a top level node
                     topLevelNodeIds.push_back(i);
@@ -67,53 +73,55 @@ namespace DepthAwareDeblurring {
                     node n;
 
                     // save contained disparity layers of the new node
-                    n.first.reserve(child1.first.size() + child2.first.size());
-                    n.first = child1.first;
-                    n.first.insert(n.first.end(), child2.first.begin(), child2.first.end());
+                    n.layers.reserve(child1.layers.size() + child2.layers.size());
+                    n.layers = child1.layers;
+                    n.layers.insert(n.layers.end(), child2.layers.begin(), child2.layers.end());
 
                     // save child node ids
-                    n.second = {i, i + 1};
+                    n.children = {i, i + 1};
 
                     tree.push_back(n);
 
                     // jump over child2
                     i++;
-                    counter++;
                 }
             }
 
             // update indices
             level ++;
-            startId = nextStart;
-            endId = startId + counter;
+            startId = endId;
+            endId = tree.size();
         };
 
-        cout << tree.size() << endl;
-        for(int i = 0; i < tree.size(); i++) {
-            node n = tree[i];
-            cout << i << ": ";
-            for (int b = 0; b < n.first.size(); b++) {
-                cout << n.first[b] << " ";
+        #ifndef NDEBUG
+            // print tree
+            for(int i = 0; i < tree.size(); i++) {
+                node n = tree[i];
+                cout << "    " << i << ": ";
+                for (int b = 0; b < n.layers.size(); b++) {
+                    cout << n.layers[b] << " ";
+                }
+                cout << endl;
+            }
+
+            cout << "    top level nodes: ";
+            for(int i = 0; i < topLevelNodeIds.size(); i++) {
+                cout << topLevelNodeIds[i] << " ";
             }
             cout << endl;
-        }
-
-        cout << "   top level nodes: ";
-        for(int i = 0; i < topLevelNodeIds.size(); i++) {
-            cout << topLevelNodeIds[i] << " ";
-        }
-        cout << endl;
+        #endif
     }
 
 
-    void RegionTree::getImage(const int nodeId, Mat &regionImage) {
-        vector<int> layers = tree[nodeId].first;
+    void RegionTree::getRegionImage(const int nodeId, Mat &regionImage) {
+        // a region contains multiple layers
+        vector<int> region = tree[nodeId].layers;
 
         Mat mask = Mat::zeros(_originalImage->rows, _originalImage->cols, CV_8U);
 
         // adding all masks contained by this node
-        for (int i = 0; i < layers.size(); i++) {
-            add(mask, _masks[layers[i]], mask);
+        for (int i = 0; i < region.size(); i++) {
+            add(mask, _masks[region[i]], mask);
         }
 
         // create an image with this mask
