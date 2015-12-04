@@ -37,6 +37,7 @@ namespace DepthAwareDeblurring {
             // which doesn't have any child nodes
             node n;
             n.layers = {l};
+            n.children = {-1,-1};
             tree.push_back(n);
         }
 
@@ -55,6 +56,7 @@ namespace DepthAwareDeblurring {
             if ((layers / pow(2, level)) <= maxTopLevelNodes) {
                 for (int i = startId; i < tree.size(); i++) {
                     topLevelNodeIds.push_back(i);
+                    tree[i].parent = -1;
                 }
                 break;
             } 
@@ -82,6 +84,11 @@ namespace DepthAwareDeblurring {
 
                     tree.push_back(n);
 
+                    // save parent id of child nodes
+                    int parentId = tree.size() - 1;
+                    tree[i].parent = parentId;
+                    tree[i + 1].parent = parentId;
+
                     // jump over child2
                     i++;
                 }
@@ -97,10 +104,15 @@ namespace DepthAwareDeblurring {
             // print tree
             for(int i = 0; i < tree.size(); i++) {
                 node n = tree[i];
-                cout << "    " << i << ": ";
+                cout << "    n" << i << ": ";
                 for (int b = 0; b < n.layers.size(); b++) {
                     cout << n.layers[b] << " ";
                 }
+
+                if (n.parent != -1)
+                    cout << " p(n" << n.parent << ")";
+                if (n.children.first != -1)
+                    cout << " c(n" << n.children.first << ", n" << n.children.second << ")";
                 cout << endl;
             }
 

@@ -37,9 +37,15 @@
 
 namespace DepthAwareDeblurring {
 
+    /**
+     * A Node stores both children and parent because of walking
+     * easily from top to bottom and bottom to top through the tree
+     */
     struct node {
-        std::vector<int>    layers;    // contained disparity layers
-        std::pair<int, int> children;  // number of child nodes
+        std::vector<int>     layers;    // contained disparity layers
+        int                  parent;    // index of parent node
+        std::pair<int, int>  children;  // indices of child nodes
+        std::vector<cv::Mat> psf;
     };
 
 
@@ -58,13 +64,6 @@ namespace DepthAwareDeblurring {
          * Store the top level nodes to walk through the tree in a top to bottom manner
          */
         std::vector<int> topLevelNodeIds;
-
-        /**
-         * Each node gets a Point Spread Function.
-         * The id of the node in the tree vector is the same index as in this vector.
-         */
-        std::vector<cv::Mat> pointSpreadFunctions;
-
 
         /**
          * Creates the binary masks of each disparity layer and sets up the tree
