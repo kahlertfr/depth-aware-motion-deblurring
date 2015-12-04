@@ -3,6 +3,7 @@
 #include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
 #include <opencv2/imgproc/imgproc.hpp>  // convert
 
+#include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "region_tree.hpp"
 
@@ -107,7 +108,7 @@ namespace DepthAwareDeblurring {
 
 
     void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight,
-                      const int psfWidth) {
+                      const int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("ParallelTRDiff::runAlgorithm():Images aren't of same size!");
@@ -139,12 +140,12 @@ namespace DepthAwareDeblurring {
 
         cout << "Step 2: region tree reconstruction ..." << endl;
         cout << " ... tree for d_m" << endl;
-        RegionTree treeM;
-        treeM.create(disparityMapM, regions, &blurredLeft);
+        RegionTree regionTreeM;
+        regionTreeM.create(disparityMapM, regions, &blurredLeft, maxTopLevelNodes);
 
         cout << " ... tree for d_r" << endl;
-        RegionTree treeR;
-        treeR.create(disparityMapR, regions, &blurredRight);
+        RegionTree regionTreeR;
+        regionTreeR.create(disparityMapR, regions, &blurredRight, maxTopLevelNodes);
 
 
         // to be continued ...
@@ -157,7 +158,7 @@ namespace DepthAwareDeblurring {
 
 
     void runAlgorithm(const string filenameLeft, const string filenameRight,
-                      const int psfWidth) {
+                      const int psfWidth, const int maxTopLevelNodes) {
         cout << "loads images..." << endl;
 
         Mat blurredLeft, blurredRight;
@@ -168,6 +169,6 @@ namespace DepthAwareDeblurring {
             throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load images!");
         }
 
-        runAlgorithm(blurredLeft, blurredRight, psfWidth);
+        runAlgorithm(blurredLeft, blurredRight, psfWidth, maxTopLevelNodes);
     }
 }
