@@ -53,11 +53,14 @@ They use spatially-varying point spread functions to deblur the image depending 
     - motion deblurring and all-in-focus imaging can be achieved simultaneously
     - motion blur caused by arbitrary multiple motions can be recovered
 - Z. Hu, L. Xu, M. Yang [Joint Depth Estimation and Camera Shake Removal from Single Blurry Image, CVPR2014][Hu2014]
+- H. Hirschmüller [Stereo Preocessing by Semi-Global Matching and Mutual Information, IEEE 2007][Hirschmüller2007]
+    - description of SGBM-Algorithm used for disparity estimation
 
 
 
 [Cho09]: http://rosaec.snu.ac.kr/publish/2009/ID/ChLe-SIGGRAPH-2009.pdf
 [Gupta10]: http://grail.cs.washington.edu/projects/mdf_deblurring/gupta_mdf_deblurring.pdf
+[Hirschmüller2007]: http://core.ac.uk/download/pdf/11134866.pdf
 [Hu2014]: https://eng.ucmerced.edu/people/zhu/CVPR14_deblurdepth.pdf
 [Jia2007]: http://www.cse.cuhk.edu.hk/~leojia/all_final_papers/motion_deblur_cvpr07.pdf
 [Joshi10]: http://202.114.89.42/resource/pdf/7570.pdf
