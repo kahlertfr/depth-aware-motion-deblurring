@@ -4,6 +4,7 @@
 #include <opencv2/imgproc/imgproc.hpp>  // convert
 
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
+#include "region_tree.hpp"
 
 using namespace std;
 using namespace cv;
@@ -11,7 +12,7 @@ using namespace cv;
 namespace DepthAwareDeblurring {
 
     /**
-     * Step 1: Disparity estimation of two blurred images
+     * Disparity estimation of two blurred images
      * where occluded regions are filled and where the disparity map is 
      * quantized to l regions.
      * 
@@ -73,7 +74,7 @@ namespace DepthAwareDeblurring {
 
         #ifndef NDEBUG
             string prefix = (inverse) ? "_inverse" : "";
-            imshow("original disparity map " + prefix, disparityMapSmall);
+            // imshow("original disparity map " + prefix, disparityMapSmall);
             imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
         #endif
 
@@ -81,7 +82,7 @@ namespace DepthAwareDeblurring {
         DisparityEstimation::fillOcclusionRegions(disparityMapSmall, 10);
 
         #ifndef NDEBUG
-            imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
+            // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
             imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
         #endif
 
@@ -105,33 +106,58 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight) {
+    void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight,
+                      const int psfWidth) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("ParallelTRDiff::runAlgorithm():Images aren't of same size!");
         }
 
+        // approximate PSF width has to be greater than 0
+        if (psfWidth < 1) {
+            throw runtime_error("ParallelTRDiff::runAlgorithm():PSF width has to be greater zero!");
+        }
+
         // initial disparity estimation of blurred images
-        cout << "Step 1: disparity estimation ..." << endl;
-        Mat disparityMap1;  // left to rigth disparity
-        Mat disparityMap2;  // right to left disparity
+        // here: left image is matching image and right image is reference image
+        //       I_m(x) = I_r(x + d_m(x))
+        cout << "Step 1: disparity estimation - ";
+        Mat disparityMapM;  // disparity map of [m]atching view: left to rigth disparity
+        Mat disparityMapR;  // disparity map of [r]eference view: right to left disparity
 
         // quantization factor is approximated PSF width/height
-        int l = 25;
-        cout << "... left to right" << endl;
-        quantizedDisparityEstimation(blurredLeft, blurredRight, l, disparityMap1);
-        cout << "... right to left" << endl;
-        quantizedDisparityEstimation(blurredRight, blurredLeft, l, disparityMap2, true);
+        // set it to an even number because this is usefull for the region tree construction
+        int regions = (psfWidth % 2 == 0) ? psfWidth : psfWidth - 1;
+        cout << "quantized to " << regions << " regions ..." << endl;
+
+        cout << " ... d_m: left to right" << endl;
+        quantizedDisparityEstimation(blurredLeft, blurredRight, regions, disparityMapM);
+
+        cout << " ... d_r: right to left" << endl;
+        quantizedDisparityEstimation(blurredRight, blurredLeft, regions, disparityMapR, true);
         
+
         cout << "Step 2: region tree reconstruction ..." << endl;
+        cout << " ... tree for d_m" << endl;
+        RegionTree treeM;
+        treeM.create(disparityMapM, regions, &blurredLeft);
+
+        cout << " ... tree for d_r" << endl;
+        RegionTree treeR;
+        treeR.create(disparityMapR, regions, &blurredRight);
+
+
         // to be continued ...
 
-        // Wait for a key stroke
-        waitKey(0);
+        #ifndef NDEBUG
+            // Wait for a key stroke
+            waitKey(0);
+        #endif
     }
 
 
-    void runAlgorithm(const string filenameLeft, const string filenameRight) {
+    void runAlgorithm(const string filenameLeft, const string filenameRight,
+                      const int psfWidth) {
         cout << "loads images..." << endl;
 
         Mat blurredLeft, blurredRight;
@@ -142,6 +168,6 @@ namespace DepthAwareDeblurring {
             throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load images!");
         }
 
-        runAlgorithm(blurredLeft, blurredRight);
+        runAlgorithm(blurredLeft, blurredRight, psfWidth);
     }
 }

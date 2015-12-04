@@ -1,13 +1,3 @@
-/***********************************************************************
- * Author:       Franziska Krüger
- * Requirements: OpenCV 3
- *
- * Description:
- * ------------
- * Some utils for disparity estimation.
- * 
- ***********************************************************************
- */
 #include <iostream>                     // cout, cerr, endl
 #include <opencv2/imgproc/imgproc.hpp>  // convert
 #include <opencv2/calib3d/calib3d.hpp>  // sgbm
@@ -107,9 +97,9 @@ namespace DisparityEstimation {
         //     cout << "    fullDP            " << fullDP << endl;
         // #endif
 
-        Ptr<StereoSGBM> sgbm = StereoSGBM::create(minDis, disRange, blockSize // );
-                                                , p1, p2, disp12MaxDiff, preFilterCap, uniquenessRatio,
-                                                speckleWindowSize, speckleRange, fullDP);
+        Ptr<StereoSGBM> sgbm = StereoSGBM::create(minDis, disRange, blockSize,
+                                                  p1, p2, disp12MaxDiff, preFilterCap, uniquenessRatio,
+                                                  speckleWindowSize, speckleRange, fullDP);
                                                   
         sgbm->compute(left, right, disparityMap);
 
