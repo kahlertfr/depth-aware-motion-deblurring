@@ -55,8 +55,8 @@ namespace DepthAwareDeblurring {
         RegionTree();
 
         /**
-         * Stores nodes as pairs with their containing layers and the node ids
-         * of the children (because the tree is used from top to bottom).
+         * Stores nodes with their containing layers and the node ids
+         * of the children and the parent node.
          */
         std::vector<node> tree;
 
