@@ -39,8 +39,8 @@ static bool parse_commandline_args(int argc, char** argv,
     // the global arg_xxx structs are initialized within the argtable
     void *argtable[] = {
         help        = arg_litn("h", "help", 0, 1, "display this help and exit"),
-        psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width"),
-        max_toplevel_nodes   = arg_intn ("m", "max-top-nodes", "<n>", 0, 1, "max top level nodes in region tree"),
+        psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 24"),
+        max_toplevel_nodes   = arg_intn ("m", "max-top-nodes", "<n>", 0, 1, "max top level nodes in region tree. Default: 3"),
         left_image  = arg_filen(nullptr, nullptr, "<left image>",  1, 1, "left image"),
         right_image = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
         end_args    = arg_end(20),
