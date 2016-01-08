@@ -148,7 +148,23 @@ namespace DepthAwareDeblurring {
         regionTreeR.create(disparityMapR, regions, &blurredRight, maxTopLevelNodes);
 
 
-        // to be continued ...
+        // compute PSFs for toplevels of the region trees
+        cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
+        cout << " ... top-level regions of d_m" << endl;
+
+        for (int i = 0; i < regionTreeM.topLevelNodeIds.size(); i++) {
+            // get an image of the top-level region
+            Mat region;
+            regionTreeM.getRegionImage(regionTreeM.topLevelNodeIds[i], region);
+
+            // calculate PSF
+            // TODO
+        }
+
+
+        // TODO: to be continued ...
+        
+        cout << "finished Algorithm" << endl;
 
         #ifndef NDEBUG
             // Wait for a key stroke
