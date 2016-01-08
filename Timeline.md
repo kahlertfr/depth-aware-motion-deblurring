@@ -25,17 +25,17 @@ End: 21.03.2016
 ### implementation (combined with study thesis writing)
 
 - Week 4 (23.11.): disparity estimation (done)
-- Week 5 (30.11.): region-tree construction
+- Week 5 (30.11.): disparity quantization (done)
 
-- Week 6 (07.12.): top-level PSF computation
-- Week 7 (14.12.): iterative PSF computation
-- Week 8 (21.12.): iterative PSF computation
-- Week 9 (28.12.): iterative PSF computation
+- Week 6 (07.12.): region-tree construction (done)
+- Week 7 (14.12.): -
+- Week 8 (21.12.): Holidays
+- Week 9 (28.12.): Holidays
 
-- Week 10 (04.01.): blur removal
-- Week 11 (11.01.): second-pass estimation
-- Week 12 (18.01.): ... if previous steps toke me longer to finish as planned
-- Week 13 (25.01.): ... if previous steps toke me longer to finish as planned
+- Week 10 (04.01.): top-level PSF computation
+- Week 11 (11.01.): iterative PSF computation
+- Week 12 (18.01.): iterative PSF computation
+- Week 13 (25.01.): blur removal and second-pass estimation
 
 
 ### evaluating
