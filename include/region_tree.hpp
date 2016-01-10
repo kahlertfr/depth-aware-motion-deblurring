@@ -87,8 +87,9 @@ namespace DepthAwareDeblurring {
          * 
          * @param nodeId       Id of the node in the region tree
          * @param regionImage  image with the resulting region
+         * @param mask         mask of this region
          */
-        void getRegionImage(const int nodeId, cv::Mat &regionImage);
+        void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask);
 
 
       private:
