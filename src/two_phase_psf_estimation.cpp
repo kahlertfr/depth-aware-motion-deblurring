@@ -61,19 +61,28 @@ namespace TwoPhaseKernelEstimation {
     }
 
 
-    void displayFloatMat(string windowName, Mat& floatMat) {
+    /**
+     * Converts a matrix containing floats to a matrix
+     * conatining uchars
+     * 
+     * @param ucharMat [description]
+     * @param floatMat [description]
+     */
+    void convertFloatToUchar(Mat& ucharMat, const Mat& floatMat) {
         // find min and max value
         double min; double max;
         minMaxLoc(floatMat, &min, &max);
-        cout << windowName << ": " << min << " " << max << endl;
 
-        // handling that floats could be negative
-        floatMat -= min;
+        // if the matrix is in the range [0, 1] just scale with 255
+        if (min >= 0 && max < 1) {
+            floatMat.convertTo(ucharMat, CV_8U, 255.0);
+        } else {
+            // handling that floats could be negative
+            floatMat -= min;
 
-        // convert and show
-        Mat display;
-        floatMat.convertTo(display, CV_8U, 255.0/(max-min));
-        imshow(windowName, display);
+            // convert and show
+            floatMat.convertTo(ucharMat, CV_8U, 255.0/(max-min));
+        }
     }
 
 
@@ -118,11 +127,18 @@ namespace TwoPhaseKernelEstimation {
 
             // gradient x
             Sobel(gray, xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
-            displayFloatMat("x gradient", xGradients);
 
             // gradient y
             Sobel(gray, yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
-            displayFloatMat("y gradient", yGradients);
+
+            #ifndef NDEBUG
+                // display gradients
+                Mat xGradientsViewable, yGradientsViewable;
+                convertFloatToUchar(xGradientsViewable, xGradients);
+                convertFloatToUchar(yGradientsViewable, yGradients);
+                imshow("x gradient", xGradientsViewable);
+                imshow("y gradient", yGradientsViewable);
+            #endif
 
             // merge gradients to one matrix with x and y gradients
             Mat gradients;
@@ -135,6 +151,8 @@ namespace TwoPhaseKernelEstimation {
             Mat gradientConfidence;
             computeGradientConfidence(gradientConfidence, gradients, width, mask);
             imshow("confidence", gradientConfidence);
+
+
         }
 
         psf = kernel;
