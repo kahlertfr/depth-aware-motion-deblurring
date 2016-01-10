@@ -153,19 +153,20 @@ namespace DepthAwareDeblurring {
         cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
         cout << " ... top-level regions of d_m" << endl;
 
-        for (int i = 0; i < regionTreeM.topLevelNodeIds.size(); i++) {
+        // for (int i = 0; i < regionTreeM.topLevelNodeIds.size(); i++) {
+            int i = 2;
             int id = regionTreeM.topLevelNodeIds[i];
 
             // get an image of the top-level region
-            Mat region;
-            regionTreeM.getRegionImage(id, region);
+            Mat region, mask;
+            regionTreeM.getRegionImage(id, region, mask);
 
             // fill PSF kernel with zeros 
             regionTreeM[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
 
             // calculate PSF
-            TwoPhasePSFEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth);
-        }
+            TwoPhaseKernelEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth, mask);
+        // }
 
 
         // TODO: to be continued ...

@@ -15,7 +15,7 @@
 #include <opencv2/opencv.hpp>
 
 
-namespace TwoPhasePSFEstimation {
+namespace TwoPhaseKernelEstimation {
 
     /**
      * Start two-phase kernel estimation algortihm
@@ -23,8 +23,10 @@ namespace TwoPhasePSFEstimation {
      * @param psf       Mat to store the estimated PSF kernel
      * @param image     blurred image
      * @param psfWidth  expected width of PSF kernel before computing
+     * @param mask      binary mask of region that should be computed
      */
-    void estimateKernel(cv::Mat& psf, const cv::Mat& image, const int psfWidth);
+    void estimateKernel(cv::Mat& psf, const cv::Mat& image, const int psfWidth, const cv::Mat& mask);
+
 }
 
 #endif
