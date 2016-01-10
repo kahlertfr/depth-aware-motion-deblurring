@@ -65,8 +65,8 @@ namespace TwoPhaseKernelEstimation {
      * Converts a matrix containing floats to a matrix
      * conatining uchars
      * 
-     * @param ucharMat [description]
-     * @param floatMat [description]
+     * @param ucharMat resulting matrix
+     * @param floatMat input matrix
      */
     void convertFloatToUchar(Mat& ucharMat, const Mat& floatMat) {
         // find min and max value
@@ -150,7 +150,16 @@ namespace TwoPhaseKernelEstimation {
             // compute gradient confidence for al pixels
             Mat gradientConfidence;
             computeGradientConfidence(gradientConfidence, gradients, width, mask);
-            imshow("confidence", gradientConfidence);
+
+            Mat confidenceUchar;
+            convertFloatToUchar(confidenceUchar, gradientConfidence);
+            imshow("confidence", confidenceUchar);
+
+            // create mask for ruling out pixel belonging to small confidence-values
+            Mat edgeMask;
+            float threshold = 0.25;  // TODO: value?
+            inRange(gradientConfidence, threshold, 1, edgeMask);
+            imshow("edge mask", edgeMask);
 
 
         }
