@@ -86,6 +86,75 @@ namespace TwoPhaseKernelEstimation {
     }
 
 
+    /* 
+    *  reference: http://blog.csdn.net/bluecol/article/details/49924739
+    *  
+    *  Coherence-Enhancing Shock Filters
+    *  Author:WinCoder@qq.com
+    *  inspired by
+    *  Joachim Weickert "Coherence-Enhancing Shock Filters"
+    *  http://www.mia.uni-saarland.de/Publications/weickert-dagm03.pdf
+    *  
+    *   Paras:
+    *   @img        : input image ranging value from 0 to 255.
+    *   @sigma      : sobel kernel size.
+    *   @str_sigma  : neighborhood size,see detail in reference[2]
+    *   @belnd      : blending coefficient.default value 0.5.
+    *   @iter       : number of iteration.
+    *    
+    *   Example:
+    *   Mat dst = CoherenceFilter(I,11,11,0.5,4);
+    *   imshow("shock filter",dst);
+    */
+    Mat coherenceFilter(Mat img,int sigma, int str_sigma, float blend, int iter)
+    {
+        Mat I = img.clone();
+        int height = I.rows;
+        int width  = I.cols;
+
+        for(int i = 0;i <iter; i++)
+        {
+            Mat gray;
+            cvtColor(I,gray,COLOR_BGR2GRAY);
+            Mat eigen;
+            cornerEigenValsAndVecs(gray,eigen,str_sigma,3);
+
+            vector<Mat> vec;
+            split(eigen,vec);
+
+            Mat x,y;
+            x = vec[2];
+            y = vec[3];
+
+            Mat gxx,gxy,gyy;
+            Sobel(gray,gxx,CV_32F,2,0,sigma);
+            Sobel(gray,gxy,CV_32F,1,1,sigma);
+            Sobel(gray,gyy,CV_32F,0,2,sigma);
+
+            Mat ero;
+            Mat dil;
+            erode(I,ero,Mat());
+            dilate(I,dil,Mat());
+
+            Mat img1 = ero;
+            for(int nY = 0;nY<height;nY++)
+            {
+                for(int nX = 0;nX<width;nX++)
+                {
+                    if(x.at<float>(nY,nX)* x.at<float>(nY,nX)* gxx.at<float>(nY,nX)
+                        + 2*x.at<float>(nY,nX)* y.at<float>(nY,nX)* gxy.at<float>(nY,nX)
+                        + y.at<float>(nY,nX)* y.at<float>(nY,nX)* gyy.at<float>(nY,nX)<0)
+                    {
+                            img1.at<Vec3b>(nY,nX) = dil.at<Vec3b>(nY,nX);
+                    }
+                }
+            }
+            I = I*(1.0-blend)+img1*blend;
+        }
+        return I;
+    }
+
+
     void estimateKernel(Mat& psf, const Mat& image, const int psfWidth, const Mat& mask) {
         // set expected kernel witdh to odd number
         int width = (psfWidth % 2 == 0) ? psfWidth + 1 : psfWidth;
@@ -161,7 +230,10 @@ namespace TwoPhaseKernelEstimation {
             inRange(gradientConfidence, threshold, 1, edgeMask);
             imshow("edge mask", edgeMask);
 
-
+            // finally selected edges for kernel estimation
+            // ∇I^s = ∇I · H (M ||∇I||_2 − τ_s )
+            Mat shockfilteredImage = coherenceFilter(pyramid[i], 11, 11, 0.5, 4);
+            imshow("shock filter", shockfilteredImage);
         }
 
         psf = kernel;
