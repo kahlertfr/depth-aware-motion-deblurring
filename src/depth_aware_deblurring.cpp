@@ -161,10 +161,10 @@ namespace DepthAwareDeblurring {
             regionTreeM.getRegionImage(id, region);
 
             // fill PSF kernel with zeros 
-            regionTreeM.tree[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
+            regionTreeM[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
 
             // calculate PSF
-            TwoPhasePSFEstimation::estimateKernel(regionTreeM.tree[id].psf[0], region, psfWidth);
+            TwoPhasePSFEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth);
         }
 
 
