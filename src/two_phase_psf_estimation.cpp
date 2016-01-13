@@ -28,6 +28,7 @@ namespace TwoPhaseKernelEstimation {
      */
     void computeGradientConfidence(Mat& confidence, const vector<Mat>& gradients, const int width,
                                    const Mat& mask) {
+        
         int rows = gradients[0].rows;
         int cols = gradients[0].cols;
         confidence = Mat::zeros(rows, cols, CV_32F);
@@ -310,6 +311,53 @@ namespace TwoPhaseKernelEstimation {
 
 
     /**
+     * Multiplication with complex numbers with real and imaginare part
+     * 
+     * w * z = (a + bi) * (c + di) = (a*c - b*d) + (a*d + c*b)i
+     * 
+     * @param  w first complex number
+     * @param  z second complex number
+     * @return   result of w * z as real and imaginary part
+     */
+    inline Vec2f compMult(Vec2f w, Vec2f z) {
+        return {(w[0] * z[0] - w[1] * z[1]),
+                (w[0] * z[1] + w[1] * z[0])};
+    }
+
+
+    /**
+     * Addition with complex numbers with real and imaginary part
+     *
+     * w + z = (a + bi) + (c + di) = (a + c) + (b + d)i
+     * 
+     * @param  w first complex number
+     * @param  z second complex number
+     * @return   result of w + z as real and imaginary part
+     */
+    inline Vec2f compAdd(Vec2f w, Vec2f z) {
+        return {w[0] + z[0], w[1] + z[1]};
+    }
+
+
+    /**
+     * Division with complex numbers with real and imaginary part
+     *
+     * w   a*c + b*d + (c*b - a*d)i
+     * - = ------------------------
+     * z           c² + d²
+     * 
+     * @param  w first complex number
+     * @param  z second complex number
+     * @return   result of w / z as real and imaginary part
+     */
+    inline Vec2f compDiv(Vec2f w, Vec2f z) {
+        float denominator = z[0] * z[0] + z[1] * z[1];
+        return {(w[0] * z[0] + w[1] * z[1]) / denominator,
+                (z[0] * w[1] - w[0] * z[1]) / denominator};
+    }
+
+
+    /**
      * With the critical edge selection, initial kernel erstimation can be accomplished quickly.
      * Objective function: E(k) = ||∇I^s ⊗ k - ∇B||² + γ||k||²
      * 
@@ -318,6 +366,12 @@ namespace TwoPhaseKernelEstimation {
      * @param kernel          result (k)
      */
     void fastKernelEstimation(const vector<Mat>& selectionGrads, const vector<Mat>& blurredGrads, Mat kernel) {
+        assert(selectionGrads[0].rows == blurredGrads[0].rows && "matrixes have to be of same size!");
+        assert(selectionGrads[0].cols == blurredGrads[0].cols && "matrixes have to be of same size!");
+
+        int rows = selectionGrads[0].rows;
+        int cols = selectionGrads[0].cols;
+
         // based on Perseval's theorem, perform FFT
         //                __________              __________
         //             (  F(∂_x I^s) * F(∂_x B) + F(∂_y I^s) * F(∂_y B) )
@@ -331,21 +385,51 @@ namespace TwoPhaseKernelEstimation {
         //       F(∂_y B)   = yB
         
         // compute FFTs
+        // the result are stored as 2 channel matrices: Re(FFT(I)), Im(FFT(I))
         Mat xS, xB, yS, yB;
         FFT(selectionGrads[0], xS);
         FFT(blurredGrads[0], xB);
         FFT(selectionGrads[1], yS);
         FFT(blurredGrads[1], yB);
 
-        showComplexImage("spectrum magnitude xS", xS);
-        showComplexImage("spectrum magnitude yS", yS);
-        showComplexImage("spectrum magnitude xB", xB);
-        showComplexImage("spectrum magnitude yB", yB);
+        #ifndef NDEBUG
+            showComplexImage("spectrum magnitude xS", xS);
+            showComplexImage("spectrum magnitude yS", yS);
+            showComplexImage("spectrum magnitude xB", xB);
+            showComplexImage("spectrum magnitude yB", yB);
+        #endif
 
-        // compute inverse of xS and yS
-        Mat xSi, ySi;
+        // go through all pixel and calculate the value in the brackets of the equation
+        Mat brackets = Mat::zeros(xS.size(), xS.type());
+        
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                // conjugate complex number
+                Vec2f conjXS = {xS.at<Vec2f>(y, x)[0], -1 * xS.at<Vec2f>(y, x)[1]};
+                Vec2f conjYS = {yS.at<Vec2f>(y, x)[0], -1 * yS.at<Vec2f>(y, x)[1]};
 
+                Vec2f numerator = compAdd(compMult(conjXS, xB.at<Vec2f>(x, y)),
+                                          compMult(conjYS, yB.at<Vec2f>(x, y)));
+                // TODO: add weight
+                Vec2f denominator = compAdd(compMult(xS.at<Vec2f>(x, y), xS.at<Vec2f>(x, y)),
+                                            compMult(yS.at<Vec2f>(x, y), yS.at<Vec2f>(x, y)));
 
+                brackets.at<Vec2f>(y, x) = compDiv(numerator, denominator);
+            }
+        }
+
+        // compute inverse FFT of the result in brackets
+        Mat result;
+        dft(brackets, result, cv::DFT_INVERSE|cv::DFT_REAL_OUTPUT);
+
+        #ifndef NDEBUG
+            // print confidence matrix
+            Mat resultviewable;
+            convertFloatToUchar(resultviewable, result);
+            imshow("result", resultviewable);
+        #endif
+
+        // TODO: set kernel
     }
 
 
@@ -394,23 +478,30 @@ namespace TwoPhaseKernelEstimation {
             // gradient y
             Sobel(gray, yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
-            // #ifndef NDEBUG
-            //     // display gradients
-            //     Mat xGradientsViewable, yGradientsViewable;
-            //     convertFloatToUchar(xGradientsViewable, xGradients);
-            //     convertFloatToUchar(yGradientsViewable, yGradients);
-            //     imshow("x gradient", xGradientsViewable);
-            //     imshow("y gradient", yGradientsViewable);
-            // #endif
+            // remove borders of region through erosion of the mask
+            Mat element = getStructuringElement(MORPH_CROSS, Size(7, 7), Point(3, 3));
+            Mat erodedMask;
+            erode(mask, erodedMask, element);
+            imshow("eroded mask", erodedMask);
 
-            // save x and y gradients in a vector
-            vector<Mat> gradients = {xGradients, yGradients};
+            // save x and y gradients in a vector and erase borders because of region
+            Mat erodedXGradients, erodedYGradients;
+            xGradients.copyTo(erodedXGradients, erodedMask);
+            yGradients.copyTo(erodedYGradients, erodedMask);
+            vector<Mat> gradients = {erodedXGradients, erodedYGradients};
 
-            // TODO: remove borders of region - how?
+            #ifndef NDEBUG
+                // display gradients
+                Mat xGradientsViewable, yGradientsViewable;
+                convertFloatToUchar(xGradientsViewable, erodedXGradients);
+                convertFloatToUchar(yGradientsViewable, erodedYGradients);
+                imshow("x gradient", xGradientsViewable);
+                imshow("y gradient", yGradientsViewable);
+            #endif
 
             // compute gradient confidence for al pixels
             Mat gradientConfidence;
-            computeGradientConfidence(gradientConfidence, gradients, width, mask);
+            computeGradientConfidence(gradientConfidence, gradients, width, erodedMask);
 
             #ifndef NDEBUG
                 // print confidence matrix
