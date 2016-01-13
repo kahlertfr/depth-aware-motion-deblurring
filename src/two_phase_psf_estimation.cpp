@@ -28,7 +28,7 @@ namespace TwoPhaseKernelEstimation {
      */
     void computeGradientConfidence(Mat& confidence, const vector<Mat>& gradients, const int width,
                                    const Mat& mask) {
-        
+
         int rows = gradients[0].rows;
         int cols = gradients[0].cols;
         confidence = Mat::zeros(rows, cols, CV_32F);
@@ -81,11 +81,14 @@ namespace TwoPhaseKernelEstimation {
         if (min >= 0 && max < 1) {
             floatMat.convertTo(ucharMat, CV_8U, 255.0);
         } else {
+            Mat copy;
+            floatMat.copyTo(copy);
+            
             // handling that floats could be negative
-            floatMat -= min;
+            copy -= min;
 
             // convert and show
-            floatMat.convertTo(ucharMat, CV_8U, 255.0/(max-min));
+            copy.convertTo(ucharMat, CV_8U, 255.0/(max-min));
         }
     }
 
