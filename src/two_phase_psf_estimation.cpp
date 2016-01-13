@@ -21,21 +21,23 @@ namespace TwoPhaseKernelEstimation {
      *  r(x) = ----------------------------
      *          sum_y∈Nh(x) ||∇B(y)|| + 0.5
      *          
-     * @param confidence result
-     * @param gradients  matrix with x and y gradients
+     * @param confidence result (r)
+     * @param gradients  vector with x and y gradients (∇B)
      * @param width      width of window for Nh
      * @param mask       binary mask of region that should be computed
      */
-    void computeGradientConfidence(Mat& confidence, const Mat& gradients, const int width,
+    void computeGradientConfidence(Mat& confidence, const vector<Mat>& gradients, const int width,
                                    const Mat& mask) {
-        confidence = Mat::zeros(gradients.rows, gradients.cols, CV_32F);
+        int rows = gradients[0].rows;
+        int cols = gradients[0].cols;
+        confidence = Mat::zeros(rows, cols, CV_32F);
 
         // get range for Nh window
         int range = width / 2;
 
         // go through all pixels
-        for (int x = width; x < (gradients.cols - width); x++) {
-            for (int y = width; y < (gradients.rows - width); y++) {
+        for (int x = width; x < (cols - width); x++) {
+            for (int y = width; y < (rows - width); y++) {
                 // check if inside region
                 if (mask.at<uchar>(y, x) != 0) {
                     pair<float, float> sum = {0, 0};  // sum of the part: ||sum_y∈Nh(x) ∇B(y)||
@@ -44,13 +46,14 @@ namespace TwoPhaseKernelEstimation {
                     // sum all gradient values inside the window (width x width) around pixel
                     for (int xOffset = range * -1; xOffset <= range; xOffset++) {
                         for (int yOffset = range * -1; yOffset <= range; yOffset++) {
-                            Vec2f gradient = gradients.at<Vec2f>(y + yOffset, x + xOffset);
+                            float xGradient = gradients[0].at<float>(y + yOffset, x + xOffset);
+                            float yGradient = gradients[1].at<float>(y + yOffset, x + xOffset);
 
-                            sum.first += gradient[0];
-                            sum.second += gradient[1];
+                            sum.first += xGradient;
+                            sum.second += yGradient;
 
                             // norm of gradient
-                            innerSum += norm(gradient[0], gradient[1]);
+                            innerSum += norm(xGradient, yGradient);
                         }
                     }
 
@@ -166,7 +169,7 @@ namespace TwoPhaseKernelEstimation {
      * @param s          threshold for edge selection (value should be in range [0, 200]) (τ_s)
      * @param selection  result (∇I^s)
      */
-    void selectEdges(const Mat& image, const Mat& confidence, const float r, const float s, Mat& selection) {
+    void selectEdges(const Mat& image, const Mat& confidence, const float r, const float s, vector<Mat>& selection) {
         // create mask for ruling out pixel belonging to small confidence-values
         // M = H(r - τ_r) where H is Heaviside step function
         Mat mask;
@@ -203,9 +206,10 @@ namespace TwoPhaseKernelEstimation {
             imshow("y gradient shock", yGradientsViewable);
         #endif
 
-        // compute final selected edges
-        selection = Mat::zeros(image.rows, image.cols, CV_32FC2);
-        // cout << gradients.cols << " " << gradients.rows << endl;
+        // save gradients of the final selected edges
+        selection = {Mat::zeros(image.rows, image.cols, CV_32F),
+                     Mat::zeros(image.rows, image.cols, CV_32F)};
+
         for (int x = 0; x < gradients.cols; x++) {
             for (int y = 0; y < gradients.rows; y++) {
                 // if the mask is zero at the current coordinate the result
@@ -217,7 +221,8 @@ namespace TwoPhaseKernelEstimation {
                     // if the following equation doesn't hold the value
                     // is also zero and nothing has to be computed
                     if ((norm(gradient[0], gradient[1]) - s) > 0) {
-                        selection.at<Vec2f>(y,x) = {gradient[0], gradient[1]};
+                        selection[0].at<float>(y,x) = gradient[0];
+                        selection[1].at<float>(y,x) = gradient[1];
                     }
                 }
             }
@@ -225,12 +230,8 @@ namespace TwoPhaseKernelEstimation {
 
         #ifndef NDEBUG
             // display gradients
-            int from_tox[] = {0, 0};
-            mixChannels(selection, xGradients, from_tox, 1);
-            int from_toy[] = {1, 0};
-            mixChannels(selection, yGradients, from_toy, 1);
-            convertFloatToUchar(xGradientsViewable, xGradients);
-            convertFloatToUchar(yGradientsViewable, yGradients);
+            convertFloatToUchar(xGradientsViewable, selection[0]);
+            convertFloatToUchar(yGradientsViewable, selection[1]);
             imshow("x gradient selection", xGradientsViewable);
             imshow("y gradient selection", yGradientsViewable);
         #endif
@@ -291,10 +292,8 @@ namespace TwoPhaseKernelEstimation {
             //     imshow("y gradient", yGradientsViewable);
             // #endif
 
-            // merge gradients to one matrix with x and y gradients
-            Mat gradients;
-            vector<Mat> grads = {xGradients, yGradients};
-            merge(grads, gradients);
+            // save x and y gradients in a vector
+            vector<Mat> gradients = {xGradients, yGradients};
 
             // TODO: remove borders of region - how?
 
@@ -318,9 +317,8 @@ namespace TwoPhaseKernelEstimation {
             int iterations = 1;  // TODO: add parameter for this
             for (int i = 0; i < iterations; i++) {
                 // select edges for kernel estimation
-                Mat selectedEdges;
+                vector<Mat> selectedEdges;
                 selectEdges(pyramid[i], gradientConfidence, thresholdR, thresholdS, selectedEdges);
-
 
 
                 // decrease thresholds
