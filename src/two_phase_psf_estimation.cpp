@@ -44,7 +44,7 @@ namespace TwoPhaseKernelEstimation {
                     // sum all gradient values inside the window (width x width) around pixel
                     for (int xOffset = range * -1; xOffset <= range; xOffset++) {
                         for (int yOffset = range * -1; yOffset <= range; yOffset++) {
-                            Vec2b gradient = gradients.at<Vec2b>(y + yOffset, x + xOffset);
+                            Vec2f gradient = gradients.at<Vec2f>(y + yOffset, x + xOffset);
 
                             sum.first += gradient[0];
                             sum.second += gradient[1];
@@ -155,6 +155,80 @@ namespace TwoPhaseKernelEstimation {
     }
 
 
+    /**
+     * The final selected edges for kernel estimation are determined as:
+     * ∇I^s = ∇I · H (M ||∇I||_2 − τ_s )
+     * where H is the Heaviside step function.
+     * 
+     * @param image      input image which will be shockfiltered (I)
+     * @param mask       mask for ruling out some pixel (M)
+     * @param selection  result (∇I^s)
+     */
+    void selectEdges(const Mat& image, const Mat& mask, const float threshold, Mat& selection) {
+        // shock filter the input image
+        Mat shockImage = coherenceFilter(image, 11, 11, 0.5, 4);
+        imshow("shock filter", shockImage);
+
+        // gradients of shock filtered image
+        int delta = 0;
+        int ddepth = CV_32F;
+        int ksize = 3;
+        int scale = 1;
+
+        // TODO: convert to gray or not?
+        Mat gray, xGradients, yGradients;
+        cvtColor(shockImage, gray, CV_BGR2GRAY);
+        Sobel(gray, xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(gray, yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+
+        // merge the gradients of x- and y-direction to one matrix
+        Mat gradients;
+        vector<Mat> grads = {xGradients, yGradients};
+        merge(grads, gradients);
+
+        #ifndef NDEBUG
+            // display gradients
+            Mat xGradientsViewable, yGradientsViewable;
+            convertFloatToUchar(xGradientsViewable, xGradients);
+            convertFloatToUchar(yGradientsViewable, yGradients);
+            imshow("x gradient shock", xGradientsViewable);
+            imshow("y gradient shock", yGradientsViewable);
+        #endif
+
+        // compute final selected edges
+        selection = Mat::zeros(image.rows, image.cols, CV_32FC2);
+        // cout << gradients.cols << " " << gradients.rows << endl;
+        for (int x = 0; x < gradients.cols; x++) {
+            for (int y = 0; y < gradients.rows; y++) {
+                // if the mask is zero at the current coordinate the result
+                // of the equation (see method description) is zero too.
+                // So nothing has to be computed for this case
+                if (mask.at<uchar>(y, x) != 0) {
+                    Vec2f gradient = gradients.at<Vec2f>(y, x);
+
+                    // if the following equation doesn't hold the value
+                    // is also zero and nothing has to be computed
+                    if ((norm(gradient[0], gradient[1]) - threshold) > 0) {
+                        selection.at<Vec2f>(y,x) = {gradient[0], gradient[1]};
+                    }
+                }
+            }
+        }
+
+        #ifndef NDEBUG
+            // display gradients
+            int from_tox[] = {0, 0};
+            mixChannels(selection, xGradients, from_tox, 1);
+            int from_toy[] = {1, 0};
+            mixChannels(selection, yGradients, from_toy, 1);
+            convertFloatToUchar(xGradientsViewable, xGradients);
+            convertFloatToUchar(yGradientsViewable, yGradients);
+            imshow("x gradient selection", xGradientsViewable);
+            imshow("y gradient selection", yGradientsViewable);
+        #endif
+    }
+
+
     void estimateKernel(Mat& psf, const Mat& image, const int psfWidth, const Mat& mask) {
         // set expected kernel witdh to odd number
         int width = (psfWidth % 2 == 0) ? psfWidth + 1 : psfWidth;
@@ -165,7 +239,7 @@ namespace TwoPhaseKernelEstimation {
         Mat kernel = Mat::zeros(psfWidth, psfWidth, CV_8U);
 
         // build an image pyramid
-        int level = 1;
+        int level = 1;  // TODO: add parameter for this
 
         vector<Mat> pyramid;
         pyramid.push_back(image);
@@ -200,14 +274,14 @@ namespace TwoPhaseKernelEstimation {
             // gradient y
             Sobel(gray, yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
-            #ifndef NDEBUG
-                // display gradients
-                Mat xGradientsViewable, yGradientsViewable;
-                convertFloatToUchar(xGradientsViewable, xGradients);
-                convertFloatToUchar(yGradientsViewable, yGradients);
-                imshow("x gradient", xGradientsViewable);
-                imshow("y gradient", yGradientsViewable);
-            #endif
+            // #ifndef NDEBUG
+            //     // display gradients
+            //     Mat xGradientsViewable, yGradientsViewable;
+            //     convertFloatToUchar(xGradientsViewable, xGradients);
+            //     convertFloatToUchar(yGradientsViewable, yGradients);
+            //     imshow("x gradient", xGradientsViewable);
+            //     imshow("y gradient", yGradientsViewable);
+            // #endif
 
             // merge gradients to one matrix with x and y gradients
             Mat gradients;
@@ -220,20 +294,29 @@ namespace TwoPhaseKernelEstimation {
             Mat gradientConfidence;
             computeGradientConfidence(gradientConfidence, gradients, width, mask);
 
-            Mat confidenceUchar;
-            convertFloatToUchar(confidenceUchar, gradientConfidence);
-            imshow("confidence", confidenceUchar);
+            #ifndef NDEBUG
+                // print confidence matrix
+                Mat confidenceUchar;
+                convertFloatToUchar(confidenceUchar, gradientConfidence);
+                imshow("confidence", confidenceUchar);
+            #endif
 
             // create mask for ruling out pixel belonging to small confidence-values
+            // M = H(r - τ_r) where H is Heaviside step function
             Mat edgeMask;
-            float threshold = 0.25;  // TODO: value?
+            float threshold = 0.25;  // TODO: value? confidence is between 0 and 1
             inRange(gradientConfidence, threshold, 1, edgeMask);
             imshow("edge mask", edgeMask);
 
-            // finally selected edges for kernel estimation
-            // ∇I^s = ∇I · H (M ||∇I||_2 − τ_s )
-            Mat shockfilteredImage = coherenceFilter(pyramid[i], 11, 11, 0.5, 4);
-            imshow("shock filter", shockfilteredImage);
+            int iterations = 1;  // TODO: add parameter for this
+            for (int i = 0; i < iterations; i++) {
+                // select edges for kernel estimation
+                Mat selectedEdges;
+                // TODO: threshold? gradient can be very high
+                selectEdges(pyramid[i], edgeMask, 50, selectedEdges);
+            }
+
+            // TODO: continue
         }
 
         psf = kernel;
