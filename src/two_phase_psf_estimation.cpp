@@ -158,13 +158,21 @@ namespace TwoPhaseKernelEstimation {
     /**
      * The final selected edges for kernel estimation are determined as:
      * ∇I^s = ∇I · H (M ||∇I||_2 − τ_s )
-     * where H is the Heaviside step function.
+     * where H is the Heaviside step function and M = = H(r - τ_r)
      * 
      * @param image      input image which will be shockfiltered (I)
-     * @param mask       mask for ruling out some pixel (M)
+     * @param confidence mask for ruling out some pixel (r)
+     * @param r          threshold for edge mask (value should be in range [0,1]) (τ_r)
+     * @param s          threshold for edge selection (value should be in range [0, 200]) (τ_s)
      * @param selection  result (∇I^s)
      */
-    void selectEdges(const Mat& image, const Mat& mask, const float threshold, Mat& selection) {
+    void selectEdges(const Mat& image, const Mat& confidence, const float r, const float s, Mat& selection) {
+        // create mask for ruling out pixel belonging to small confidence-values
+        // M = H(r - τ_r) where H is Heaviside step function
+        Mat mask;
+        inRange(confidence, r, 1, mask);
+        imshow("edge mask", mask);
+
         // shock filter the input image
         Mat shockImage = coherenceFilter(image, 11, 11, 0.5, 4);
         imshow("shock filter", shockImage);
@@ -208,7 +216,7 @@ namespace TwoPhaseKernelEstimation {
 
                     // if the following equation doesn't hold the value
                     // is also zero and nothing has to be computed
-                    if ((norm(gradient[0], gradient[1]) - threshold) > 0) {
+                    if ((norm(gradient[0], gradient[1]) - s) > 0) {
                         selection.at<Vec2f>(y,x) = {gradient[0], gradient[1]};
                     }
                 }
@@ -301,19 +309,23 @@ namespace TwoPhaseKernelEstimation {
                 imshow("confidence", confidenceUchar);
             #endif
 
-            // create mask for ruling out pixel belonging to small confidence-values
-            // M = H(r - τ_r) where H is Heaviside step function
-            Mat edgeMask;
-            float threshold = 0.25;  // TODO: value? confidence is between 0 and 1
-            inRange(gradientConfidence, threshold, 1, edgeMask);
-            imshow("edge mask", edgeMask);
+            // thresholds τ_r and τ_s will be decreased in each iteration
+            // to include more and more edges
+            // TDOO: parameter for this
+            float thresholdR = 0.25;
+            float thresholdS = 50;
 
             int iterations = 1;  // TODO: add parameter for this
             for (int i = 0; i < iterations; i++) {
                 // select edges for kernel estimation
                 Mat selectedEdges;
-                // TODO: threshold? gradient can be very high
-                selectEdges(pyramid[i], edgeMask, 50, selectedEdges);
+                selectEdges(pyramid[i], gradientConfidence, thresholdR, thresholdS, selectedEdges);
+
+
+
+                // decrease thresholds
+                thresholdR = thresholdR / 1.1;
+                thresholdS = thresholdS / 1.1;
             }
 
             // TODO: continue
