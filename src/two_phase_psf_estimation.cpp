@@ -238,6 +238,117 @@ namespace TwoPhaseKernelEstimation {
     }
 
 
+    /**
+     * Applies DFT after expanding input image to optimal size for Fourier transformation
+     * 
+     * @param image   input image
+     * @param complex result as 2 channel matrix with complex numbers
+     */
+    void FFT(const Mat& image, Mat& complex) {
+        // for fast DFT expand image to optimal size
+        Mat padded;
+        int m = getOptimalDFTSize( image.rows );
+        int n = getOptimalDFTSize( image.cols );
+
+        // on the border add zero pixels
+        copyMakeBorder(image, padded, 0, m - image.rows, 0, n - image.cols, BORDER_CONSTANT, Scalar::all(0));
+
+        // Add to the expanded another plane with zeros
+        Mat planes[] = {padded, Mat::zeros(padded.size(), CV_32F)};
+        merge(planes, 2, complex);
+
+        // this way the result may fit in the source matrix
+        dft(complex, complex); 
+    }
+
+
+    /**
+     * Displays a matrix with complex numbers stored as 2 channels
+     * Copied from: http://docs.opencv.org/2.4/doc/tutorials/core/
+     * discrete_fourier_transform/discrete_fourier_transform.html
+     * 
+     * @param windowName name of window
+     * @param complex    matrix that should be displayed
+     */
+    void showComplexImage(const string windowName, const Mat& complex) {
+        // compute the magnitude and switch to logarithmic scale
+        // => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
+        Mat planes[] = {Mat::zeros(complex.size(), CV_32F), Mat::zeros(complex.size(), CV_32F)};
+        split(complex, planes);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
+        magnitude(planes[0], planes[1], planes[0]);// planes[0] = magnitude
+        Mat magI = planes[0];
+
+        magI += Scalar::all(1);                    // switch to logarithmic scale
+        log(magI, magI);
+
+        // crop the spectrum, if it has an odd number of rows or columns
+        magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
+
+        // rearrange the quadrants of Fourier image  so that the origin is at the image center
+        int cx = magI.cols/2;
+        int cy = magI.rows/2;
+
+        Mat q0(magI, Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+        Mat q1(magI, Rect(cx, 0, cx, cy));  // Top-Right
+        Mat q2(magI, Rect(0, cy, cx, cy));  // Bottom-Left
+        Mat q3(magI, Rect(cx, cy, cx, cy)); // Bottom-Right
+
+        Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
+        q0.copyTo(tmp);
+        q3.copyTo(q0);
+        tmp.copyTo(q3);
+
+        q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
+        q2.copyTo(q1);
+        tmp.copyTo(q2);
+
+        normalize(magI, magI, 0, 1, CV_MINMAX); // Transform the matrix with float values into a
+                                                // viewable image form (float between values 0 and 1).
+
+        imshow(windowName, magI);
+    }
+
+
+    /**
+     * With the critical edge selection, initial kernel erstimation can be accomplished quickly.
+     * Objective function: E(k) = ||∇I^s ⊗ k - ∇B||² + γ||k||²
+     * 
+     * @param selectionGrads  vector of x and y gradients of final selected edges (∇I^s)
+     * @param blurredGrads    vector of x and y gradients of blurred image (∇B)
+     * @param kernel          result (k)
+     */
+    void fastKernelEstimation(const vector<Mat>& selectionGrads, const vector<Mat>& blurredGrads, Mat kernel) {
+        // based on Perseval's theorem, perform FFT
+        //                __________              __________
+        //             (  F(∂_x I^s) * F(∂_x B) + F(∂_y I^s) * F(∂_y B) )
+        // k = F^-1 * ( ----------------------------------------------   )
+        //             (         F(∂_x I^s)² + F(∂_y I^s)² + γ          )
+        // where * is pointwise multiplication
+        // 
+        // here: F(∂_x I^s) = xS
+        //       F(∂_x B)   = xB
+        //       F(∂_y I^s) = yS
+        //       F(∂_y B)   = yB
+        
+        // compute FFTs
+        Mat xS, xB, yS, yB;
+        FFT(selectionGrads[0], xS);
+        FFT(blurredGrads[0], xB);
+        FFT(selectionGrads[1], yS);
+        FFT(blurredGrads[1], yB);
+
+        showComplexImage("spectrum magnitude xS", xS);
+        showComplexImage("spectrum magnitude yS", yS);
+        showComplexImage("spectrum magnitude xB", xB);
+        showComplexImage("spectrum magnitude yB", yB);
+
+        // compute inverse of xS and yS
+        Mat xSi, ySi;
+
+
+    }
+
+
     void estimateKernel(Mat& psf, const Mat& image, const int psfWidth, const Mat& mask) {
         // set expected kernel witdh to odd number
         int width = (psfWidth % 2 == 0) ? psfWidth + 1 : psfWidth;
@@ -319,6 +430,9 @@ namespace TwoPhaseKernelEstimation {
                 // select edges for kernel estimation
                 vector<Mat> selectedEdges;
                 selectEdges(pyramid[i], gradientConfidence, thresholdR, thresholdS, selectedEdges);
+
+                // estimate kernel with gaussian prior
+                fastKernelEstimation(selectedEdges, gradients, kernel);
 
 
                 // decrease thresholds
