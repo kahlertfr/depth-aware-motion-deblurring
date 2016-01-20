@@ -83,7 +83,7 @@ namespace TwoPhaseKernelEstimation {
         } else {
             Mat copy;
             floatMat.copyTo(copy);
-            
+
             // handling that floats could be negative
             copy -= min;
 
@@ -177,7 +177,7 @@ namespace TwoPhaseKernelEstimation {
         // create mask for ruling out pixel belonging to small confidence-values
         // M = H(r - τ_r) where H is Heaviside step function
         Mat mask;
-        inRange(confidence, r, 1, mask);
+        inRange(confidence, r + 0.00001, 1, mask);  // add a very small value to r to exclude zero values
         imshow("edge mask", mask);
 
         // shock filter the input image
@@ -404,20 +404,30 @@ namespace TwoPhaseKernelEstimation {
 
         // go through all pixel and calculate the value in the brackets of the equation
         Mat brackets = Mat::zeros(xS.size(), xS.type());
+
+        // assert(compMult({1,2}, {3,4}) == Vec2f(-5, 10) && "complex mult failed");
+        // assert(compAdd({1,2}, {3,4}) == Vec2f(4, 6) && "complex add failed");
+        // assert(compDiv({1,2}, {3,4}) == Vec2f(0.44, 0.08) && "complex div failed");
         
-        for (int x = 0; x < cols; x++) {
-            for (int y = 0; y < rows; y++) {
+        for (int x = 0; x < xS.cols; x++) {
+            for (int y = 0; y < xS.rows; y++) {
                 // conjugate complex number
                 Vec2f conjXS = {xS.at<Vec2f>(y, x)[0], -1 * xS.at<Vec2f>(y, x)[1]};
                 Vec2f conjYS = {yS.at<Vec2f>(y, x)[0], -1 * yS.at<Vec2f>(y, x)[1]};
+                Vec2f conjXB = {xB.at<Vec2f>(y, x)[0], -1 * xB.at<Vec2f>(y, x)[1]};
+                Vec2f conjYB = {yB.at<Vec2f>(y, x)[0], -1 * yB.at<Vec2f>(y, x)[1]};
 
-                Vec2f numerator = compAdd(compMult(conjXS, xB.at<Vec2f>(x, y)),
+                Vec2f numerator1 = compAdd(compMult(conjXS, xB.at<Vec2f>(x, y)),
                                           compMult(conjYS, yB.at<Vec2f>(x, y)));
+                // Vec2f numerator2 = compAdd(compMult(conjXB, xS.at<Vec2f>(x, y)),
+                //                           compMult(conjYB, yS.at<Vec2f>(x, y)));
+                // Vec2f numerator = compAdd(numerator1, numerator2);
+
                 // TODO: add weight
                 Vec2f denominator = compAdd(compMult(xS.at<Vec2f>(x, y), xS.at<Vec2f>(x, y)),
                                             compMult(yS.at<Vec2f>(x, y), yS.at<Vec2f>(x, y)));
 
-                brackets.at<Vec2f>(y, x) = compDiv(numerator, denominator);
+                brackets.at<Vec2f>(y, x) = compDiv(numerator1, denominator);
             }
         }
 
@@ -516,7 +526,7 @@ namespace TwoPhaseKernelEstimation {
             // thresholds τ_r and τ_s will be decreased in each iteration
             // to include more and more edges
             // TDOO: parameter for this
-            float thresholdR = 0.25;
+            float thresholdR = 0;
             float thresholdS = 50;
 
             int iterations = 1;  // TODO: add parameter for this
@@ -538,5 +548,11 @@ namespace TwoPhaseKernelEstimation {
         }
 
         psf = kernel;
+    }
+
+
+    void estimateKernel(Mat& psf, const Mat& image, const int psfWidth) {
+        Mat mask = Mat(image.rows, image.cols, CV_8U, 1);
+        estimateKernel(psf, image, psfWidth, mask);
     }
 }

@@ -43,6 +43,9 @@ target_link_libraries(libmdeblur ${OpenCV_LIBS})
 add_executable(motion-deblurring src/main.cpp src/argtable3.c)
 target_link_libraries(motion-deblurring libmdeblur)
 
+add_executable(kernel-estimation src/kernel_main.cpp src/two_phase_psf_estimation.cpp src/argtable3.c)
+target_link_libraries(kernel-estimation ${OpenCV_LIBS})
+
 # ------------
 # Installation
 # ------------

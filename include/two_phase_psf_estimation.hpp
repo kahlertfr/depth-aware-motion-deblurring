@@ -27,6 +27,15 @@ namespace TwoPhaseKernelEstimation {
      */
     void estimateKernel(cv::Mat& psf, const cv::Mat& image, const int psfWidth, const cv::Mat& mask);
 
+    /**
+     * Start two-phase kernel estimation algortihm with the whole image
+     * 
+     * @param psf       Mat to store the estimated PSF kernel
+     * @param image     blurred image
+     * @param psfWidth  expected width of PSF kernel before computing
+     */
+    void estimateKernel(cv::Mat& psf, const cv::Mat& image, const int psfWidth);
+
 }
 
 #endif
