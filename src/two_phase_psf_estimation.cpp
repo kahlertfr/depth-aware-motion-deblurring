@@ -1,5 +1,6 @@
 #include <iostream>                     // cout, cerr, endl
-#include <math.h>                       // sqrt
+#include <cmath>                        // sqrt
+#include <complex>                      // complex numbers
 #include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
 
 #include "two_phase_psf_estimation.hpp"
@@ -262,7 +263,34 @@ namespace TwoPhaseKernelEstimation {
         merge(planes, 2, complex);
 
         // this way the result may fit in the source matrix
-        dft(complex, complex); 
+        dft(complex, complex, DFT_COMPLEX_OUTPUT);
+
+        assert(padded.size() == complex.size() && "Resulting complex matrix must be of same size");
+    }
+
+
+    /**
+     * Rearrange quadrants of an image so that the origin is at the image center.
+     * This is useful for fourier images. 
+     */
+    void swapQuadrants(Mat& image) {
+        // rearrange the quadrants of Fourier image  so that the origin is at the image center
+        int cx = image.cols/2;
+        int cy = image.rows/2;
+
+        Mat q0(image, Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+        Mat q1(image, Rect(cx, 0, cx, cy));  // Top-Right
+        Mat q2(image, Rect(0, cy, cx, cy));  // Bottom-Left
+        Mat q3(image, Rect(cx, cy, cx, cy)); // Bottom-Right
+
+        Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
+        q0.copyTo(tmp);
+        q3.copyTo(q0);
+        tmp.copyTo(q3);
+
+        q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
+        q2.copyTo(q1);
+        tmp.copyTo(q2);
     }
 
 
@@ -288,75 +316,12 @@ namespace TwoPhaseKernelEstimation {
         // crop the spectrum, if it has an odd number of rows or columns
         magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
 
-        // rearrange the quadrants of Fourier image  so that the origin is at the image center
-        int cx = magI.cols/2;
-        int cy = magI.rows/2;
-
-        Mat q0(magI, Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
-        Mat q1(magI, Rect(cx, 0, cx, cy));  // Top-Right
-        Mat q2(magI, Rect(0, cy, cx, cy));  // Bottom-Left
-        Mat q3(magI, Rect(cx, cy, cx, cy)); // Bottom-Right
-
-        Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
-        q0.copyTo(tmp);
-        q3.copyTo(q0);
-        tmp.copyTo(q3);
-
-        q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
-        q2.copyTo(q1);
-        tmp.copyTo(q2);
+        swapQuadrants(magI);
 
         normalize(magI, magI, 0, 1, CV_MINMAX); // Transform the matrix with float values into a
                                                 // viewable image form (float between values 0 and 1).
 
         imshow(windowName, magI);
-    }
-
-
-    /**
-     * Multiplication with complex numbers with real and imaginare part
-     * 
-     * w * z = (a + bi) * (c + di) = (a*c - b*d) + (a*d + c*b)i
-     * 
-     * @param  w first complex number
-     * @param  z second complex number
-     * @return   result of w * z as real and imaginary part
-     */
-    inline Vec2f compMult(Vec2f w, Vec2f z) {
-        return {(w[0] * z[0] - w[1] * z[1]),
-                (w[0] * z[1] + w[1] * z[0])};
-    }
-
-
-    /**
-     * Addition with complex numbers with real and imaginary part
-     *
-     * w + z = (a + bi) + (c + di) = (a + c) + (b + d)i
-     * 
-     * @param  w first complex number
-     * @param  z second complex number
-     * @return   result of w + z as real and imaginary part
-     */
-    inline Vec2f compAdd(Vec2f w, Vec2f z) {
-        return {w[0] + z[0], w[1] + z[1]};
-    }
-
-
-    /**
-     * Division with complex numbers with real and imaginary part
-     *
-     * w   a*c + b*d + (c*b - a*d)i
-     * - = ------------------------
-     * z           c² + d²
-     * 
-     * @param  w first complex number
-     * @param  z second complex number
-     * @return   result of w / z as real and imaginary part
-     */
-    inline Vec2f compDiv(Vec2f w, Vec2f z) {
-        float denominator = z[0] * z[0] + z[1] * z[1];
-        return {(w[0] * z[0] + w[1] * z[1]) / denominator,
-                (z[0] * w[1] - w[0] * z[1]) / denominator};
     }
 
 
@@ -403,46 +368,50 @@ namespace TwoPhaseKernelEstimation {
         #endif
 
         // go through all pixel and calculate the value in the brackets of the equation
-        Mat brackets = Mat::zeros(xS.size(), xS.type());
+        Mat kernelFourier = Mat::zeros(xS.size(), xS.type());
 
-        // assert(compMult({1,2}, {3,4}) == Vec2f(-5, 10) && "complex mult failed");
-        // assert(compAdd({1,2}, {3,4}) == Vec2f(4, 6) && "complex add failed");
-        // assert(compDiv({1,2}, {3,4}) == Vec2f(0.44, 0.08) && "complex div failed");
-        
+        assert(xS.type() == CV_32FC2);
+        assert(yS.type() == CV_32FC2);
+        assert(xB.type() == CV_32FC2);
+        assert(yB.type() == CV_32FC2);
+
         for (int x = 0; x < xS.cols; x++) {
             for (int y = 0; y < xS.rows; y++) {
-                // conjugate complex number
-                Vec2f conjXS = {xS.at<Vec2f>(y, x)[0], -1 * xS.at<Vec2f>(y, x)[1]};
-                Vec2f conjYS = {yS.at<Vec2f>(y, x)[0], -1 * yS.at<Vec2f>(y, x)[1]};
-                Vec2f conjXB = {xB.at<Vec2f>(y, x)[0], -1 * xB.at<Vec2f>(y, x)[1]};
-                Vec2f conjYB = {yB.at<Vec2f>(y, x)[0], -1 * yB.at<Vec2f>(y, x)[1]};
+                // complex entries at the current position
+                complex<float> xs(xS.at<Vec2f>(y, x)[0], xS.at<Vec2f>(y, x)[1]);
+                complex<float> ys(yS.at<Vec2f>(y, x)[0], yS.at<Vec2f>(y, x)[1]);
 
-                Vec2f numerator1 = compAdd(compMult(conjXS, xB.at<Vec2f>(x, y)),
-                                          compMult(conjYS, yB.at<Vec2f>(x, y)));
-                // Vec2f numerator2 = compAdd(compMult(conjXB, xS.at<Vec2f>(x, y)),
-                //                           compMult(conjYB, yS.at<Vec2f>(x, y)));
-                // Vec2f numerator = compAdd(numerator1, numerator2);
+                complex<float> xb(xB.at<Vec2f>(y, x)[0], xB.at<Vec2f>(y, x)[1]);
+                complex<float> yb(yB.at<Vec2f>(y, x)[0], yB.at<Vec2f>(y, x)[1]);
 
-                // TODO: add weight
-                Vec2f denominator = compAdd(compMult(xS.at<Vec2f>(x, y), xS.at<Vec2f>(x, y)),
-                                            compMult(yS.at<Vec2f>(x, y), yS.at<Vec2f>(x, y)));
+                complex<float> weight(1.0e+20, 0.0);
 
-                brackets.at<Vec2f>(y, x) = compDiv(numerator1, denominator);
+                // kernel entry in the Fourier space
+                complex<float> k = (conj(xs) * xb + conj(ys) * yb) /
+                                   (xs * xs + ys * ys + weight);
+                
+                kernelFourier.at<Vec2f>(y, x) = { real(k), imag(k) };
             }
         }
 
-        // compute inverse FFT of the result in brackets
-        Mat result;
-        dft(brackets, result, cv::DFT_INVERSE|cv::DFT_REAL_OUTPUT);
+        // compute inverse FFT of the kernel in frequency domain
+        Mat kernelResult;
+        dft(kernelFourier, kernelResult, DFT_INVERSE);
 
-        #ifndef NDEBUG
-            // print confidence matrix
-            Mat resultviewable;
-            convertFloatToUchar(resultviewable, result);
-            imshow("result", resultviewable);
-        #endif
+        // swap quadrants
+        vector<Mat> channels(2);
+        split(kernelResult, channels);
+        swapQuadrants(channels[0]);
+        
+        // cut of kernel in middle of the result image
+        int x = channels[0].cols / 2 - kernel.cols / 2;
+        int y = channels[0].rows / 2 - kernel.rows / 2;
+        Mat kernelROI = channels[0](Rect(x, y, kernel.cols, kernel.rows));
 
-        // TODO: set kernel
+        // convert to uchar
+        Mat resultUchar;
+        convertFloatToUchar(resultUchar, kernelROI);
+        resultUchar.copyTo(kernel);
     }
 
 
@@ -495,7 +464,6 @@ namespace TwoPhaseKernelEstimation {
             Mat element = getStructuringElement(MORPH_CROSS, Size(7, 7), Point(3, 3));
             Mat erodedMask;
             erode(mask, erodedMask, element);
-            imshow("eroded mask", erodedMask);
 
             // save x and y gradients in a vector and erase borders because of region
             Mat erodedXGradients, erodedYGradients;
@@ -526,7 +494,7 @@ namespace TwoPhaseKernelEstimation {
             // thresholds τ_r and τ_s will be decreased in each iteration
             // to include more and more edges
             // TDOO: parameter for this
-            float thresholdR = 0;
+            float thresholdR = 0.25;
             float thresholdS = 50;
 
             int iterations = 1;  // TODO: add parameter for this
@@ -537,7 +505,10 @@ namespace TwoPhaseKernelEstimation {
 
                 // estimate kernel with gaussian prior
                 fastKernelEstimation(selectedEdges, gradients, kernel);
-
+                
+                #ifndef NDEBUG
+                    imshow("kernel", kernel);
+                #endif
 
                 // decrease thresholds
                 thresholdR = thresholdR / 1.1;
