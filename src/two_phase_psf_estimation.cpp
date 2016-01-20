@@ -246,10 +246,12 @@ namespace TwoPhaseKernelEstimation {
     /**
      * Applies DFT after expanding input image to optimal size for Fourier transformation
      * 
-     * @param image   input image
+     * @param image   input image with 1 channel
      * @param complex result as 2 channel matrix with complex numbers
      */
     void FFT(const Mat& image, Mat& complex) {
+        assert(image.type() == CV_32F && "fft works on 32FC1-images");
+
         // for fast DFT expand image to optimal size
         Mat padded;
         int m = getOptimalDFTSize( image.rows );
@@ -333,7 +335,7 @@ namespace TwoPhaseKernelEstimation {
      * @param blurredGrads    vector of x and y gradients of blurred image (∇B)
      * @param kernel          result (k)
      */
-    void fastKernelEstimation(const vector<Mat>& selectionGrads, const vector<Mat>& blurredGrads, Mat kernel) {
+    void fastKernelEstimation(const vector<Mat>& selectionGrads, const vector<Mat>& blurredGrads, Mat& kernel) {
         assert(selectionGrads[0].rows == blurredGrads[0].rows && "matrixes have to be of same size!");
         assert(selectionGrads[0].cols == blurredGrads[0].cols && "matrixes have to be of same size!");
 
@@ -402,20 +404,52 @@ namespace TwoPhaseKernelEstimation {
         vector<Mat> channels(2);
         split(kernelResult, channels);
         swapQuadrants(channels[0]);
-        
-        // cut of kernel in middle of the result image
-        int x = channels[0].cols / 2 - kernel.cols / 2;
-        int y = channels[0].rows / 2 - kernel.rows / 2;
-        Mat kernelROI = channels[0](Rect(x, y, kernel.cols, kernel.rows));
 
-        // convert to uchar
-        Mat resultUchar;
-        convertFloatToUchar(resultUchar, kernelROI);
-        resultUchar.copyTo(kernel);
+        channels[0].copyTo(kernel);
     }
 
 
-    void estimateKernel(Mat& psf, const Mat& image, const int psfWidth, const Mat& mask) {
+    /**
+     * The predicted sharp edge gradient ∇I^s is used as a spatial prior to guide
+     * the recovery of a coarse version of the latent image.
+     * Objective function: E(I) = ||I ⊗ k - B||² + λ||∇I - ∇I^s||²
+     * 
+     * @param blurredImage   blurred image
+     * @param kernel         kernel in image size
+     * @param selectionGrads gradients of selected edges
+     * @param latentImage    resulting image
+     */
+    void coarseImageEstimation(const Mat& blurredImage, const Mat& kernel,
+                               const vector<Mat>& selectionGrads, Mat& latentImage) {
+        //                ____              ______                ______
+        //             (  F(k) * F(B) + λ * F(∂_x) * F(∂_x I^s) + F(∂_y) * F(∂_y I^s) )
+        // I = F^-1 * ( -------------------------------------------------------------  )
+        //            (     ____              ______            ______                 )
+        //             (    F(k) * F(k) + λ * F(∂_x) * F(∂_x) + F(∂_y) * F(∂_y)       )
+        // where * is pointwise multiplication
+        // 
+        // here: F(k)       = k
+        //       F(∂_x I^s) = xS
+        //       F(∂_y I^s) = yS
+        //       F(∂_x)     = dx
+        //       F(∂_y)     = dy
+        //       F(B)       = B
+
+        // compute FFTs
+        // the result are stored as 2 channel matrices: Re(FFT(I)), Im(FFT(I))
+        Mat k, xS, yS, B;
+        FFT(kernel, k);
+        FFT(selectionGrads[0], xS);
+        FFT(selectionGrads[1], yS);
+
+        Mat blurredFloat, gray;
+        cvtColor(blurredImage, gray, CV_BGR2GRAY);
+        gray.convertTo(blurredFloat, CV_32F);
+        FFT(blurredFloat, B);
+    }
+
+
+    void estimateKernel(Mat& psf, const Mat& blurredImage, const int psfWidth, const Mat& mask) {
         // set expected kernel witdh to odd number
         int width = (psfWidth % 2 == 0) ? psfWidth + 1 : psfWidth;
 
@@ -424,11 +458,14 @@ namespace TwoPhaseKernelEstimation {
         // all-zer kernel
         Mat kernel = Mat::zeros(psfWidth, psfWidth, CV_8U);
 
+        // in the iterations this kernel is used
+        Mat tmpKernel;
+
         // build an image pyramid
         int level = 1;  // TODO: add parameter for this
 
         vector<Mat> pyramid;
-        pyramid.push_back(image);
+        pyramid.push_back(blurredImage);
 
         for (int i = 0; i < (level - 1); i++) {
             Mat downImage;
@@ -504,11 +541,18 @@ namespace TwoPhaseKernelEstimation {
                 selectEdges(pyramid[i], gradientConfidence, thresholdR, thresholdS, selectedEdges);
 
                 // estimate kernel with gaussian prior
-                fastKernelEstimation(selectedEdges, gradients, kernel);
-                
+                fastKernelEstimation(selectedEdges, gradients, tmpKernel);
+
                 #ifndef NDEBUG
-                    imshow("kernel", kernel);
+                    // print kernel
+                    Mat kernelUchar;
+                    convertFloatToUchar(kernelUchar, tmpKernel);
+                    imshow("tmp kernel", kernelUchar);
                 #endif
+                
+                // coarse image estimation with a spatial prior
+                Mat latentImage;
+                coarseImageEstimation(pyramid[i], tmpKernel, selectedEdges, latentImage);
 
                 // decrease thresholds
                 thresholdR = thresholdR / 1.1;
@@ -518,7 +562,19 @@ namespace TwoPhaseKernelEstimation {
             // TODO: continue
         }
 
-        psf = kernel;
+        // cut of kernel in middle of the temporary kernel
+        int x = tmpKernel.cols / 2 - kernel.cols / 2;
+        int y = tmpKernel.rows / 2 - kernel.rows / 2;
+        Mat kernelROI = tmpKernel(Rect(x, y, kernel.cols, kernel.rows));
+
+        // convert kernel to uchar
+        Mat resultUchar;
+        convertFloatToUchar(resultUchar, kernelROI);
+        resultUchar.copyTo(psf);
+
+        #ifndef NDEBUG
+            imshow("kernel", psf);
+        #endif
     }
 
 
