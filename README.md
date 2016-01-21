@@ -5,6 +5,59 @@ My study thesis (Belegarbeit) in computer vision based on the paper ["Depth-Awar
 They use spatially-varying point spread functions to deblur the image depending on the depth layer. The results can be found here: [website][Xu-website].
 
 
+## Building
+
+The project structure is modular. You can build all components from the toplevel.
+
+
+### Requirements
+
+- [OpenCV 3.0](http://opencv.org/). [Installation guide][OpenCV-install]
+
+
+### CMake configuration
+
+[CMake](http://cmake.org/) is the used build tool. Use an additional build folder to have clean source folders.
+
+```bash
+# create a build directory (all CMake Files will be saved there)
+mkdir build
+cd build
+
+# Create a build configuration
+# CMAKE_BUILD_TYPE= Release for disabling output (doesn't show/save images ...)
+cmake -D CMAKE_BUILD_TYPE=Release ..
+
+# use make for building all make targets or specify the needed target
+make
+```
+
+
+### Make targets
+
+#### motion-deblurring
+
+This is the main algorithm.
+
+```bash
+make motion-deblurring
+
+# Executable can be found in build/bin
+bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg
+```
+
+#### two-phase-kernel
+
+This part of the Depth-Aware Motion Deblurring Algorithm can be used completly independent of the whole algorithm
+
+```bash
+make two-phase-kernel
+
+# Executable can be found in build/bin
+bin/two-phase-kernel../images/mouse-left.jpg
+```
+
+
 
 ## Literature on Motion Deblurring
 
@@ -72,3 +125,5 @@ They use spatially-varying point spread functions to deblur the image depending 
 [Xu12]: http://www.cse.cuhk.edu.hk/leojia/papers/depth_deblur_iccp12.pdf
 
 [Xu-website]: https://appsrv.cse.cuhk.edu.hk/~leojia/projects/nonuniform_deblur/index.html
+
+[OpenCV-install]: http://docs.opencv.org/3.0-beta/doc/tutorials/introduction/table_of_content_introduction/table_of_content_introduction.html#table-of-content-introduction

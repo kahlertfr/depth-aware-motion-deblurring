@@ -559,25 +559,25 @@ namespace TwoPhaseKernelEstimation {
             yGradients.copyTo(erodedYGradients, erodedMask);
             vector<Mat> gradients = {erodedXGradients, erodedYGradients};
 
-            #ifndef NDEBUG
-                // display gradients
-                Mat xGradientsViewable, yGradientsViewable;
-                convertFloatToUchar(xGradientsViewable, erodedXGradients);
-                convertFloatToUchar(yGradientsViewable, erodedYGradients);
-                imshow("x gradient", xGradientsViewable);
-                imshow("y gradient", yGradientsViewable);
-            #endif
+            // #ifndef NDEBUG
+            //     // display gradients
+            //     Mat xGradientsViewable, yGradientsViewable;
+            //     convertFloatToUchar(xGradientsViewable, erodedXGradients);
+            //     convertFloatToUchar(yGradientsViewable, erodedYGradients);
+            //     imshow("x gradient", xGradientsViewable);
+            //     imshow("y gradient", yGradientsViewable);
+            // #endif
 
             // compute gradient confidence for al pixels
             Mat gradientConfidence;
             computeGradientConfidence(gradientConfidence, gradients, width, erodedMask);
 
-            #ifndef NDEBUG
-                // print confidence matrix
-                Mat confidenceUchar;
-                convertFloatToUchar(confidenceUchar, gradientConfidence);
-                imshow("confidence", confidenceUchar);
-            #endif
+            // #ifndef NDEBUG
+            //     // print confidence matrix
+            //     Mat confidenceUchar;
+            //     convertFloatToUchar(confidenceUchar, gradientConfidence);
+            //     imshow("confidence", confidenceUchar);
+            // #endif
 
             // thresholds τ_r and τ_s will be decreased in each iteration
             // to include more and more edges
@@ -594,30 +594,29 @@ namespace TwoPhaseKernelEstimation {
                 // estimate kernel with gaussian prior
                 fastKernelEstimation(selectedEdges, gradients, tmpKernel);
 
-                #ifndef NDEBUG
-                    // print kernel
-                    Mat kernelUchar;
-                    convertFloatToUchar(kernelUchar, tmpKernel);
-                    imshow("tmp kernel", kernelUchar);
-                #endif
+                // #ifndef NDEBUG
+                //     // print kernel
+                //     Mat kernelUchar;
+                //     convertFloatToUchar(kernelUchar, tmpKernel);
+                //     imshow("tmp kernel", kernelUchar);
+                // #endif
                 
                 // coarse image estimation with a spatial prior
                 Mat latentImage;
                 coarseImageEstimation(pyramid[i], tmpKernel, selectedEdges, latentImage);
 
-                #ifndef NDEBUG
-                    // print kernel
-                    Mat imageUchar;
-                    convertFloatToUchar(imageUchar, latentImage);
-                    imshow("tmp latent image", imageUchar);
-                #endif
+                // #ifndef NDEBUG
+                //     // print kernel
+                //     Mat imageUchar;
+                //     convertFloatToUchar(imageUchar, latentImage);
+                //     imshow("tmp latent image", imageUchar);
+                // #endif
 
+                
                 // decrease thresholds
                 thresholdR = thresholdR / 1.1;
                 thresholdS = thresholdS / 1.1;
             }
-
-            // TODO: continue
         }
 
         // cut of kernel in middle of the temporary kernel
