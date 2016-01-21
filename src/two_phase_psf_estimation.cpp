@@ -98,7 +98,7 @@ namespace TwoPhaseKernelEstimation {
     *  reference: http://blog.csdn.net/bluecol/article/details/49924739
     *  
     *  Coherence-Enhancing Shock Filters
-    *  Author:WinCoder@qq.com
+    *  Author:WinCoder@qq.com with editing by me
     *  inspired by
     *  Joachim Weickert "Coherence-Enhancing Shock Filters"
     *  http://www.mia.uni-saarland.de/Publications/weickert-dagm03.pdf
@@ -114,18 +114,25 @@ namespace TwoPhaseKernelEstimation {
     *   Mat dst = CoherenceFilter(I,11,11,0.5,4);
     *   imshow("shock filter",dst);
     */
-    Mat coherenceFilter(Mat img,int sigma, int str_sigma, float blend, int iter)
-    {
-        Mat I = img.clone();
-        int height = I.rows;
-        int width  = I.cols;
+    void coherenceFilter(const Mat& img, const int sigma, const int str_sigma,
+                         const float blend, const int iter, Mat& shockImage) {
 
-        for(int i = 0;i <iter; i++)
-        {
+        img.copyTo(shockImage);
+
+        int height = shockImage.rows;
+        int width  = shockImage.cols;
+
+        for(int i = 0;i <iter; i++) {
             Mat gray;
-            cvtColor(I,gray,COLOR_BGR2GRAY);
+            
+            if (img.type() != CV_8U) {
+                cvtColor(shockImage, gray, COLOR_BGR2GRAY);
+            } else {
+                img.copyTo(gray);
+            }
+
             Mat eigen;
-            cornerEigenValsAndVecs(gray,eigen,str_sigma,3);
+            cornerEigenValsAndVecs(gray, eigen, str_sigma, 3);
 
             vector<Mat> vec;
             split(eigen,vec);
@@ -135,31 +142,32 @@ namespace TwoPhaseKernelEstimation {
             y = vec[3];
 
             Mat gxx,gxy,gyy;
-            Sobel(gray,gxx,CV_32F,2,0,sigma);
-            Sobel(gray,gxy,CV_32F,1,1,sigma);
-            Sobel(gray,gyy,CV_32F,0,2,sigma);
+            Sobel(gray, gxx, CV_32F, 2, 0, sigma);
+            Sobel(gray, gxy, CV_32F, 1, 1, sigma);
+            Sobel(gray, gyy, CV_32F, 0, 2, sigma);
 
             Mat ero;
             Mat dil;
-            erode(I,ero,Mat());
-            dilate(I,dil,Mat());
+            erode(shockImage, ero, Mat());
+            dilate(shockImage, dil, Mat());
 
             Mat img1 = ero;
-            for(int nY = 0;nY<height;nY++)
-            {
-                for(int nX = 0;nX<width;nX++)
-                {
+            for(int nY = 0;nY<height;nY++) {
+                for(int nX = 0;nX<width;nX++) {
                     if(x.at<float>(nY,nX)* x.at<float>(nY,nX)* gxx.at<float>(nY,nX)
                         + 2*x.at<float>(nY,nX)* y.at<float>(nY,nX)* gxy.at<float>(nY,nX)
-                        + y.at<float>(nY,nX)* y.at<float>(nY,nX)* gyy.at<float>(nY,nX)<0)
-                    {
-                            img1.at<Vec3b>(nY,nX) = dil.at<Vec3b>(nY,nX);
+                        + y.at<float>(nY,nX)* y.at<float>(nY,nX)* gyy.at<float>(nY,nX)<0) {
+
+                            if (img.type() != CV_8U)
+                                img1.at<Vec3b>(nY,nX) = dil.at<Vec3b>(nY,nX);
+                            else
+                                img1.at<uchar>(nY,nX) = dil.at<uchar>(nY,nX);
                     }
                 }
             }
-            I = I*(1.0-blend)+img1*blend;
+
+            shockImage = shockImage * (1.0 - blend) + img1 * blend;
         }
-        return I;
     }
 
 
@@ -175,6 +183,8 @@ namespace TwoPhaseKernelEstimation {
      * @param selection  result (∇I^s)
      */
     void selectEdges(const Mat& image, const Mat& confidence, const float r, const float s, vector<Mat>& selection) {
+        assert(image.type() == CV_8U && "gray value image needed");
+
         // create mask for ruling out pixel belonging to small confidence-values
         // M = H(r - τ_r) where H is Heaviside step function
         Mat mask;
@@ -182,7 +192,8 @@ namespace TwoPhaseKernelEstimation {
         imshow("edge mask", mask);
 
         // shock filter the input image
-        Mat shockImage = coherenceFilter(image, 11, 11, 0.5, 4);
+        Mat shockImage;
+        coherenceFilter(image, 11, 11, 0.5, 4, shockImage);
         imshow("shock filter", shockImage);
 
         // gradients of shock filtered image
@@ -191,11 +202,10 @@ namespace TwoPhaseKernelEstimation {
         int ksize = 3;
         int scale = 1;
 
-        // TODO: convert to gray or not?
-        Mat gray, xGradients, yGradients;
-        cvtColor(shockImage, gray, CV_BGR2GRAY);
-        Sobel(gray, xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
-        Sobel(gray, yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+        // compute gradients
+        Mat xGradients, yGradients;
+        Sobel(shockImage, xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(shockImage, yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
         // merge the gradients of x- and y-direction to one matrix
         Mat gradients;
@@ -362,12 +372,12 @@ namespace TwoPhaseKernelEstimation {
         FFT(selectionGrads[1], yS);
         FFT(blurredGrads[1], yB);
 
-        #ifndef NDEBUG
-            showComplexImage("spectrum magnitude xS", xS);
-            showComplexImage("spectrum magnitude yS", yS);
-            showComplexImage("spectrum magnitude xB", xB);
-            showComplexImage("spectrum magnitude yB", yB);
-        #endif
+        // #ifndef NDEBUG
+        //     showComplexImage("spectrum magnitude xS", xS);
+        //     showComplexImage("spectrum magnitude yS", yS);
+        //     showComplexImage("spectrum magnitude xB", xB);
+        //     showComplexImage("spectrum magnitude yB", yB);
+        // #endif
 
         // go through all pixel and calculate the value in the brackets of the equation
         Mat kernelFourier = Mat::zeros(xS.size(), xS.type());
@@ -437,15 +447,53 @@ namespace TwoPhaseKernelEstimation {
 
         // compute FFTs
         // the result are stored as 2 channel matrices: Re(FFT(I)), Im(FFT(I))
-        Mat k, xS, yS, B;
-        FFT(kernel, k);
+        Mat K, xS, yS, B;
+        FFT(kernel, K);
         FFT(selectionGrads[0], xS);
         FFT(selectionGrads[1], yS);
 
-        Mat blurredFloat, gray;
-        cvtColor(blurredImage, gray, CV_BGR2GRAY);
-        gray.convertTo(blurredFloat, CV_32F);
+        Mat blurredFloat;
+        assert(blurredImage.type() == CV_8U && "gray value image needed");
+        blurredImage.convertTo(blurredFloat, CV_32F);
         FFT(blurredFloat, B);
+
+        // go through fourier transformed image
+        Mat imageFourier = Mat::zeros(xS.size(), xS.type());
+
+        for (int x = 0; x < xS.cols; x++) {
+            for (int y = 0; y < xS.rows; y++) {
+                // complex entries at the current position
+                complex<float> k(K.at<Vec2f>(y, x)[0], K.at<Vec2f>(y, x)[1]);
+                complex<float> xs(xS.at<Vec2f>(y, x)[0], xS.at<Vec2f>(y, x)[1]);
+                complex<float> ys(yS.at<Vec2f>(y, x)[0], yS.at<Vec2f>(y, x)[1]);
+                complex<float> b(B.at<Vec2f>(y, x)[0], B.at<Vec2f>(y, x)[1]);
+
+                // F(∂_x) is the factor: 2 * π * i * x
+                complex<float> dx(0, 2 * M_PI * x);
+                // F(∂_y) is the factor: 2 * π * i * y
+                complex<float> dy(0, 2 * M_PI * y);
+
+                // weight from paper
+                complex<float> weight(2.0e-4, 0.0);
+
+                // image deblurring in the Fourier space
+                complex<float> i = (conj(k) * b + weight * conj(dx) * xs + conj(dy) * ys) /
+                                   (conj(k) * k + weight * conj(dx) * dx + conj(dy) * dy);
+                
+                imageFourier.at<Vec2f>(y, x) = { real(i), imag(i) };
+            }
+        }
+
+        // compute inverse FFT of the latent image in frequency domain
+        Mat imageResult;
+        dft(imageFourier, imageResult, DFT_INVERSE);
+
+        // split complex matrix where the result of the dft is stored in channel 1
+        vector<Mat> channels(2);
+        split(imageResult, channels);
+        // swapQuadrants(channels[0]);
+
+        channels[0].copyTo(latentImage);
     }
 
 
@@ -461,16 +509,20 @@ namespace TwoPhaseKernelEstimation {
         // in the iterations this kernel is used
         Mat tmpKernel;
 
+        // convert blurred image to gray
+        Mat blurredGray;
+        cvtColor(blurredImage, blurredGray, CV_BGR2GRAY);
+
         // build an image pyramid
         int level = 1;  // TODO: add parameter for this
-
         vector<Mat> pyramid;
-        pyramid.push_back(blurredImage);
+        pyramid.push_back(blurredGray);
 
         for (int i = 0; i < (level - 1); i++) {
             Mat downImage;
             pyrDown(pyramid[i], downImage, Size(pyramid[i].cols/2, pyramid[i].rows/2));
-            pyramid.push_back(downImage);
+
+            pyramid.push_back(pyramid[i]);
         }
 
         // go through image image pyramid
@@ -481,10 +533,6 @@ namespace TwoPhaseKernelEstimation {
             // gaussian blur
             GaussianBlur(pyramid[i], pyramid[i], Size(3,3), 0, 0, BORDER_DEFAULT);
 
-            // convert it to gray
-            Mat gray;
-            cvtColor(pyramid[i], gray, CV_BGR2GRAY);
-
             Mat xGradients, yGradients;
             int delta = 0;
             int ddepth = CV_32F;
@@ -492,12 +540,15 @@ namespace TwoPhaseKernelEstimation {
             int scale = 1;
 
             // gradient x
-            Sobel(gray, xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+            assert(pyramid[i].type() == CV_8U && "sobel on gray value image");
+            Sobel(pyramid[i], xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
 
             // gradient y
-            Sobel(gray, yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+            Sobel(pyramid[i], yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+
 
             // remove borders of region through erosion of the mask
+            assert(mask.type() == CV_8U && "mask should be binary image");
             Mat element = getStructuringElement(MORPH_CROSS, Size(7, 7), Point(3, 3));
             Mat erodedMask;
             erode(mask, erodedMask, element);
@@ -553,6 +604,13 @@ namespace TwoPhaseKernelEstimation {
                 // coarse image estimation with a spatial prior
                 Mat latentImage;
                 coarseImageEstimation(pyramid[i], tmpKernel, selectedEdges, latentImage);
+
+                #ifndef NDEBUG
+                    // print kernel
+                    Mat imageUchar;
+                    convertFloatToUchar(imageUchar, latentImage);
+                    imshow("tmp latent image", imageUchar);
+                #endif
 
                 // decrease thresholds
                 thresholdR = thresholdR / 1.1;
