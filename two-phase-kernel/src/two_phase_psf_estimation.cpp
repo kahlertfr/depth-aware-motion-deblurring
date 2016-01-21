@@ -3,6 +3,8 @@
 #include <complex>                      // complex numbers
 #include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
 
+#include "coherence_filter.hpp"
+
 #include "two_phase_psf_estimation.hpp"
 
 using namespace cv;
@@ -90,83 +92,6 @@ namespace TwoPhaseKernelEstimation {
 
             // convert and show
             copy.convertTo(ucharMat, CV_8U, 255.0/(max-min));
-        }
-    }
-
-
-    /* 
-    *  reference: http://blog.csdn.net/bluecol/article/details/49924739
-    *  
-    *  Coherence-Enhancing Shock Filters
-    *  Author:WinCoder@qq.com with editing by me
-    *  inspired by
-    *  Joachim Weickert "Coherence-Enhancing Shock Filters"
-    *  http://www.mia.uni-saarland.de/Publications/weickert-dagm03.pdf
-    *  
-    *   Paras:
-    *   @img        : input image ranging value from 0 to 255.
-    *   @sigma      : sobel kernel size.
-    *   @str_sigma  : neighborhood size,see detail in reference[2]
-    *   @belnd      : blending coefficient.default value 0.5.
-    *   @iter       : number of iteration.
-    *    
-    *   Example:
-    *   Mat dst = CoherenceFilter(I,11,11,0.5,4);
-    *   imshow("shock filter",dst);
-    */
-    void coherenceFilter(const Mat& img, const int sigma, const int str_sigma,
-                         const float blend, const int iter, Mat& shockImage) {
-
-        img.copyTo(shockImage);
-
-        int height = shockImage.rows;
-        int width  = shockImage.cols;
-
-        for(int i = 0;i <iter; i++) {
-            Mat gray;
-            
-            if (img.type() != CV_8U) {
-                cvtColor(shockImage, gray, COLOR_BGR2GRAY);
-            } else {
-                img.copyTo(gray);
-            }
-
-            Mat eigen;
-            cornerEigenValsAndVecs(gray, eigen, str_sigma, 3);
-
-            vector<Mat> vec;
-            split(eigen,vec);
-
-            Mat x,y;
-            x = vec[2];
-            y = vec[3];
-
-            Mat gxx,gxy,gyy;
-            Sobel(gray, gxx, CV_32F, 2, 0, sigma);
-            Sobel(gray, gxy, CV_32F, 1, 1, sigma);
-            Sobel(gray, gyy, CV_32F, 0, 2, sigma);
-
-            Mat ero;
-            Mat dil;
-            erode(shockImage, ero, Mat());
-            dilate(shockImage, dil, Mat());
-
-            Mat img1 = ero;
-            for(int nY = 0;nY<height;nY++) {
-                for(int nX = 0;nX<width;nX++) {
-                    if(x.at<float>(nY,nX)* x.at<float>(nY,nX)* gxx.at<float>(nY,nX)
-                        + 2*x.at<float>(nY,nX)* y.at<float>(nY,nX)* gxy.at<float>(nY,nX)
-                        + y.at<float>(nY,nX)* y.at<float>(nY,nX)* gyy.at<float>(nY,nX)<0) {
-
-                            if (img.type() != CV_8U)
-                                img1.at<Vec3b>(nY,nX) = dil.at<Vec3b>(nY,nX);
-                            else
-                                img1.at<uchar>(nY,nX) = dil.at<uchar>(nY,nX);
-                    }
-                }
-            }
-
-            shockImage = shockImage * (1.0 - blend) + img1 * blend;
         }
     }
 
@@ -572,12 +497,12 @@ namespace TwoPhaseKernelEstimation {
             Mat gradientConfidence;
             computeGradientConfidence(gradientConfidence, gradients, width, erodedMask);
 
-            // #ifndef NDEBUG
-            //     // print confidence matrix
-            //     Mat confidenceUchar;
-            //     convertFloatToUchar(confidenceUchar, gradientConfidence);
-            //     imshow("confidence", confidenceUchar);
-            // #endif
+            #ifndef NDEBUG
+                // print confidence matrix
+                Mat confidenceUchar;
+                convertFloatToUchar(confidenceUchar, gradientConfidence);
+                imshow("confidence", confidenceUchar);
+            #endif
 
             // thresholds τ_r and τ_s will be decreased in each iteration
             // to include more and more edges
