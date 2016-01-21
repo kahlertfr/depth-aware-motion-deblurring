@@ -2,7 +2,7 @@
 
 ["Two-Phase Kernel Estimation paper from Xu and Jia"][Xu10]
 
-This Implementation concentrates on the first part of the algorithm which is PSF estimation for single images.
+This Implementation concentrates on the first part of the algorithm which is PSF estimation for single images. It can be used independently.
 
 
 ## Requirements
@@ -14,6 +14,8 @@ This Implementation concentrates on the first part of the algorithm which is PSF
 ## Building
 
 This project uses [CMake](http://cmake.org/) as build tool chain. Use an additional build folder to have clean source folders.
+
+The easiest way is way of building this project is from the toplevel because all toplevel will be resolved correctly. Otherwise you need to ensure CMake can find a libargtable or you modify the CMakeLists to not build a command line tool. If you done this follow the next steps:
 
 ```bash
 # create a build directory (all CMake Files will be saved there)

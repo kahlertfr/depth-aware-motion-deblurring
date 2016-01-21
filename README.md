@@ -7,7 +7,7 @@ They use spatially-varying point spread functions to deblur the image depending 
 
 ## Building
 
-The project structure is modular. You can build all components from the toplevel.
+The project structure is modular. It contains the depth-aware motion deblurring algorithm and the two-phase kernel estimation algorithm which can be used independently. You can build all components from the toplevel following the next steps.
 
 
 ### Requirements
