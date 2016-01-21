@@ -28,7 +28,8 @@ include_directories(include/)
 # @see: https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-set(LIB_SOURCES src/two_phase_psf_estimation)
+set(LIB_SOURCES src/two_phase_psf_estimation.cpp
+                src/kernel_initialization.cpp)
 add_library(lib2psfest SHARED ${LIB_SOURCES})
 set_target_properties(lib2psfest PROPERTIES
                                  OUTPUT_NAME "2psfest")
