@@ -66,7 +66,7 @@ namespace TwoPhaseKernelEstimation {
 
         // if the matrix is in the range [0, 1] just scale with 255
         if (min >= 0 && max < 1) {
-            floatMat.convertTo(ucharMat, CV_8U, 255.0);
+            floatMat.convertTo(ucharMat, CV_8U, 255.0/(max-min));
         } else {
             cv::Mat copy;
             floatMat.copyTo(copy);
