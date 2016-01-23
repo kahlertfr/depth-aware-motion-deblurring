@@ -135,14 +135,6 @@ namespace TwoPhaseKernelEstimation {
                 }
             }
         }
-
-        // #ifndef NDEBUG
-        //     // display gradients
-        //     convertFloatToUchar(xGradientsViewable, selection[0]);
-        //     convertFloatToUchar(yGradientsViewable, selection[1]);
-        //     imshow("x gradient selection", xGradientsViewable);
-        //     imshow("y gradient selection", yGradientsViewable);
-        // #endif
     }
 
 
@@ -205,9 +197,10 @@ namespace TwoPhaseKernelEstimation {
                 complex<float> xb(xB.at<Vec2f>(y, x)[0], xB.at<Vec2f>(y, x)[1]);
                 complex<float> yb(yB.at<Vec2f>(y, x)[0], yB.at<Vec2f>(y, x)[1]);
 
-                complex<float> weight(1.0e+20, 0.0);
+                complex<float> weight(5.0e+18, 0.0);
 
                 // kernel entry in the Fourier space
+                // cout << (conj(xs) * xb + conj(ys) * yb) << " / " << (xs * xs + ys * ys) << endl;
                 complex<float> k = (conj(xs) * xb + conj(ys) * yb) /
                                    (xs * xs + ys * ys + weight);
                 
@@ -222,7 +215,7 @@ namespace TwoPhaseKernelEstimation {
         // swap quadrants
         vector<Mat> channels(2);
         split(kernelResult, channels);
-        swapQuadrants(channels[0]);
+        // swapQuadrants(channels[0]);
 
         channels[0].copyTo(kernel);
     }
@@ -283,7 +276,7 @@ namespace TwoPhaseKernelEstimation {
                 complex<float> dy(0, 2 * M_PI * y);
 
                 // weight from paper
-                complex<float> weight(2.0e-4, 0.0);
+                complex<float> weight(2.0e-1, 0.0);
 
                 // image deblurring in the Fourier space
                 complex<float> i = (conj(k) * b + weight * conj(dx) * xs + conj(dy) * ys) /
@@ -308,8 +301,10 @@ namespace TwoPhaseKernelEstimation {
 
     void initKernel(Mat& kernel, const Mat& blurredGray, const int width, const Mat& mask, 
                     const int pyrLevel, const int iterations, float thresholdR, float thresholdS) {
+        
         assert(blurredGray.type() == CV_8U && "gray value image needed");
         assert(mask.type() == CV_8U && "mask should be binary image");
+        
         imshow("blurred", blurredGray);
 
         kernel = Mat::zeros(width, width, CV_8U);
@@ -329,11 +324,11 @@ namespace TwoPhaseKernelEstimation {
         Mat tmpKernel;
 
         // go through image image pyramid
-        for (int i = 0; i < pyramid.size(); i++) {
+        for (int l = 0; l < pyramid.size(); l++) {
             // compute image gradient for x and y direction
             // 
             // gaussian blur
-            GaussianBlur(pyramid[i], pyramid[i], Size(3,3), 0, 0, BORDER_DEFAULT);
+            GaussianBlur(pyramid[l], pyramid[l], Size(3,3), 0, 0, BORDER_DEFAULT);
 
             Mat xGradients, yGradients;
             int delta = 0;
@@ -342,11 +337,11 @@ namespace TwoPhaseKernelEstimation {
             int scale = 1;
 
             // gradient x
-            assert(pyramid[i].type() == CV_8U && "sobel on gray value image");
-            Sobel(pyramid[i], xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+            assert(pyramid[l].type() == CV_8U && "sobel on gray value image");
+            Sobel(pyramid[l], xGradients, ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
 
             // gradient y
-            Sobel(pyramid[i], yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+            Sobel(pyramid[l], yGradients, ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
 
             // remove borders of region through erosion of the mask
@@ -379,10 +374,22 @@ namespace TwoPhaseKernelEstimation {
             //     imshow("confidence", confidenceUchar);
             // #endif
 
+            Mat currentImage;
+            currentImage = pyramid[l];
+
             for (int i = 0; i < iterations; i++) {
                 // select edges for kernel estimation
                 vector<Mat> selectedEdges;
-                selectEdges(pyramid[i], gradientConfidence, thresholdR, thresholdS, selectedEdges);
+                selectEdges(currentImage, gradientConfidence, thresholdR, thresholdS, selectedEdges);
+
+                 #ifndef NDEBUG
+                    Mat xGradientsViewable, yGradientsViewable;
+                    // display gradients
+                    convertFloatToUchar(xGradientsViewable, selectedEdges[0]);
+                    convertFloatToUchar(yGradientsViewable, selectedEdges[1]);
+                    imshow("x gradient selection " + i, xGradientsViewable);
+                    imshow("y gradient selection " + i, yGradientsViewable);
+                #endif
 
                 // estimate kernel with gaussian prior
                 fastKernelEstimation(selectedEdges, gradients, tmpKernel);
@@ -391,20 +398,50 @@ namespace TwoPhaseKernelEstimation {
                     // print kernel
                     Mat kernelUchar;
                     convertFloatToUchar(kernelUchar, tmpKernel);
-                    imshow("tmp kernel", kernelUchar);
+                    swapQuadrants(kernelUchar);
+                    imshow("tmp kernel " + i, kernelUchar);
                 #endif
                 
                 // coarse image estimation with a spatial prior
                 Mat latentImage;
-                coarseImageEstimation(pyramid[i], tmpKernel, selectedEdges, latentImage);
-
-                #ifndef NDEBUG
-                    // print kernel
-                    Mat imageUchar;
-                    convertFloatToUchar(imageUchar, latentImage);
-                    imshow("tmp latent image", imageUchar);
-                #endif
+                coarseImageEstimation(pyramid[l], tmpKernel, selectedEdges, latentImage);
                 
+                // // cut of kernel in middle of the temporary kernel
+                // int x = tmpKernel.cols / 2 - kernel.cols / 2;
+                // int y = tmpKernel.rows / 2 - kernel.rows / 2;
+                // swapQuadrants(tmpKernel);
+                // kernel = tmpKernel(Rect(x, y, kernel.cols, kernel.rows));
+                // double min; double max;
+                // minMaxLoc(kernel, &min, &max);
+                // cout << min << " " << max << endl;
+                // Mat kernelmask;
+                // inRange(kernel, min + max/2, max, kernelmask);
+                // Mat newKernel; 
+                // kernel.copyTo(newKernel, kernelmask);
+                // Mat newUchar;
+                // minMaxLoc(newKernel, &min, &max);
+                // cout << min << " " << max << endl;
+                // convertFloatToUchar(newUchar, newKernel);
+                // imshow("new kernel", newUchar);
+                // filter2D(pyramid[l], latentImage, CV_32F, newKernel);
+                // Mat latentUchar;
+                // convertFloatToUchar(latentUchar, latentImage);
+                // imshow("latent", latentUchar);
+
+                // set current image to coarse latent image
+                Mat imageUchar;
+                convertFloatToUchar(imageUchar, latentImage);
+                // the latent image is some pixel larger than the original one therefore
+                // cut it out in the right size
+                currentImage = imageUchar(Rect((imageUchar.cols - pyramid[l].cols) / 2,
+                                               (imageUchar.rows - pyramid[l].rows) / 2,
+                                               pyramid[l].cols, pyramid[l].rows));
+                
+                #ifndef NDEBUG
+                    // print latent image
+                    imshow("tmp latent image " + i, imageUchar);
+                #endif
+
                 // decrease thresholds τ_r and τ_s will to include more and more edges
                 thresholdR = thresholdR / 1.1;
                 thresholdS = thresholdS / 1.1;
@@ -421,11 +458,13 @@ namespace TwoPhaseKernelEstimation {
         // cut of kernel in middle of the temporary kernel
         int x = tmpKernel.cols / 2 - kernel.cols / 2;
         int y = tmpKernel.rows / 2 - kernel.rows / 2;
+        swapQuadrants(tmpKernel);
         Mat kernelROI = tmpKernel(Rect(x, y, kernel.cols, kernel.rows));
 
         // convert kernel to uchar
         Mat resultUchar;
         convertFloatToUchar(resultUchar, kernelROI);
+        // convertFloatToUchar(resultUchar, kernel);
 
         resultUchar.copyTo(kernel);
     }
