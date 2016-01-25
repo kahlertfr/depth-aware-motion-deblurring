@@ -55,15 +55,19 @@ namespace DepthAwareDeblurring {
         RegionTree();
 
         /**
-         * Stores nodes with their containing layers and the node ids
-         * of the children and the parent node.
-         */
-        std::vector<node> tree;
-
-        /**
          * Store the top level nodes to walk through the tree in a top to bottom manner
          */
         std::vector<int> topLevelNodeIds;
+
+        /**
+         * Access the nodes stored in the tree with their index.
+         * 
+         * @param  i index
+         * @return   corresponding node
+         */
+        inline node &operator[](int i) {
+            return tree[i];
+        }
 
         /**
          * Creates the binary masks of each disparity layer and sets up the tree
@@ -83,11 +87,18 @@ namespace DepthAwareDeblurring {
          * 
          * @param nodeId       Id of the node in the region tree
          * @param regionImage  image with the resulting region
+         * @param mask         mask of this region
          */
-        void getRegionImage(const int nodeId, cv::Mat &regionImage);
+        void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask);
 
 
       private:
+        /**
+         * Stores nodes with their containing layers and the node ids
+         * of the children and the parent node.
+         */
+        std::vector<node> tree;
+
         /**
          * Binary masks of each disparity layer
          */

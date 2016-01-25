@@ -6,6 +6,7 @@
 #include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "region_tree.hpp"
+#include "two_phase_psf_estimation.hpp"
 
 using namespace std;
 using namespace cv;
@@ -148,7 +149,28 @@ namespace DepthAwareDeblurring {
         regionTreeR.create(disparityMapR, regions, &blurredRight, maxTopLevelNodes);
 
 
-        // to be continued ...
+        // compute PSFs for toplevels of the region trees
+        cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
+        cout << " ... top-level regions of d_m" << endl;
+
+        for (int i = 0; i < regionTreeM.topLevelNodeIds.size(); i++) {
+            int id = regionTreeM.topLevelNodeIds[i];
+
+            // get an image of the top-level region
+            Mat region, mask;
+            regionTreeM.getRegionImage(id, region, mask);
+
+            // fill PSF kernel with zeros 
+            regionTreeM[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
+
+            // calculate PSF
+            TwoPhaseKernelEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth, mask);
+        }
+
+
+        // TODO: to be continued ...
+        
+        cout << "finished Algorithm" << endl;
 
         #ifndef NDEBUG
             // Wait for a key stroke
