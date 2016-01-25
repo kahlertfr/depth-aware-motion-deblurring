@@ -1,5 +1,7 @@
 # Reference Implementation - Two-Phase Kernel Estimation for Robust Motion Deblurring
 
+*!!!! deferred !!!!*
+
 ["Two-Phase Kernel Estimation paper from Xu and Jia"][Xu10]
 
 This Implementation concentrates on the first part of the algorithm which is PSF estimation for single images. It can be used independently.
