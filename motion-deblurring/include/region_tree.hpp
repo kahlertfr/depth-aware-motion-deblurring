@@ -92,6 +92,18 @@ namespace DepthAwareDeblurring {
         void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask);
 
 
+        /**
+         * fill the black regions with the neighboring pixel colors (half way the left one
+         * and half way the right one) and blur the resulting image. Copy the original region
+         * over it.
+         * 
+         * @param taperedRegion resulting image
+         * @param region        region image
+         * @param mask          mask of region
+         */
+        void edgeTaper(cv::Mat& taperedRegion, cv::Mat& region, cv::Mat& mask, cv::Mat& image);
+
+
       private:
         /**
          * Stores nodes with their containing layers and the node ids

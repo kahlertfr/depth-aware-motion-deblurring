@@ -6,7 +6,7 @@
 #include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "region_tree.hpp"
-#include "two_phase_psf_estimation.hpp"
+// #include "two_phase_psf_estimation.hpp"
 
 using namespace std;
 using namespace cv;
@@ -27,6 +27,8 @@ namespace DepthAwareDeblurring {
     void quantizedDisparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
                                       const int l, Mat &disparityMap, bool inverse=false) {
 
+        assert(blurredLeft.type() == CV_8U && "gray values needed");
+
         // down sample images to roughly reduce blur for disparity estimation
         Mat blurredLeftSmall, blurredRightSmall;
 
@@ -44,9 +46,9 @@ namespace DepthAwareDeblurring {
             imshow("blurred right image", blurredRightSmall);
         #endif
 
-        // convert color images to gray images
-        cvtColor(blurredLeftSmall, blurredLeftSmall, CV_BGR2GRAY);
-        cvtColor(blurredRightSmall, blurredRightSmall, CV_BGR2GRAY);
+        // // convert color images to gray images
+        // cvtColor(blurredLeftSmall, blurredLeftSmall, CV_BGR2GRAY);
+        // cvtColor(blurredRightSmall, blurredRightSmall, CV_BGR2GRAY);
 
         // disparity map with occlusions as black regions
         // 
@@ -120,6 +122,23 @@ namespace DepthAwareDeblurring {
             throw runtime_error("ParallelTRDiff::runAlgorithm():PSF width has to be greater zero!");
         }
 
+        // compute gray value images
+        Mat grayLeft, grayRight;
+        if (blurredLeft.type() == CV_8UC3) {
+            cvtColor(blurredLeft, grayLeft, CV_BGR2GRAY);
+        }
+        else {
+            grayLeft = blurredLeft;
+        }
+
+        if (blurredRight.type() == CV_8UC3) {
+            cvtColor(blurredRight, grayRight, CV_BGR2GRAY);
+        }
+        else {
+            grayRight = blurredRight;
+        }
+
+
         // initial disparity estimation of blurred images
         // here: left image is matching image and right image is reference image
         //       I_m(x) = I_r(x + d_m(x))
@@ -133,20 +152,20 @@ namespace DepthAwareDeblurring {
         cout << "quantized to " << regions << " regions ..." << endl;
 
         cout << " ... d_m: left to right" << endl;
-        quantizedDisparityEstimation(blurredLeft, blurredRight, regions, disparityMapM);
+        quantizedDisparityEstimation(grayLeft, grayRight, regions, disparityMapM);
 
         cout << " ... d_r: right to left" << endl;
-        quantizedDisparityEstimation(blurredRight, blurredLeft, regions, disparityMapR, true);
+        quantizedDisparityEstimation(grayRight, grayLeft, regions, disparityMapR, true);
         
 
         cout << "Step 2: region tree reconstruction ..." << endl;
         cout << " ... tree for d_m" << endl;
         RegionTree regionTreeM;
-        regionTreeM.create(disparityMapM, regions, &blurredLeft, maxTopLevelNodes);
+        regionTreeM.create(disparityMapM, regions, &grayLeft, maxTopLevelNodes);
 
         cout << " ... tree for d_r" << endl;
         RegionTree regionTreeR;
-        regionTreeR.create(disparityMapR, regions, &blurredRight, maxTopLevelNodes);
+        regionTreeR.create(disparityMapR, regions, &grayRight, maxTopLevelNodes);
 
 
         // compute PSFs for toplevels of the region trees
@@ -154,6 +173,7 @@ namespace DepthAwareDeblurring {
         cout << " ... top-level regions of d_m" << endl;
 
         for (int i = 0; i < regionTreeM.topLevelNodeIds.size(); i++) {
+            // int i = 2;
             int id = regionTreeM.topLevelNodeIds[i];
 
             // get an image of the top-level region
@@ -163,8 +183,14 @@ namespace DepthAwareDeblurring {
             // fill PSF kernel with zeros 
             regionTreeM[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
 
+            // edge tapering to remove high frequencies at the border of the region
+            Mat taperedRegion;
+            regionTreeM.edgeTaper(taperedRegion, region, mask, grayLeft);
+            string name = "tapered" + to_string(i) + ".jpg";
+            imwrite(name, taperedRegion);
+
             // calculate PSF
-            TwoPhaseKernelEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth, mask);
+            // TwoPhaseKernelEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth, mask);
         }
 
 
