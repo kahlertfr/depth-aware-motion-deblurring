@@ -95,7 +95,11 @@ This is needed for robust PSF estimation.
 PSF Estimation for Top-Level Regions
 ------------------------------------
 
-This follows the algorithm of :cite:`XU2010`
+This follows the algorithm of :cite:`XU2010`.
+
+:red:`tried to implement the two-phase kernel estimation` but unfortunately this couldn't be finished in time. So the provided exe is used to generate the top-level PSFs which are necessary to go on with the main algorithm.
+
+- :red:`used edge tapering for region images to reduce high frequencies at the borders of the regions - so initial PSF estimation for the top level regions can be done with any kernel estimation algorithm`
 
 
 
