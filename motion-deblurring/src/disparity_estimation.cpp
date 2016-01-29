@@ -29,6 +29,8 @@ namespace DisparityEstimation {
 
 
     void fillOcclusionRegions(Mat &disparityMap, const int threshold) {
+        assert(disparityMap.type() == CV_8U && "gray values needed");
+
         uchar minDisparity = 255;
         Point start(-1,-1);
 
