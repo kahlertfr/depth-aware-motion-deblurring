@@ -57,7 +57,7 @@ make two-phase-kernel
 bin/two-phase-kernel../images/mouse-left.jpg
 ```
 
-Work-around: use the sample top-level kernels.
+Work-around: use the sample top-level kernels - place them in the folder where you starts the algorithm (they will be loaded automatically).
 
 
 ## Literature on Motion Deblurring
