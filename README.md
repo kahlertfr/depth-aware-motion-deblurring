@@ -57,6 +57,7 @@ make two-phase-kernel
 bin/two-phase-kernel../images/mouse-left.jpg
 ```
 
+Work-around: use the sample top-level kernels.
 
 
 ## Literature on Motion Deblurring

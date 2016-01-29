@@ -186,11 +186,24 @@ namespace DepthAwareDeblurring {
             // edge tapering to remove high frequencies at the border of the region
             Mat taperedRegion;
             regionTreeM.edgeTaper(taperedRegion, region, mask, grayLeft);
-            string name = "tapered" + to_string(i) + ".jpg";
-            imwrite(name, taperedRegion);
 
-            // calculate PSF
+            // // use this images for example for the .exe of the two-phase kernel estimation
+            // string name = "tapered" + to_string(i) + ".jpg";
+            // imwrite(name, taperedRegion);
+            
+            // calculate PSF with two-phase kernel estimation (deferred)
             // TwoPhaseKernelEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth, mask);
+            // 
+            // because this algorithm won't work
+            // load the kernel images which should be named left-kerneli.png
+            // they should be located in the folder where this algorithm is started
+            string filename = "left-kernel" + to_string(i) + ".png";
+            regionTreeM[id].psf[0] = imread(filename, 1);
+            if (!regionTreeM[id].psf[0].data) {
+                throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load kernel!");
+            }
+
+
         }
 
 
