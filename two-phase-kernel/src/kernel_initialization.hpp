@@ -31,7 +31,7 @@ namespace TwoPhaseKernelEstimation {
      */
     void initKernel(cv::Mat& kernel, const cv::Mat& blurredGray, const int width, const cv::Mat& mask,
                     const int pyrLevel = 3, const int iterations = 3,
-                    float thresholdR = 0.25, float thresholdS = 50);
+                    float thresholdR = 0.25, float thresholdS = 5e-3);
 }
 
 #endif
