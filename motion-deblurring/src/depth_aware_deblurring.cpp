@@ -110,6 +110,55 @@ namespace DepthAwareDeblurring {
     }
 
 
+    /**
+     * Estimates the PSFs of the top-level regions.
+     *
+     * Because the algorithm for estimation isn't working yet it loads
+     * kernel images as initial kernel estimation.
+     * 
+     * @param regionTree current region tree to  store the PSFs
+     * @param psfWidth   approximate kernel width
+     * @param filePrefix for loading kernel images
+     * @param gray       original gray image
+     */
+    void toplevelKernelEstimation(RegionTree& regionTree, const int psfWidth,
+                                  const string filePrefix, const Mat& gray) {
+        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+            int id = regionTree.topLevelNodeIds[i];
+
+            // get an image of the top-level region
+            Mat region, mask;
+            regionTree.getRegionImage(id, region, mask);
+            
+            // fill PSF kernel with zeros 
+            regionTree[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
+
+
+            // // edge tapering to remove high frequencies at the border of the region
+            // Mat taperedRegion;
+            // regionTree.edgeTaper(taperedRegion, region, mask, gray);
+
+            // // use this images for example for the .exe of the two-phase kernel estimation
+            // string name = "tapered" + to_string(i) + ".jpg";
+            // imwrite(name, taperedRegion);
+            
+
+            // // calculate PSF with two-phase kernel estimation (deferred)
+            // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf[0], region, psfWidth, mask);
+            // 
+            // because this algorithm won't work
+            // load the kernel images which should be named left/right-kerneli.png
+            // they should be located in the folder where this algorithm is started
+            string filename = filePrefix + "-kernel" + to_string(i) + ".png";
+            regionTree[id].psf[0] = imread(filename, 1);
+
+            if (!regionTree[id].psf[0].data) {
+                throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load kernel!");
+            }
+        }
+    }
+
+
     void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight,
                       const int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
@@ -171,72 +220,11 @@ namespace DepthAwareDeblurring {
         // compute PSFs for toplevels of the region trees
         cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
         cout << " ... top-level regions of d_m" << endl;
-
-        for (int i = 0; i < regionTreeM.topLevelNodeIds.size(); i++) {
-            // int i = 2;
-            int id = regionTreeM.topLevelNodeIds[i];
-
-            // get an image of the top-level region
-            Mat region, mask;
-            regionTreeM.getRegionImage(id, region, mask);
-
-            // fill PSF kernel with zeros 
-            regionTreeM[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
-
-            // edge tapering to remove high frequencies at the border of the region
-            Mat taperedRegion;
-            regionTreeM.edgeTaper(taperedRegion, region, mask, grayLeft);
-
-            // // use this images for example for the .exe of the two-phase kernel estimation
-            // string name = "tapered" + to_string(i) + ".jpg";
-            // imwrite(name, taperedRegion);
-            
-            // calculate PSF with two-phase kernel estimation (deferred)
-            // TwoPhaseKernelEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth, mask);
-            // 
-            // because this algorithm won't work
-            // load the kernel images which should be named left-kerneli.png
-            // they should be located in the folder where this algorithm is started
-            string filename = "left-kernel" + to_string(i) + ".png";
-            regionTreeM[id].psf[0] = imread(filename, 1);
-            if (!regionTreeM[id].psf[0].data) {
-                throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load kernel!");
-            }
-        }
+        toplevelKernelEstimation(regionTreeM, psfWidth, "left", grayLeft);
 
         cout << " ... top-level regions of d_r" << endl;
+        toplevelKernelEstimation(regionTreeR, psfWidth, "right", grayRight);
 
-        for (int i = 0; i < regionTreeR.topLevelNodeIds.size(); i++) {
-            // int i = 2;
-            int id = regionTreeR.topLevelNodeIds[i];
-
-            // get an image of the top-level region
-            Mat region, mask;
-            regionTreeR.getRegionImage(id, region, mask);
-
-            // fill PSF kernel with zeros 
-            regionTreeR[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
-
-            // edge tapering to remove high frequencies at the border of the region
-            Mat taperedRegion;
-            regionTreeR.edgeTaper(taperedRegion, region, mask, grayRight);
-
-            // // use this images for example for the .exe of the two-phase kernel estimation
-            // string name = "tapered" + to_string(i) + ".jpg";
-            // imwrite(name, taperedRegion);
-            
-            // calculate PSF with two-phase kernel estimation (deferred)
-            // TwoPhaseKernelEstimation::estimateKernel(regionTreeR[id].psf[0], region, psfWidth, mask);
-            // 
-            // because this algorithm won't work
-            // load the kernel images which should be named left-kerneli.png
-            // they should be located in the folder where this algorithm is started
-            string filename = "right-kernel" + to_string(i) + ".png";
-            regionTreeR[id].psf[0] = imread(filename, 1);
-            if (!regionTreeR[id].psf[0].data) {
-                throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load kernel!");
-            }
-        }
 
 
         // TODO: to be continued ...
