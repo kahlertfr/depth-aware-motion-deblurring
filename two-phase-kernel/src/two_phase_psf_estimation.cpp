@@ -27,9 +27,32 @@ namespace TwoPhaseKernelEstimation {
 
         // TODO: change number of pyrLevel and iterations
         initKernel(kernel, blurredGray, width, mask, 1, 1);
+        
+
+        // // delta function as image with one white pixel
+        // Mat delta = Mat::zeros(50, 50, CV_32F);
+        // delta.at<float>(25, 25) = 1;
+        // Mat deltaUchar;
+        // convertFloatToUchar(deltaUchar, delta);
+        // imshow("spatial domain", deltaUchar);
+
+        // Mat fourier;
+        // FFT(delta, fourier);
+
+        // for (int x = 0; x < fourier.cols; x++) {
+        //     for (int y = 0; y < fourier.rows; y++) {
+        //         // complex entries at the current position
+        //         complex<float> k(fourier.at<Vec2f>(y, x)[0], fourier.at<Vec2f>(y, x)[1]);
+        //         cout << k << endl;
+        //     }
+        // }
+
+        // Mat uchar;
+        // showComplexImage("fourier domain", fourier);
+
 
         #ifndef NDEBUG
-            imshow("kernel", kernel);
+            // imshow("kernel", kernel);
         #endif
     }
 

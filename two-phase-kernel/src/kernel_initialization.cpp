@@ -166,6 +166,8 @@ namespace TwoPhaseKernelEstimation {
         // k = F^-1 * ( ----------------------------------------------   )
         //             (         F(∂_x I^s)² + F(∂_y I^s)² + γ          )
         // where * is pointwise multiplication
+        //                   __________
+        // and F(∂_x I^s)² = F(∂_x I^s) * F(∂_x I^s) ! because they mean the norm
         // 
         // here: F(∂_x I^s) = xS
         //       F(∂_x B)   = xB
@@ -187,7 +189,6 @@ namespace TwoPhaseKernelEstimation {
         //     showComplexImage("spectrum magnitude yB", yB);
         // #endif
 
-        // go through all pixel and calculate the value in the brackets of the equation
         Mat kernelFourier = Mat::zeros(xS.size(), xS.type());
 
         assert(xS.type() == CV_32FC2);
@@ -195,6 +196,13 @@ namespace TwoPhaseKernelEstimation {
         assert(xB.type() == CV_32FC2);
         assert(yB.type() == CV_32FC2);
 
+        // delta function as one white pixel in black image
+        Mat deltaFloat = Mat::zeros(xS.size(), CV_32F);
+        deltaFloat.at<float>(xS.rows / 2, xS.cols / 2) = 1;
+        Mat delta;
+        FFT(deltaFloat, delta);
+
+        // go through all pixel and calculate the value in the brackets of the equation
         for (int x = 0; x < xS.cols; x++) {
             for (int y = 0; y < xS.rows; y++) {
                 // complex entries at the current position
@@ -204,11 +212,15 @@ namespace TwoPhaseKernelEstimation {
                 complex<float> xb(xB.at<Vec2f>(y, x)[0], xB.at<Vec2f>(y, x)[1]);
                 complex<float> yb(yB.at<Vec2f>(y, x)[0], yB.at<Vec2f>(y, x)[1]);
 
-                complex<float> weight(50.0, 0.0);
+                complex<float> d(delta.at<Vec2f>(y, x)[0], delta.at<Vec2f>(y, x)[1]);
+
+                complex<float> weight(0.50, 0.0);
 
                 // kernel entry in the Fourier space
+                // complex<float> k = (conj(xs) * xb + conj(ys) * yb + xs * conj(xb) + ys * conj(yb)) /
                 complex<float> k = (conj(xs) * xb + conj(ys) * yb) /
-                                   (conj(xs) * xs + conj(ys) * ys + weight);
+                                   // (conj(xs) * xs + conj(ys) * ys + weight );
+                                   (conj(xs) * xs + conj(ys) * ys + weight * d);
                                    // (abs(xs) * abs(xs) + abs(ys) * abs(ys) + weight); // equivalent
                 
                 kernelFourier.at<Vec2f>(y, x) = { real(k), imag(k) };
@@ -309,7 +321,6 @@ namespace TwoPhaseKernelEstimation {
 
         channels[0].copyTo(latentImage);
     }
-
 
     void initKernel(Mat& kernel, const Mat& blurredGray, const int width, const Mat& mask, 
                     const int pyrLevel, const int iterations, float thresholdR, float thresholdS) {
@@ -478,8 +489,6 @@ namespace TwoPhaseKernelEstimation {
                 // set current image to coarse latent image
                 Mat imageUchar;
                 convertFloatToUchar(imageUchar, latentImage);
-                minMaxLoc(imageUchar, &min, &max);
-                cout << "latentImage uchar " << min << " " << max << endl;
 
                 // the latent image is some pixel larger than the original one therefore
                 // cut it out in the right size
@@ -490,6 +499,7 @@ namespace TwoPhaseKernelEstimation {
                 #ifndef NDEBUG
                     // print latent image
                     imshow("tmp latent image " + i, imageUchar);
+                    imwrite("latent.jpg", imageUchar);
                 #endif
 
                 // decrease thresholds τ_r and τ_s will to include more and more edges
