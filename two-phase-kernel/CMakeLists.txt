@@ -20,6 +20,16 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # interface abstraction
 include_directories(include/)
 
+# In standalone-distribution, all dependencies will be
+# included in the archive
+if (IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/utils/)
+    include_directories(external/)
+    include_directories(utils/)
+    
+    add_subdirectory(external/)
+    add_subdirectory(utils/)
+endif()
+
 # -------------------------
 # two phase kernel estimation library
 # -------------------------
@@ -30,7 +40,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(LIB_SOURCES src/two_phase_psf_estimation.cpp
                 src/kernel_initialization.cpp)
-add_library(lib2psfest SHARED ${LIB_SOURCES})
+add_library(lib2psfest SHARED ${LIB_SOURCES} $<TARGET_OBJECTS:utils>)
 set_target_properties(lib2psfest PROPERTIES
                                  OUTPUT_NAME "2psfest")
 target_link_libraries(lib2psfest ${OpenCV_LIBS})

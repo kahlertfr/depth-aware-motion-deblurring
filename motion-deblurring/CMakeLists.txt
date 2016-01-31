@@ -11,11 +11,6 @@ find_package(OpenCV 3 REQUIRED)
 
 message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
 
-# were does the binaries and libs are delivered?
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
 # Header files are separated from the source to increase
 # interface abstraction
 include_directories(include/)
@@ -31,7 +26,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(LIB_SOURCES src/depth_aware_deblurring.cpp
                 src/disparity_estimation.cpp
                 src/region_tree.cpp)
-add_library(libmdeblur SHARED ${LIB_SOURCES})
+add_library(libmdeblur SHARED ${LIB_SOURCES} $<TARGET_OBJECTS:utils>)
 set_target_properties(libmdeblur PROPERTIES
                                  OUTPUT_NAME "mdeblur")
 target_link_libraries(libmdeblur ${OpenCV_LIBS})

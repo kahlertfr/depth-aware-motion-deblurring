@@ -1,27 +1,7 @@
-/***********************************************************************
- * Author:       Franziska Krüger
- * Requirements: OpenCV 3
- *
- * Description:
- * ------------
- * Collection of some useful functions. 
- * 
- ***********************************************************************
- */
-
-#ifndef UTILS_COLLECTION_H
-#define UTILS_COLLECTION_H
-
-#include <opencv2/opencv.hpp>
-#include <cmath>                        // sqrt
+#include "utils.hpp"
 
 
-namespace TwoPhaseKernelEstimation {
-
-    inline float norm(float a, float b) {
-        return sqrt(a * a + b * b);
-    }
-
+namespace deblur {
 
     /**
      * Applies DFT after expanding input image to optimal size for Fourier transformation
@@ -29,7 +9,7 @@ namespace TwoPhaseKernelEstimation {
      * @param image   input image with 1 channel
      * @param complex result as 2 channel matrix with complex numbers
      */
-    inline void FFT(const cv::Mat& image, cv::Mat& complex) {
+    void FFT(const cv::Mat& image, cv::Mat& complex) {
         assert(image.type() == CV_32F && "fft works on 32FC1-images");
 
         // for fast DFT expand image to optimal size
@@ -59,7 +39,7 @@ namespace TwoPhaseKernelEstimation {
      * @param ucharMat resulting matrix
      * @param floatMat input matrix
      */
-    inline void convertFloatToUchar(cv::Mat& ucharMat, const cv::Mat& floatMat) {
+    void convertFloatToUchar(cv::Mat& ucharMat, const cv::Mat& floatMat) {
         // find min and max value
         double min; double max;
         cv::minMaxLoc(floatMat, &min, &max);
@@ -84,7 +64,7 @@ namespace TwoPhaseKernelEstimation {
      * Rearrange quadrants of an image so that the origin is at the image center.
      * This is useful for fourier images. 
      */
-    inline void swapQuadrants(cv::Mat& image) {
+    void swapQuadrants(cv::Mat& image) {
         // rearrange the quadrants of Fourier image  so that the origin is at the image center
         int cx = image.cols/2;
         int cy = image.rows/2;
@@ -113,7 +93,7 @@ namespace TwoPhaseKernelEstimation {
      * @param windowName name of window
      * @param complex    matrix that should be displayed
      */
-    inline void showComplexImage(const std::string windowName, const cv::Mat& complex) {
+    void showComplexImage(const std::string windowName, const cv::Mat& complex) {
         // compute the magnitude and switch to logarithmic scale
         // => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
         cv::Mat planes[] = {cv::Mat::zeros(complex.size(), CV_32F), cv::Mat::zeros(complex.size(), CV_32F)};
@@ -135,5 +115,3 @@ namespace TwoPhaseKernelEstimation {
         cv::imshow(windowName, magI);
     }
 }
-
-#endif
