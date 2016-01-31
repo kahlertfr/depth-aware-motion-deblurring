@@ -25,7 +25,8 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(LIB_SOURCES src/depth_aware_deblurring.cpp
                 src/disparity_estimation.cpp
-                src/region_tree.cpp)
+                src/region_tree.cpp
+                src/edge_map.cpp)
 add_library(libmdeblur SHARED ${LIB_SOURCES} $<TARGET_OBJECTS:utils>)
 set_target_properties(libmdeblur PROPERTIES
                                  OUTPUT_NAME "mdeblur")

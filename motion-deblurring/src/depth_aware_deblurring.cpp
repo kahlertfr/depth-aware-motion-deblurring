@@ -6,6 +6,7 @@
 #include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "region_tree.hpp"
+#include "edge_map.hpp"
 // #include "two_phase_psf_estimation.hpp"
 
 using namespace std;
@@ -225,7 +226,8 @@ namespace DepthAwareDeblurring {
         cout << " ... top-level regions of d_r" << endl;
         toplevelKernelEstimation(regionTreeR, psfWidth, "right", grayRight);
 
-
+        array<Mat, 2> gradients;
+        gradientMaps(grayLeft, gradients);
 
         // TODO: to be continued ...
         
