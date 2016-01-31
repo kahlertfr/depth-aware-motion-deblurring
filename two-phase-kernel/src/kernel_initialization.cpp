@@ -87,14 +87,14 @@ namespace TwoPhaseKernelEstimation {
 
         // shock filter the input image
         Mat shockImage;
-        coherenceFilter(image, 11, 11, 0.5, 4, shockImage);
+        coherenceFilter(image, showImage);
         // imshow("shock filter", shockImage);
 
         // gradients of shock filtered image
-        int delta = 0;
-        int ddepth = CV_32F;
-        int ksize = 3;
-        int scale = 1;
+        const int delta = 0;
+        const int ddepth = CV_32F;
+        const int ksize = 3;
+        const int scale = 1;
 
         // compute gradients
         Mat xGradients, yGradients;
@@ -359,10 +359,10 @@ namespace TwoPhaseKernelEstimation {
             GaussianBlur(pyramid[l], pyramid[l], Size(3,3), 0, 0, BORDER_DEFAULT);
 
             Mat xGradients, yGradients;
-            int delta = 0;
-            int ddepth = CV_32F;
-            int ksize = 3;
-            int scale = 1;
+            const int delta = 0;
+            const int ddepth = CV_32F;
+            const int ksize = 3;
+            const int scale = 1;
 
             // gradient x
             assert(pyramid[l].type() == CV_8U && "sobel on gray value image");
