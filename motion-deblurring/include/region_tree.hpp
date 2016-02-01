@@ -80,6 +80,13 @@ namespace DepthAwareDeblurring {
         void create(const cv::Mat &quantizedDisparityMap, const int layers, const cv::Mat *image,
                     const int maxTopLevelNodes=3);
 
+        /**
+         * Returns the depth mask for a specific node by adding all mask of all layers.
+         * 
+         * @param nodeId  Id of the node in the region tree
+         * @param mask    mask of this region
+         */
+        void getMask(const int nodeId, cv::Mat& mask);
 
         /**
          * Creates an image where everything is black but the region of the image

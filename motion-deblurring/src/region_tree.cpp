@@ -125,7 +125,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void RegionTree::getRegionImage(const int nodeId, Mat &regionImage, Mat &mask) {
+    void RegionTree::getMask(const int nodeId, Mat& mask) {
         // a region contains multiple layers
         vector<int> region = tree[nodeId].layers;
 
@@ -135,6 +135,11 @@ namespace DepthAwareDeblurring {
         for (int i = 0; i < region.size(); i++) {
             add(mask, _masks[region[i]], mask);
         }
+    }
+
+
+    void RegionTree::getRegionImage(const int nodeId, Mat &regionImage, Mat &mask) {
+        getMask(nodeId, mask);
 
         // create an image with this mask
         _originalImage->copyTo(regionImage, mask);
