@@ -34,9 +34,9 @@ namespace deblur {
     * @param iter       number of iteration.
     * @param shockImage filtered image
     */
-    void coherenceFilter(const cv::Mat& img, const int sigma, const int str_sigma,
-                         const float blend, const int iter, cv::Mat& shockImage);
-
+    void coherenceFilter(const cv::Mat& img, cv::Mat& shockImage, 
+                         const int sigma = 11, const int str_sigma = 11,
+                         const float blend = 0.5, const int iter = 4);
 }
 
 #endif

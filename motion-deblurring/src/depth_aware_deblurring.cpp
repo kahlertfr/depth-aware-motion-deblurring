@@ -6,10 +6,13 @@
 #include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "region_tree.hpp"
+#include "edge_map.hpp"
+#include "utils.hpp"  // convertFloatToUchar
 // #include "two_phase_psf_estimation.hpp"
 
 using namespace std;
 using namespace cv;
+using namespace deblur;
 
 namespace DepthAwareDeblurring {
 
@@ -225,7 +228,22 @@ namespace DepthAwareDeblurring {
         cout << " ... top-level regions of d_r" << endl;
         toplevelKernelEstimation(regionTreeR, psfWidth, "right", grayRight);
 
+        cout << "Step 3.1: Iterative PSF estimation" << endl;
 
+        cout << "... compute PSF for middle & leaf level-regions of d_m"
+        array<Mat,2> gradients;
+        gradientMaps(grayLeft, gradients);
+
+        Mat region, mask;
+        regionTreeM.getRegionImage(40, region, mask);
+
+        array<Mat,2> salientEdges;
+        thresholdGradients(gradients, salientEdges, psfWidth, mask);
+
+        Mat _display;
+        convertFloatToUchar(_display, salientEdges[0]);
+        imshow("region", region);
+        imshow("salient edges x", _display);
 
         // TODO: to be continued ...
         

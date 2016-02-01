@@ -6,8 +6,9 @@ using namespace cv;
 
 namespace deblur {
 
-    void coherenceFilter(const Mat& img, const int sigma, const int str_sigma,
-                         const float blend, const int iter, Mat& shockImage) {
+    void coherenceFilter(const Mat& img, Mat& shockImage,
+                         const int sigma, const int str_sigma,
+                         const float blend, const int iter) {
 
         img.copyTo(shockImage);
 
