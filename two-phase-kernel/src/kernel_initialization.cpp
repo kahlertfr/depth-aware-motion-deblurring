@@ -87,7 +87,7 @@ namespace TwoPhaseKernelEstimation {
 
         // shock filter the input image
         Mat shockImage;
-        coherenceFilter(image, showImage);
+        coherenceFilter(image, shockImage);
         // imshow("shock filter", shockImage);
 
         // gradients of shock filtered image
