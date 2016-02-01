@@ -45,17 +45,23 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void thresholdGradients(const std::array<cv::Mat,2>& gradients, std::array<cv::Mat,2>& maps,
-                            const int psfWidth, const InputArray& mask) {
+    void thresholdGradients(const std::array<cv::Mat,2>& gradients, std::array<cv::Mat,2>& thresholded,
+                            const int psfWidth, const InputArray& mask, const int r) {
 
         assert(gradients[0].size() == gradients[1].size() && "Gradients must be of same size");
-
+            
         // Apply mask
         array<Mat,2> masked = { Mat::zeros(gradients[0].size(), gradients[0].type()),
                                 Mat::zeros(gradients[1].size(), gradients[1].type()) };
 
         gradients[0].copyTo(masked[0], mask);
         gradients[1].copyTo(masked[1], mask);
+
+        #ifndef NDEBUG
+            Mat ucharGrads;
+            convertFloatToUchar(ucharGrads, masked[0]);
+            imshow("input gradients", ucharGrads);
+        #endif
 
         Mat magnitude, angle;
         cartToPolar(masked[0], masked[1], magnitude, angle, true);
@@ -88,9 +94,10 @@ namespace DepthAwareDeblurring {
         
         // get range (threshold) of colors that keep at least r*psfWidth pixel of
         // the largest magnitude of each quantized angle
-        Mat thresholded = Mat::zeros(gradients[0].size(), gradients[0].type());
+        Mat thresholdedGrads = Mat::zeros(gradients[0].size(), gradients[0].type());
         // TODO: parameter for r
-        int quantity = 3 * psfWidth;
+        // int quantity = r * psfWidth;
+        int quantity = r * psfWidth * psfWidth;
 
         // for each histogram
         for (int i = 0; i < 4; i++) {
@@ -107,11 +114,11 @@ namespace DepthAwareDeblurring {
             Mat mask;
             inRange(histoMags[i], minValue, 255, mask);
 
-            // copy the values of the original magnitude to the thresholded one
-            magnitude.copyTo(thresholded, mask);
+            // copy the values of the original magnitude to the thresholdedGrads one
+            magnitude.copyTo(thresholdedGrads, mask);
         }
 
-        polarToCart(thresholded, angle, maps[0], maps[1]);
+        polarToCart(thresholdedGrads, angle, thresholded[0], thresholded[1]);
     }
 
 }

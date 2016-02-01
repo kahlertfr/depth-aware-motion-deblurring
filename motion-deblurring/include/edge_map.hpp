@@ -4,7 +4,8 @@
  *
  * Description:
  * ------------
- * 
+ * Computes an salient edge map as for the P map in "Fast motion deblurring"
+ * from Cho and Lee.
  * 
  ******************************************************************************
  */
@@ -28,12 +29,15 @@ namespace DepthAwareDeblurring {
     /**
      * Selectes salient edges from a gradient image.
      * 
-     * @param image Source image for which the edge map should be constructed
-     * @param map   Edge map of the input image
+     * @param gradients   gradients of x and y direction
+     * @param thresholded output
+     * @param psfWidth    approximate psf width (m)
+     * @param r           r * m pixel of largest magnitude will be used
+     * @param mask        region mask
      */
     void thresholdGradients(const std::array<cv::Mat,2>& gradients,
-                            std::array<cv::Mat,2>& maps, const int psfWidth,
-                            const cv::InputArray& mask = cv::noArray());
+                            std::array<cv::Mat,2>& thresholded, const int psfWidth,
+                            const cv::InputArray& mask = cv::noArray(), const int r = 5);
 
 
 }
