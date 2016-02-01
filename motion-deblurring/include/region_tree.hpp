@@ -110,6 +110,11 @@ namespace DepthAwareDeblurring {
          */
         void edgeTaper(cv::Mat& taperedRegion, cv::Mat& region, cv::Mat& mask, cv::Mat& image) const;
 
+        /**
+         * Returns total number of nodes in this region tree
+         */
+        inline int size() { return tree.size(); }
+
 
       private:
         /**
