@@ -23,7 +23,7 @@ namespace DepthAwareDeblurring {
      * with a bilateral and shock filter to reduce blur. After that, the
      * gradients in x- and y-direction will be calculated.
      */
-    void gradientMaps(const cv::Mat& image, std::array<cv::Mat, 2>& gradients);
+    void gradientMaps(const cv::Mat& image, std::array<cv::Mat,2>& gradients);
 
     /**
      * Selectes salient edges from a gradient image.
@@ -31,15 +31,10 @@ namespace DepthAwareDeblurring {
      * @param image Source image for which the edge map should be constructed
      * @param map   Edge map of the input image
      */
-    void salientEdgeMap(const cv::Mat& gradient, cv::Mat& map);
+    void thresholdGradients(const std::array<cv::Mat,2>& gradients,
+                            std::array<cv::Mat,2>& maps, const int psfWidth,
+                            const cv::InputArray& mask = cv::noArray());
 
-    /**
-     * Convinient short hand for x- and y-gradients
-     */
-    inline void salientEdgeMap(const std::array<cv::Mat, 2>& gradients, std::array<cv::Mat, 2>& maps) {
-        salientEdgeMap(gradients[0], maps[0]);
-        salientEdgeMap(gradients[1], maps[1]);
-    }
 
 }
 
