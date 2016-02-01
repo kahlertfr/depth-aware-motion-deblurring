@@ -65,6 +65,11 @@ namespace DepthAwareDeblurring {
         std::vector<int> topLevelNodeIds;
 
         /**
+         * Pointer to original images of left and right view (for generating region image)
+         */
+        std::array<cv::Mat*, 2> images;
+
+        /**
          * Access the nodes stored in the tree with their index.
          * 
          * @param  i index
@@ -149,10 +154,6 @@ namespace DepthAwareDeblurring {
          */
         std::array<std::vector<cv::Mat>, 2> _masks;
 
-        /**
-         * Pointer to original images of left and right view (for generating region image)
-         */
-        std::array<cv::Mat*, 2> _images;
     };
 }
 

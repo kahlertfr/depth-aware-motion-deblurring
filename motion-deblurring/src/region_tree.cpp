@@ -19,8 +19,8 @@ namespace DepthAwareDeblurring {
                             const int maxTopLevelNodes){
 
         // save a pointer to the original image
-        _images[LEFT] = imageLeft;
-        _images[RIGHT] = imageRight;
+        images[LEFT] = imageLeft;
+        images[RIGHT] = imageRight;
 
         // the size of masks is determinded by the number of disparity layers
         _masks[LEFT].reserve(layers);
@@ -106,28 +106,28 @@ namespace DepthAwareDeblurring {
             endId = tree.size();
         };
 
-        #ifndef NDEBUG
-            // print tree
-            for(int i = 0; i < tree.size(); i++) {
-                node n = tree[i];
-                cout << "    n" << i << ": ";
-                for (int b = 0; b < n.layers.size(); b++) {
-                    cout << n.layers[b] << " ";
-                }
+        // #ifndef NDEBUG
+        //     // print tree
+        //     for(int i = 0; i < tree.size(); i++) {
+        //         node n = tree[i];
+        //         cout << "    n" << i << ": ";
+        //         for (int b = 0; b < n.layers.size(); b++) {
+        //             cout << n.layers[b] << " ";
+        //         }
 
-                if (n.parent != -1)
-                    cout << " p(n" << n.parent << ")";
-                if (n.children.first != -1)
-                    cout << " c(n" << n.children.first << ", n" << n.children.second << ")";
-                cout << endl;
-            }
+        //         if (n.parent != -1)
+        //             cout << " p(n" << n.parent << ")";
+        //         if (n.children.first != -1)
+        //             cout << " c(n" << n.children.first << ", n" << n.children.second << ")";
+        //         cout << endl;
+        //     }
 
-            cout << "    top level nodes: ";
-            for(int i = 0; i < topLevelNodeIds.size(); i++) {
-                cout << topLevelNodeIds[i] << " ";
-            }
-            cout << endl;
-        #endif
+        //     cout << "    top level nodes: ";
+        //     for(int i = 0; i < topLevelNodeIds.size(); i++) {
+        //         cout << topLevelNodeIds[i] << " ";
+        //     }
+        //     cout << endl;
+        // #endif
     }
 
 
@@ -135,7 +135,7 @@ namespace DepthAwareDeblurring {
         // a region contains multiple layers
         vector<int> region = tree[nodeId].layers;
 
-        mask = Mat::zeros(_images[view]->rows, _images[view]->cols, CV_8U);
+        mask = Mat::zeros(images[view]->rows, images[view]->cols, CV_8U);
 
         // adding all masks contained by this node
         for (int i = 0; i < region.size(); i++) {
@@ -149,7 +149,7 @@ namespace DepthAwareDeblurring {
         getMask(nodeId, mask, view);
 
         // create an image with this mask
-        _images[view]->copyTo(regionImage, mask);
+        images[view]->copyTo(regionImage, mask);
     }
 
 
