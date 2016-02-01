@@ -132,7 +132,7 @@ namespace DepthAwareDeblurring {
 
             // get an image of the top-level region
             Mat region, mask;
-            regionTree.getRegionImage(id, region, mask);
+            regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
             
             // fill PSF kernel with zeros 
             regionTree[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
@@ -164,13 +164,48 @@ namespace DepthAwareDeblurring {
 
 
     /**
+     * Estimates the PSF of a region jointly on the reference and matching view.
+     * 
+     * @param maskLeft       mask for region of matching view
+     * @param maskRight      mask for region of reference view
+     * @param gradientsLeft  gradients of whole left blurred image
+     * @param gradientsRight gradients of whole right blurred image
+     * @param psfWidth       approximate psf width
+     * @param psf            resulting psf
+     */
+    void jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, const array<Mat,2>& gradientsLeft,
+                            const array<Mat,2>& gradientsRight, const int psfWidth, Mat& psf) {
+
+        psf = Mat::zeros(psfWidth, psfWidth, CV_8U);
+
+        // compute a gradient image with salient edge
+        array<Mat,2> salientEdgesLeft, salientEdgesRight;
+        thresholdGradients(gradientsLeft, salientEdgesLeft, psfWidth, maskLeft);
+        thresholdGradients(gradientsRight, salientEdgesRight, psfWidth, maskRight);
+
+        #ifndef NDEBUG
+            // display salient edges
+            Mat _display;
+            convertFloatToUchar(_display, salientEdgesLeft[0]);
+            imshow("salient edges x left", _display);
+        #endif
+
+        // 
+    }
+
+
+    /**
      * Estimates the kernel of all middle and leaf level nodes.
      * Uses candidate selection for minimizing the error of the estimated PSF.
      * 
-     * @param regionTree   region tree to work on 
-     * @param blurredImage full blurred image
+     * @param regionTree     region tree to work on
+     * @param gradientsLeft  gradients of complete left blurred image
+     * @param gradientsRight gradients of complete right blurred image
+     * @param psfWidth       approximate PSF width
      */
-    void midLevelKernelEstimation(RegionTree& regionTree, const Mat& blurredImage, const int psfWidth) {
+    void midLevelKernelEstimation(RegionTree& regionTree,
+                                  const array<Mat,2>& gradientsLeft,
+                                  const array<Mat,2>& gradientsRight, const int psfWidth) {
         // go through all nodes of the region tree in a top-down manner
         // 
         // the current node is responsible for the PSF computation of its children
@@ -187,37 +222,32 @@ namespace DepthAwareDeblurring {
             remainingNodes.push(regionTree.topLevelNodeIds[i]);
         }
 
-        cout << "size of region tree " << regionTree.size() << endl;
 
-        while(!remainingNodes.empty()) {
-            // pop id of current node from the front of the queue
-            int id = remainingNodes.front();
-            remainingNodes.pop();
+        // while(!remainingNodes.empty()) {
+        //     // pop id of current node from the front of the queue
+        //     int id = remainingNodes.front();
+        //     remainingNodes.pop();
 
-            // do PSF computation for a middle node with its children
-            // (leaf nodes doesn't have any children)
-            if (regionTree[id].children.first != -1 && regionTree[id].children.second != -1) {
-                // add children ids to the back of the queue
-                remainingNodes.push(regionTree[id].children.first);
-                remainingNodes.push(regionTree[id].children.second);
+        //     // do PSF computation for a middle node with its children
+        //     // (leaf nodes doesn't have any children)
+        //     if (regionTree[id].children.first != -1 && regionTree[id].children.second != -1) {
+        //         // add children ids to the back of the queue
+        //         remainingNodes.push(regionTree[id].children.first);
+        //         remainingNodes.push(regionTree[id].children.second);
 
-                // TODO: continue
-            }
-        }
+        //         // PSF estimation for each children
+                    
+                Mat maskM, maskR;
+                regionTree.getMasks(44, maskM, maskR);
 
-        // array<Mat,2> gradients;
-        // gradientMaps(blurredImage, gradients);
+                Mat psf;
+                jointPSFEstimation(maskM, maskR, gradientsLeft, gradientsRight, psfWidth, psf);
 
-        // Mat region, mask;
-        // regionTree.getRegionImage(40, region, mask);
+                // save PSFs
 
-        // array<Mat,2> salientEdges;
-        // thresholdGradients(gradients, salientEdges, psfWidth, mask);
-
-        // Mat _display;
-        // convertFloatToUchar(_display, salientEdges[0]);
-        // imshow("region", region);
-        // imshow("salient edges x", _display);
+                imshow("node psf", psf);
+        //     }
+        // }
     }
 
 
@@ -270,27 +300,33 @@ namespace DepthAwareDeblurring {
         
 
         cout << "Step 2: region tree reconstruction ..." << endl;
-        cout << " ... tree for d_m" << endl;
-        RegionTree regionTreeM;
-        regionTreeM.create(disparityMapM, regions, &grayLeft, maxTopLevelNodes);
+        cout << " ... tree for d_m and d_r" << endl;
+        RegionTree regionTree;
+        regionTree.create(disparityMapM, disparityMapR, regions, &grayLeft, &grayRight, maxTopLevelNodes);
 
-        cout << " ... tree for d_r" << endl;
-        RegionTree regionTreeR;
-        regionTreeR.create(disparityMapR, regions, &grayRight, maxTopLevelNodes);
+        // cout << " ... tree for d_r" << endl;
+        // RegionTree regionTreeR;
+        // regionTreeR.create(disparityMapR, regions, &grayRight, maxTopLevelNodes);
 
 
         // compute PSFs for toplevels of the region trees
         cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
         cout << " ... top-level regions of d_m" << endl;
-        toplevelKernelEstimation(regionTreeM, psfWidth, "left", grayLeft);
+        toplevelKernelEstimation(regionTree, psfWidth, "left", grayLeft);
 
-        cout << " ... top-level regions of d_r" << endl;
-        toplevelKernelEstimation(regionTreeR, psfWidth, "right", grayRight);
+        // cout << " ... top-level regions of d_r" << endl;
+        // toplevelKernelEstimation(regionTreeR, psfWidth, "right", grayRight);
 
         cout << "Step 3.1: Iterative PSF estimation" << endl;
 
-        cout << "... compute PSF for middle & leaf level-regions of d_m" << endl;
-        midLevelKernelEstimation(regionTreeM, grayLeft, psfWidth);
+        cout << "... jointly compute PSF for middle & leaf level-regions of both views" << endl;
+        // we can compute the gradients for each blurred image ones and then cut off the
+        // necessary regions ∇S_i
+        array<Mat,2> gradientsLeft, gradientsRight;
+        gradientMaps(grayLeft, gradientsLeft);
+        gradientMaps(grayRight, gradientsRight);
+
+        midLevelKernelEstimation(regionTree, gradientsLeft, gradientsRight, psfWidth);
 
         // TODO: to be continued ...
         
