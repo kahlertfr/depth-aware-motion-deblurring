@@ -14,24 +14,30 @@ namespace DepthAwareDeblurring {
 
     RegionTree::RegionTree(){}
 
-    void RegionTree::create(const Mat &quantizedDisparityMap, const int layers, const Mat *image,
+    void RegionTree::create(const Mat& quantizedDisparityMapL, const Mat& quantizedDisparityMapR,
+                            const int layers, Mat* imageLeft, Mat* imageRight,
                             const int maxTopLevelNodes){
+
         // save a pointer to the original image
-        _originalImage = image;
+        _images[LEFT] = imageLeft;
+        _images[RIGHT] = imageRight;
 
         // the size of masks is determinded by the number of disparity layers
-        _masks.reserve(layers);
+        _masks[LEFT].reserve(layers);
+        _masks[RIGHT].reserve(layers);
 
         // save each disparity layer as binary mask
         for (int l = 0; l < layers; l++) {
-            Mat mask;
+            Mat maskLeft, maskRight;
 
             // find all pixels that have the color l
             //      1 - pixel has color
             //      0 - pixel has other color
-            inRange(quantizedDisparityMap, l, l, mask);
+            inRange(quantizedDisparityMapL, l, l, maskLeft);
+            inRange(quantizedDisparityMapR, l, l, maskRight);
 
-            _masks.push_back(mask);
+            _masks[LEFT].push_back(maskLeft);
+            _masks[RIGHT].push_back(maskRight);
 
             // store leaf node in tree
             // which doesn't have any child nodes
@@ -100,49 +106,50 @@ namespace DepthAwareDeblurring {
             endId = tree.size();
         };
 
-        // #ifndef NDEBUG
-        //     // print tree
-        //     for(int i = 0; i < tree.size(); i++) {
-        //         node n = tree[i];
-        //         cout << "    n" << i << ": ";
-        //         for (int b = 0; b < n.layers.size(); b++) {
-        //             cout << n.layers[b] << " ";
-        //         }
+        #ifndef NDEBUG
+            // print tree
+            for(int i = 0; i < tree.size(); i++) {
+                node n = tree[i];
+                cout << "    n" << i << ": ";
+                for (int b = 0; b < n.layers.size(); b++) {
+                    cout << n.layers[b] << " ";
+                }
 
-        //         if (n.parent != -1)
-        //             cout << " p(n" << n.parent << ")";
-        //         if (n.children.first != -1)
-        //             cout << " c(n" << n.children.first << ", n" << n.children.second << ")";
-        //         cout << endl;
-        //     }
+                if (n.parent != -1)
+                    cout << " p(n" << n.parent << ")";
+                if (n.children.first != -1)
+                    cout << " c(n" << n.children.first << ", n" << n.children.second << ")";
+                cout << endl;
+            }
 
-        //     cout << "    top level nodes: ";
-        //     for(int i = 0; i < topLevelNodeIds.size(); i++) {
-        //         cout << topLevelNodeIds[i] << " ";
-        //     }
-        //     cout << endl;
-        // #endif
+            cout << "    top level nodes: ";
+            for(int i = 0; i < topLevelNodeIds.size(); i++) {
+                cout << topLevelNodeIds[i] << " ";
+            }
+            cout << endl;
+        #endif
     }
 
 
-    void RegionTree::getMask(const int nodeId, Mat& mask) const {
+    void RegionTree::getMask(const int nodeId, Mat& mask, const view view) const {
         // a region contains multiple layers
         vector<int> region = tree[nodeId].layers;
 
-        mask = Mat::zeros(_originalImage->rows, _originalImage->cols, CV_8U);
+        mask = Mat::zeros(_images[view]->rows, _images[view]->cols, CV_8U);
 
         // adding all masks contained by this node
         for (int i = 0; i < region.size(); i++) {
-            add(mask, _masks[region[i]], mask);
+            add(mask, _masks[view][region[i]], mask);
         }
     }
 
 
-    void RegionTree::getRegionImage(const int nodeId, Mat &regionImage, Mat &mask) const {
-        getMask(nodeId, mask);
+    void RegionTree::getRegionImage(const int nodeId, Mat &regionImage, Mat &mask,
+                                    const view view) const {
+        getMask(nodeId, mask, view);
 
         // create an image with this mask
-        _originalImage->copyTo(regionImage, mask);
+        _images[view]->copyTo(regionImage, mask);
     }
 
 

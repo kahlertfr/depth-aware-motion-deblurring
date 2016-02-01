@@ -4,8 +4,8 @@
  *
  * Description:
  * ------------
- * This class provides a region tree on a disparity map that
- * saves binary masks of each disparity layer S(i) with depth i on the 
+ * This class provides a region tree on a disparity maps of a stereo view.
+ * It saves binary masks of each disparity layer S(i) with depth i on the 
  * leaf nodes.
  *
  * A region tree contains a specific number of binary trees where each node
@@ -55,6 +55,11 @@ namespace DepthAwareDeblurring {
         RegionTree();
 
         /**
+         * Enumeration for conviniend call of region tree methods
+         */
+        enum view { LEFT, RIGHT };
+
+        /**
          * Store the top level nodes to walk through the tree in a top to bottom manner
          */
         std::vector<int> topLevelNodeIds;
@@ -70,23 +75,39 @@ namespace DepthAwareDeblurring {
         }
 
         /**
-         * Creates the binary masks of each disparity layer and sets up the tree
+         * Creates the binary masks of each disparity layer for each view and sets up the tree
          * 
-         * @param quantizedDisparityMap  disparity map with values from [0, layers - 1]
+         * @param quantizedDisparityMapL left-right disparity map with values from [0, layers - 1]
+         * @param quantizedDisparityMapR right-left disparity map with values from [0, layers - 1]
          * @param layers                 number of different disparity values
-         * @param image                  image to which the disparity map belongs
+         * @param imageLeft              image of left view
+         * @param imageRight             image of right view
          * @param maxTopLevelNodes       maximum number of nodes at top level
          */
-        void create(const cv::Mat &quantizedDisparityMap, const int layers, const cv::Mat *image,
-                    const int maxTopLevelNodes=3);
+        void create(const cv::Mat& quantizedDisparityMapL, const cv::Mat& quantizedDisparityMapR,
+                    const int layers, cv::Mat* imageLeft, cv::Mat* imageRight,
+                    const int maxTopLevelNodes = 3);
 
         /**
-         * Returns the depth mask for a specific node by adding all mask of all layers.
+         * Returns the depth mask of both view for a specific node by adding all mask of all layers.
          * 
          * @param nodeId  Id of the node in the region tree
-         * @param mask    mask of this region
+         * @param maskL   mask of left region
+         * @param maskR   mask of right region
          */
-        void getMask(const int nodeId, cv::Mat& mask) const;
+        inline void getMasks(const int nodeId, cv::Mat& maskL, cv::Mat& maskR) const {
+            getMask(nodeId, maskL, LEFT);
+            getMask(nodeId, maskR, RIGHT);
+        };
+
+        /**
+         * Returns the depth mask for a specific node in one view by adding all mask of all layers.
+         * 
+         * @param nodeId  Id of the node in the region tree
+         * @param maskL   mask of left region
+         * @param view    LEFT or RIGHT view
+         */
+        void getMask(const int nodeId, cv::Mat& mask, const view view) const;
 
         /**
          * Creates an image where everything is black but the region of the image
@@ -96,8 +117,8 @@ namespace DepthAwareDeblurring {
          * @param regionImage  image with the resulting region
          * @param mask         mask of this region
          */
-        void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask) const;
-
+        void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask,
+                            const view view) const;
 
         /**
          * fill the black regions with the neighboring pixel colors (half way the left one
@@ -124,14 +145,14 @@ namespace DepthAwareDeblurring {
         std::vector<node> tree;
 
         /**
-         * Binary masks of each disparity layer
+         * Binary masks of each disparity layer for each view
          */
-        std::vector<cv::Mat> _masks;
+        std::array<std::vector<cv::Mat>, 2> _masks;
 
         /**
-         * Pointer to color image (for generating region image)
+         * Pointer to original images of left and right view (for generating region image)
          */
-        const cv::Mat* _originalImage;
+        std::array<cv::Mat*, 2> _images;
     };
 }
 
