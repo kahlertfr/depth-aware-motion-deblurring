@@ -125,7 +125,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void RegionTree::getMask(const int nodeId, Mat& mask) {
+    void RegionTree::getMask(const int nodeId, Mat& mask) const {
         // a region contains multiple layers
         vector<int> region = tree[nodeId].layers;
 
@@ -138,7 +138,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void RegionTree::getRegionImage(const int nodeId, Mat &regionImage, Mat &mask) {
+    void RegionTree::getRegionImage(const int nodeId, Mat &regionImage, Mat &mask) const {
         getMask(nodeId, mask);
 
         // create an image with this mask
@@ -163,7 +163,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void RegionTree::edgeTaper(Mat& taperedRegion, Mat& region, Mat& mask, Mat& image) {
+    void RegionTree::edgeTaper(Mat& taperedRegion, Mat& region, Mat& mask, Mat& image) const {
         assert(region.type() == CV_8U && "gray values needed");
 
         Mat taperedHorizontal;

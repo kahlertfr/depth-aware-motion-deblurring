@@ -86,7 +86,7 @@ namespace DepthAwareDeblurring {
          * @param nodeId  Id of the node in the region tree
          * @param mask    mask of this region
          */
-        void getMask(const int nodeId, cv::Mat& mask);
+        void getMask(const int nodeId, cv::Mat& mask) const;
 
         /**
          * Creates an image where everything is black but the region of the image
@@ -96,7 +96,7 @@ namespace DepthAwareDeblurring {
          * @param regionImage  image with the resulting region
          * @param mask         mask of this region
          */
-        void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask);
+        void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask) const;
 
 
         /**
@@ -108,7 +108,7 @@ namespace DepthAwareDeblurring {
          * @param region        region image
          * @param mask          mask of region
          */
-        void edgeTaper(cv::Mat& taperedRegion, cv::Mat& region, cv::Mat& mask, cv::Mat& image);
+        void edgeTaper(cv::Mat& taperedRegion, cv::Mat& region, cv::Mat& mask, cv::Mat& image) const;
 
 
       private:
