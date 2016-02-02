@@ -60,7 +60,7 @@ namespace DepthAwareDeblurring {
         #ifndef NDEBUG
             Mat ucharGrads;
             convertFloatToUchar(ucharGrads, masked[0]);
-            imshow("input gradients", ucharGrads);
+            imshow("input x gradients", ucharGrads);
         #endif
 
         Mat magnitude, angle;
@@ -124,6 +124,13 @@ namespace DepthAwareDeblurring {
         // copy the gradients within the mask
         gradients[0].copyTo(thresholded[0], thresholdMask);
         gradients[1].copyTo(thresholded[1], thresholdMask);
+
+        #ifndef NDEBUG
+            // display salient edges
+            Mat _display;
+            convertFloatToUchar(_display, thresholded[0]);
+            imshow("salient edges x", _display);
+        #endif
     }
 
 }
