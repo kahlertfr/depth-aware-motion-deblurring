@@ -116,12 +116,12 @@ namespace DepthAwareDeblurring {
                       const int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():Images aren't of same size!");
+            throw runtime_error("Images aren't of same size!");
         }
 
         // approximate PSF width has to be greater than 0
         if (psfWidth < 1) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():PSF width has to be greater zero!");
+            throw runtime_error("PSF width has to be greater zero!");
         }
 
         // compute gray value images
@@ -197,7 +197,7 @@ namespace DepthAwareDeblurring {
         blurredRight = imread(filenameRight, 1);
 
         if (!blurredLeft.data || !blurredRight.data) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load images!");
+            throw runtime_error("Can not load images!");
         }
 
         runAlgorithm(blurredLeft, blurredRight, psfWidth, maxTopLevelNodes);

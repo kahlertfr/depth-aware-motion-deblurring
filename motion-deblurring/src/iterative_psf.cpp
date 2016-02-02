@@ -29,16 +29,13 @@ namespace DepthAwareDeblurring {
 
 
     void IterativePSF::toplevelKernelEstimation(const string filePrefix) {
-
+        // go through each top-level node
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
             int id = regionTree.topLevelNodeIds[i];
 
             // get an image of the top-level region
             Mat region, mask;
             regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
-            
-            // fill PSF kernel with zeros 
-            regionTree[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
 
 
             // // edge tapering to remove high frequencies at the border of the region
@@ -57,10 +54,10 @@ namespace DepthAwareDeblurring {
             // load the kernel images which should be named left/right-kerneli.png
             // they should be located in the folder where this algorithm is started
             string filename = filePrefix + "-kernel" + to_string(i) + ".png";
-            regionTree[id].psf[0] = imread(filename, 1);
+            regionTree[id].psf = imread(filename, 1);
 
-            if (!regionTree[id].psf[0].data) {
-                throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load kernel!");
+            if (!regionTree[id].psf.data) {
+                throw runtime_error("Can not load kernel!");
             }
         }
     }
