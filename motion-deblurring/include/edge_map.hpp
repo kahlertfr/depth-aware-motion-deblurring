@@ -37,8 +37,7 @@ namespace DepthAwareDeblurring {
      */
     void thresholdGradients(const std::array<cv::Mat,2>& gradients,
                             std::array<cv::Mat,2>& thresholded, const int psfWidth,
-                            const cv::InputArray& mask = cv::noArray(), const int r = 5);
-
+                            const cv::InputArray& mask = cv::noArray(), const int r = 2);
 
 }
 

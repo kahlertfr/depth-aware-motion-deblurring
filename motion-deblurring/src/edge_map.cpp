@@ -94,10 +94,11 @@ namespace DepthAwareDeblurring {
         
         // get range (threshold) of colors that keep at least r*psfWidth pixel of
         // the largest magnitude of each quantized angle
-        Mat thresholdedGrads = Mat::zeros(gradients[0].size(), gradients[0].type());
         // TODO: parameter for r
-        // int quantity = r * psfWidth;
         int quantity = r * psfWidth * psfWidth;
+
+        // overall threshold
+        int threshold = 255;
 
         // for each histogram
         for (int i = 0; i < 4; i++) {
@@ -110,15 +111,19 @@ namespace DepthAwareDeblurring {
                 minValue--;
             }
 
-            // get mask of this values
-            Mat mask;
-            inRange(histoMags[i], minValue, 255, mask);
-
-            // copy the values of the original magnitude to the thresholdedGrads one
-            magnitude.copyTo(thresholdedGrads, mask);
+            // save the found value as threshold for all direction
+            // if it is smaller as the current one
+            if (minValue < threshold)
+                threshold = minValue;
         }
 
-        polarToCart(thresholdedGrads, angle, thresholded[0], thresholded[1]);
+        // get mask of this values
+        Mat thresholdMask;
+        inRange(discreteMag, threshold, 255, thresholdMask);
+
+        // copy the gradients within the mask
+        gradients[0].copyTo(thresholded[0], thresholdMask);
+        gradients[1].copyTo(thresholded[1], thresholdMask);
     }
 
 }
