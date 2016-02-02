@@ -70,13 +70,6 @@ namespace DepthAwareDeblurring {
         thresholdGradients(enhancedGradsLeft, salientEdgesLeft, psfWidth, maskLeft);
         thresholdGradients(enhancedGradsRight, salientEdgesRight, psfWidth, maskRight);
 
-        #ifndef NDEBUG
-            // display salient edges
-            Mat _display;
-            convertFloatToUchar(_display, salientEdgesLeft[0]);
-            imshow("salient edges x left", _display);
-        #endif
-
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
         // where i ∈ {r, m}, and S_i is the region for reference and matching view 
         // and k is the psf-kernel
@@ -112,11 +105,11 @@ namespace DepthAwareDeblurring {
 
         Mat kernelFourier = Mat::zeros(xSm.size(), xSm.type());
 
-        // // delta function as one white pixel in black image
-        // Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
-        // deltaFloat.at<float>(xSm.rows / 2, xSm.cols / 2) = 1;
-        // Mat delta;
-        // FFT(deltaFloat, delta);
+        // delta function as one white pixel in black image
+        Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
+        deltaFloat.at<float>(xSm.rows / 2, xSm.cols / 2) = 1;
+        Mat delta;
+        FFT(deltaFloat, delta);
 
         // go through all pixel and calculate the value in the brackets of the equation
         for (int x = 0; x < xSm.cols; x++) {
@@ -132,15 +125,16 @@ namespace DepthAwareDeblurring {
                 complex<float> xbm(xBm.at<Vec2f>(y, x)[0], xBm.at<Vec2f>(y, x)[1]);
                 complex<float> ybm(yBm.at<Vec2f>(y, x)[0], yBm.at<Vec2f>(y, x)[1]);
 
-                // complex<float> d(delta.at<Vec2f>(y, x)[0], delta.at<Vec2f>(y, x)[1]);
+                complex<float> d(delta.at<Vec2f>(y, x)[0], delta.at<Vec2f>(y, x)[1]);
 
-                complex<float> weight(0.50, 0.0);
+                complex<float> weight(10000.50, 0.0);
 
                 // kernel entry in the Fourier space
                 complex<float> k = ( (conj(xsr) * xbr + conj(xsm) * xbm) +
                                      (conj(ysr) * ybr + conj(ysm) * ybm) ) /
                                      ( (conj(xsr) * xsr + conj(ysr) * ysr) + 
-                                       (conj(xsm) * xsm + conj(ysm) * ysm) + weight);
+                                       (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
+                                       // (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
                 
                 kernelFourier.at<Vec2f>(y, x) = { real(k), imag(k) };
             }
@@ -154,34 +148,63 @@ namespace DepthAwareDeblurring {
         vector<Mat> channels(2);
         split(kernelResult, channels);
 
-        channels[0].copyTo(psf);
+        // cut of the psf-kernel
+        int x = channels[0].cols / 2 - psfWidth / 2;
+        int y = channels[0].rows / 2 - psfWidth / 2;
+        swapQuadrants(channels[0]);
+        Mat kernelROI = channels[0](Rect(x, y, psfWidth, psfWidth));
+
+        kernelROI.copyTo(psf);
+
+        #ifndef NDEBUG
+            Mat kernelUchar;
+            convertFloatToUchar(kernelUchar, channels[0]);
+            imshow("full psf", kernelUchar);
+            waitKey(0);
+        #endif
     }
 
 
     void IterativePSF::gradientComputation() {
         // compute enhanced gradients for regions
-        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsLeft);
-        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsRight);
+        std::array<cv::Mat,2> enhancedGradsR, enhancedGradsL;
+
+        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsL);
+        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsR);
+
+        // norm the gradients
+        normalize(enhancedGradsR[0], enhancedGradsRight[0], -255, 255);
+        normalize(enhancedGradsR[1], enhancedGradsRight[1], -255, 255);
+        normalize(enhancedGradsL[0], enhancedGradsLeft[0], -255, 255);
+        normalize(enhancedGradsL[1], enhancedGradsLeft[1], -255, 255);
+
 
         // compute simple gradients for blurred images
+        std::array<cv::Mat,2> gradsR, gradsL;
+
+        // parameter for sobel gradient computation
         const int delta = 0;
         const int ddepth = CV_32F;
         const int ksize = 3;
         const int scale = 1;
 
         // gradients of left image
-        Sobel(*(regionTree.images[RegionTree::LEFT]), gradsLeft[0],
+        Sobel(*(regionTree.images[RegionTree::LEFT]), gradsL[0],
               ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
-        Sobel(*(regionTree.images[RegionTree::LEFT]), gradsLeft[1],
+        Sobel(*(regionTree.images[RegionTree::LEFT]), gradsL[1],
               ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
         // gradients of right image
-        Sobel(*(regionTree.images[RegionTree::RIGHT]), gradsRight[0],
+        Sobel(*(regionTree.images[RegionTree::RIGHT]), gradsR[0],
               ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
-        Sobel(*(regionTree.images[RegionTree::RIGHT]), gradsRight[1],
+        Sobel(*(regionTree.images[RegionTree::RIGHT]), gradsR[1],
               ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
-        // TODO: normalize gradients
+        // norm the gradients
+        normalize(gradsR[0], gradsRight[0], -255, 255);
+        normalize(gradsR[1], gradsRight[1], -255, 255);
+        normalize(gradsL[0], gradsLeft[0], -255, 255);
+        normalize(gradsL[1], gradsLeft[1], -255, 255);
     }
 
 
@@ -207,35 +230,37 @@ namespace DepthAwareDeblurring {
         }
 
 
-        // while(!remainingNodes.empty()) {
-        //     // pop id of current node from the front of the queue
-        //     int id = remainingNodes.front();
-        //     remainingNodes.pop();
+        while(!remainingNodes.empty()) {
+            // pop id of current node from the front of the queue
+            int id = remainingNodes.front();
+            remainingNodes.pop();
 
-        //     // do PSF computation for a middle node with its children
-        //     // (leaf nodes doesn't have any children)
-        //     if (regionTree[id].children.first != -1 && regionTree[id].children.second != -1) {
-        //         // add children ids to the back of the queue
-        //         remainingNodes.push(regionTree[id].children.first);
-        //         remainingNodes.push(regionTree[id].children.second);
+            // get IDs of the child nodes
+            int cId1 = regionTree[id].children.first;
+            int cId2 = regionTree[id].children.second;
 
-        //         // PSF estimation for each children
-                    
+            // do PSF computation for a middle node with its children
+            // (leaf nodes doesn't have any children)
+            if (cId1 != -1 && cId2 != -1) {
+                // add children ids to the back of the queue
+                remainingNodes.push(regionTree[id].children.first);
+                remainingNodes.push(regionTree[id].children.second);
+
+                // PSF estimation for each children
                 Mat maskM, maskR;
-                regionTree.getMasks(44, maskM, maskR);
 
-                Mat psf;
-                jointPSFEstimation(maskM, maskR, psf);
+                // estimate psf for the first child node
+                regionTree.getMasks(cId1, maskM, maskR);
+                jointPSFEstimation(maskM, maskR, regionTree[cId1].psf);
 
-                // save PSFs
-                #ifndef NDEBUG
-                    // print kernel
-                    Mat kernelUchar;
-                    convertFloatToUchar(kernelUchar, psf);
-                    swapQuadrants(kernelUchar);
-                    imshow("node psf", kernelUchar);
-                #endif
-        //     }
-        // }
+                // estimate psf for the second child node
+                regionTree.getMasks(cId2, maskM, maskR);
+                jointPSFEstimation(maskM, maskR, regionTree[cId2].psf);
+
+
+                // to eliminate errors make a candidate selection
+                // TODO: continue
+            }
+        }
     }
 }
