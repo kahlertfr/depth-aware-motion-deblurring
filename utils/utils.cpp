@@ -21,11 +21,15 @@ namespace deblur {
         cv::copyMakeBorder(image, padded, 0, m - image.rows, 0, n - image.cols,
                            cv::BORDER_CONSTANT, cv::Scalar::all(0));
 
-        // Add to the expanded another plane with zeros
-        cv::Mat planes[] = {padded, cv::Mat::zeros(padded.size(), CV_32F)};
+        // add to the expanded real plane another imagniary plane with zeros
+        cv::Mat planes[] = {padded,
+                            cv::Mat::zeros(padded.size(), CV_32F)};
         cv::merge(planes, 2, complex);
 
         // this way the result may fit in the source matrix
+        // 
+        // DFT_COMPLEX_OUTPUT suppress to creation of a dense CCS matrix
+        // but we want a simple complex matrix
         cv::dft(complex, complex, cv::DFT_COMPLEX_OUTPUT);
 
         assert(padded.size() == complex.size() && "Resulting complex matrix must be of same size");
@@ -113,5 +117,13 @@ namespace deblur {
                                                 // viewable image form (float between values 0 and 1).
 
         cv::imshow(windowName, magI);
+    }
+
+
+    void normalizeOne(cv::Mat& src, cv::Mat& dst) {
+        double min, max;
+        cv::minMaxLoc(src, &min, &max);
+        const double scale = std::max(std::abs(min), std::abs(max));
+        cv::normalize(src, dst, min / scale, max / scale, cv::NORM_MINMAX);
     }
 }

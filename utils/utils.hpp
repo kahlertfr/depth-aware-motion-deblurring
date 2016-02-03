@@ -22,7 +22,6 @@ namespace deblur {
         return sqrt(a * a + b * b);
     }
 
-
     /**
      * Applies DFT after expanding input image to optimal size for Fourier transformation
      * 
@@ -30,7 +29,6 @@ namespace deblur {
      * @param complex result as 2 channel matrix with complex numbers
      */
     void FFT(const cv::Mat& image, cv::Mat& complex);
-
 
     /**
      * Converts a matrix containing floats to a matrix
@@ -41,13 +39,11 @@ namespace deblur {
      */
     void convertFloatToUchar(cv::Mat& ucharMat, const cv::Mat& floatMat);
 
-
     /**
      * Rearrange quadrants of an image so that the origin is at the image center.
      * This is useful for fourier images. 
      */
     void swapQuadrants(cv::Mat& image);
-
 
     /**
      * Displays a matrix with complex numbers stored as 2 channels
@@ -59,6 +55,30 @@ namespace deblur {
      */
     void showComplexImage(const std::string windowName, const cv::Mat& complex);
 
+    /**
+     * Normalizes an input array into range [-1, 1] by conserving
+     * zero.
+     *
+     * Example:
+     *
+     *      [-415, 471]   =>  [-0.88, 1]
+     *
+     * Works inplace.
+     * 
+     * @param src  Input matrix
+     * @param dst  Normalized matrix
+     */
+    void normalizeOne(cv::Mat& src, cv::Mat& dst);
+
+    /**
+     * Convinient shorthand for inplace-normalization into range
+     * [-1, 1]
+     * 
+     * @param  input source and destination
+     */
+    inline void normalizeOne(cv::Mat& input) {
+        normalizeOne(input, input);
+    }
 }
 
 #endif
