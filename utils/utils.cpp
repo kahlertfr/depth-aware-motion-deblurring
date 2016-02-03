@@ -1,6 +1,5 @@
 #include "utils.hpp"
 
-
 namespace deblur {
 
     /**
@@ -10,21 +9,25 @@ namespace deblur {
      * @param complex result as 2 channel matrix with complex numbers
      */
     void FFT(const cv::Mat& image, cv::Mat& complex) {
-        assert(image.type() == CV_32F && "fft works on 32FC1-images");
+        if (image.type() == CV_32F) {
+            // for fast DFT expand image to optimal size
+            cv::Mat padded;
+            int m = cv::getOptimalDFTSize( image.rows );
+            int n = cv::getOptimalDFTSize( image.cols );
 
-        // for fast DFT expand image to optimal size
-        cv::Mat padded;
-        int m = cv::getOptimalDFTSize( image.rows );
-        int n = cv::getOptimalDFTSize( image.cols );
+            // on the border add zero pixels
+            cv::copyMakeBorder(image, padded, 0, m - image.rows, 0, n - image.cols,
+                               cv::BORDER_CONSTANT, cv::Scalar::all(0));
 
-        // on the border add zero pixels
-        cv::copyMakeBorder(image, padded, 0, m - image.rows, 0, n - image.cols,
-                           cv::BORDER_CONSTANT, cv::Scalar::all(0));
-
-        // add to the expanded real plane another imagniary plane with zeros
-        cv::Mat planes[] = {padded,
-                            cv::Mat::zeros(padded.size(), CV_32F)};
-        cv::merge(planes, 2, complex);
+            // add to the expanded real plane another imagniary plane with zeros
+            cv::Mat planes[] = {padded,
+                                cv::Mat::zeros(padded.size(), CV_32F)};
+            cv::merge(planes, 2, complex);
+        } else if (image.type() == CV_32FC2) {
+            image.copyTo(complex);
+        } else {
+            assert(false && "fft works on 32FC1- and 32FC1-images");
+        }
 
         // this way the result may fit in the source matrix
         // 
@@ -32,7 +35,7 @@ namespace deblur {
         // but we want a simple complex matrix
         cv::dft(complex, complex, cv::DFT_COMPLEX_OUTPUT);
 
-        assert(padded.size() == complex.size() && "Resulting complex matrix must be of same size");
+        // assert(padded.size() == complex.size() && "Resulting complex matrix must be of same size");
     }
 
 
@@ -121,9 +124,21 @@ namespace deblur {
 
 
     void normalizeOne(cv::Mat& src, cv::Mat& dst) {
-        double min, max;
-        cv::minMaxLoc(src, &min, &max);
-        const double scale = std::max(std::abs(min), std::abs(max));
-        cv::normalize(src, dst, min / scale, max / scale, cv::NORM_MINMAX);
+        if (src.channels() == 1) {
+            double min, max;
+            cv::minMaxLoc(src, &min, &max);
+            const double scale = std::max(std::abs(min), std::abs(max));
+            cv::normalize(src, dst, min / scale, max / scale, cv::NORM_MINMAX);
+        } else if (src.channels() == 2) {
+            std::vector<cv::Mat> channels;
+            std::vector<cv::Mat> tmp(2);
+
+            cv::split(src, channels);
+            normalizeOne(channels, tmp);
+            cv::merge(tmp, dst);
+
+        } else {
+            assert(false && "Input must have 1- or 2-channels");
+        }
     }
 }

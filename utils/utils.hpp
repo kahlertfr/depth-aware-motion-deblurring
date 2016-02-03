@@ -12,8 +12,11 @@
 #ifndef UTILS_COLLECTION_H
 #define UTILS_COLLECTION_H
 
-#include <opencv2/opencv.hpp>
+#include <vector>
+#include <algorithm>           // std::sort
+#include <array>
 #include <cmath>               // sqrt
+#include <opencv2/opencv.hpp>
 
 
 namespace deblur {
@@ -79,6 +82,43 @@ namespace deblur {
     inline void normalizeOne(cv::Mat& input) {
         normalizeOne(input, input);
     }
+
+    template<typename T>
+    void normalizeOne(T& src, T& dst) {
+        std::array<double,4> extrema;
+        std::array<double,4> maxima;
+
+        cv::minMaxLoc(src[0], &(extrema[0]), &(extrema[1]));
+        cv::minMaxLoc(src[1], &(extrema[2]), &(extrema[3]));
+
+        for (int i = 0; i < 4; ++i) {
+            maxima[i] = std::abs(extrema[i]);
+        }
+
+        std::sort(maxima.begin(), maxima.end());
+        const double scale = maxima[3];
+
+        cv::normalize(src[0], dst[0], extrema[0] / scale, extrema[1] / scale, cv::NORM_MINMAX);
+        cv::normalize(src[1], dst[1], extrema[2] / scale, extrema[3] / scale, cv::NORM_MINMAX);
+    }
+
+    inline void normalizeOne(std::array<cv::Mat,2>& src, std::array<cv::Mat,2>& dst) {
+        normalizeOne<std::array<cv::Mat,2>>(src, dst);
+    }
+
+    inline void normalizeOne(std::array<cv::Mat,2>& input) {
+        normalizeOne<std::array<cv::Mat,2>>(input, input);
+    }
+
+    inline void normalizeOne(std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst) {
+        assert(src.size() == 2 && "Vector must contain 2 channels");
+        normalizeOne<std::vector<cv::Mat>>(src, dst);
+    }
+
+    inline void normalizeOne(std::vector<cv::Mat>& input) {
+        normalizeOne<std::vector<cv::Mat>>(input, input);
+    }
+
 }
 
 #endif
