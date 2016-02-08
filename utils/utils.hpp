@@ -28,10 +28,20 @@ namespace deblur {
     /**
      * Applies DFT after expanding input image to optimal size for Fourier transformation
      * 
-     * @param image   input image with 1 channel
-     * @param complex result as 2 channel matrix with complex numbers
+     * @param src input image with 1 channel
+     * @param dst result as 2 channel matrix with complex numbers
      */
-    void FFT(const cv::Mat& image, cv::Mat& complex);
+    void fft(const cv::Mat& src, cv::Mat& dst);
+
+    /**
+     * Calls OpenCv dft function with adding the input matrix
+     * as real channel of a complex matrix (2-channel matrix).
+     * Without any padding!
+     * 
+     * @param src input image with 1 channel
+     * @param dst result as 2 channel matrix with complex numbers
+     */
+    void dft(const cv::Mat& src, cv::Mat& dst);
 
     /**
      * Converts a matrix containing floats to a matrix
@@ -41,6 +51,15 @@ namespace deblur {
      * @param dst resulting matrix
      */
     void convertFloatToUchar(const cv::Mat& src, cv::Mat& dst);
+
+    /**
+     * Displays a float matrix
+     * which entries are outside range [0,1]
+     * 
+     * @param name window name
+     * @param src  float matrix
+     */
+    void showFloat(const std::string name, const cv::Mat& src, const bool write = false);
 
     /**
      * Rearrange quadrants of an image so that the origin is at the image center.

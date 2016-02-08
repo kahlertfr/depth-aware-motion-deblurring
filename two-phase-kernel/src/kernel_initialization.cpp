@@ -171,10 +171,10 @@ namespace TwoPhaseKernelEstimation {
         // compute FFTs
         // the result are stored as 2 channel matrices: Re(FFT(I)), Im(FFT(I))
         Mat xS, xB, yS, yB;
-        FFT(selectionGrads[0], xS);
-        FFT(blurredGrads[0], xB);
-        FFT(selectionGrads[1], yS);
-        FFT(blurredGrads[1], yB);
+        fft(selectionGrads[0], xS);
+        fft(blurredGrads[0], xB);
+        fft(selectionGrads[1], yS);
+        fft(blurredGrads[1], yB);
 
         // #ifndef NDEBUG
         //     showComplexImage("spectrum magnitude xS", xS);
@@ -300,7 +300,7 @@ namespace TwoPhaseKernelEstimation {
 
         assert(kernel.type() == CV_32FC2 && "Kernel must be complex IFFT");
 
-        FFT(kernel, K);
+        fft(kernel, K);
         // kernel.copyTo(K);
         
         vector<Mat> channels(2);
@@ -313,8 +313,8 @@ namespace TwoPhaseKernelEstimation {
         cout << "K imag: " << min << " " << max << endl;
 
 
-        FFT(selectionGrads[0], xS);
-        FFT(selectionGrads[1], yS);
+        fft(selectionGrads[0], xS);
+        fft(selectionGrads[1], yS);
 
         Mat blurredFloat;
         assert(blurredImage.type() == CV_8U && "gray value image needed");
@@ -329,7 +329,7 @@ namespace TwoPhaseKernelEstimation {
             cout << "blurred float " << min << " " << max << endl;
         #endif
         
-        FFT(blurredFloat, B);
+        fft(blurredFloat, B);
 
         // go through fourier transformed image
         Mat imageFourier = Mat::zeros(xS.size(), xS.type());
@@ -344,8 +344,8 @@ namespace TwoPhaseKernelEstimation {
         sobely.at<float>(1,0) = 1;
 
         Mat Dx, Dy;
-        FFT(sobelx, Dx);
-        FFT(sobely, Dy);
+        fft(sobelx, Dx);
+        fft(sobely, Dy);
 
         for (int x = 0; x < xS.cols; x++) {
             for (int y = 0; y < xS.rows; y++) {
@@ -412,7 +412,7 @@ namespace TwoPhaseKernelEstimation {
         channels[0].copyTo(latentImage);
 
 
-        FFT(latentImage, imageFourier);
+        fft(latentImage, imageFourier);
         normalizeOne(imageFourier);
         showComplexImage("image foureir 2",imageFourier);
 

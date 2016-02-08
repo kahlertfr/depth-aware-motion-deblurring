@@ -37,7 +37,7 @@ namespace TwoPhaseKernelEstimation {
         // imshow("spatial domain", deltaUchar);
 
         // Mat fourier;
-        // FFT(delta, fourier);
+        // fft(delta, fourier);
 
         // for (int x = 0; x < fourier.cols; x++) {
         //     for (int y = 0; y < fourier.rows; y++) {

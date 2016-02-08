@@ -94,14 +94,14 @@ namespace DepthAwareDeblurring {
         Mat xSr, xSm, ySr, ySm;  // fourier transform of region gradients
         Mat xBr, xBm, yBr, yBm;  // fourier transform of blurred images
         
-        FFT(salientEdgesLeft[0], xSm);
-        FFT(salientEdgesLeft[1], ySm);
-        FFT(salientEdgesRight[0], xSr);
-        FFT(salientEdgesRight[1], ySr);
-        FFT(gradsLeft[0], xBm);
-        FFT(gradsLeft[1], yBm);
-        FFT(gradsRight[0], xBr);
-        FFT(gradsRight[1], yBr);
+        fft(salientEdgesLeft[0], xSm);
+        fft(salientEdgesLeft[1], ySm);
+        fft(salientEdgesRight[0], xSr);
+        fft(salientEdgesRight[1], ySr);
+        fft(gradsLeft[0], xBm);
+        fft(gradsLeft[1], yBm);
+        fft(gradsRight[0], xBr);
+        fft(gradsRight[1], yBr);
 
         Mat kernelFourier = Mat::zeros(xSm.size(), xSm.type());
 
@@ -109,7 +109,7 @@ namespace DepthAwareDeblurring {
         Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
         deltaFloat.at<float>(xSm.rows / 2, xSm.cols / 2) = 1;
         Mat delta;
-        FFT(deltaFloat, delta);
+        fft(deltaFloat, delta);
 
         // go through all pixel and calculate the value in the brackets of the equation
         for (int x = 0; x < xSm.cols; x++) {

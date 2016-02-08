@@ -5,23 +5,23 @@ using namespace std;
 
 namespace deblur {
 
-    void FFT(const Mat& image, Mat& complex) {
-        if (image.type() == CV_32F) {
+    void fft(const Mat& src, Mat& dst) {
+        if (src.type() == CV_32F) {
             // for fast DFT expand image to optimal size
             Mat padded;
-            int m = getOptimalDFTSize( image.rows );
-            int n = getOptimalDFTSize( image.cols );
+            int m = getOptimalDFTSize( src.rows );
+            int n = getOptimalDFTSize( src.cols );
 
             // on the border add zero pixels
-            copyMakeBorder(image, padded, 0, m - image.rows, 0, n - image.cols,
+            copyMakeBorder(src, padded, 0, m - src.rows, 0, n - src.cols,
                                BORDER_CONSTANT, Scalar::all(0));
 
             // add to the expanded real plane another imagniary plane with zeros
             Mat planes[] = {padded,
                                 Mat::zeros(padded.size(), CV_32F)};
-            merge(planes, 2, complex);
-        } else if (image.type() == CV_32FC2) {
-            image.copyTo(complex);
+            merge(planes, 2, dst);
+        } else if (src.type() == CV_32FC2) {
+            src.copyTo(dst);
         } else {
             assert(false && "fft works on 32FC1- and 32FC1-images");
         }
@@ -30,9 +30,21 @@ namespace deblur {
         // 
         // DFT_COMPLEX_OUTPUT suppress to creation of a dense CCS matrix
         // but we want a simple complex matrix
-        dft(complex, complex, DFT_COMPLEX_OUTPUT);
+        dft(dst, dst, DFT_COMPLEX_OUTPUT);
 
-        // assert(padded.size() == complex.size() && "Resulting complex matrix must be of same size");
+        // assert(padded.size() == dst.size() && "Resulting complex matrix must be of same size");
+    }
+
+
+    void dft(Mat& src, Mat& dst){
+        // create complex matrix
+        Mat planes[] = {src,
+                        Mat::zeros(src.size(), CV_32F)};
+        merge(planes, 2, dst);
+
+        // DFT_COMPLEX_OUTPUT suppress to creation of a dense CCS matrix
+        // but we want a simple complex matrix
+        dft(dst, dst, DFT_COMPLEX_OUTPUT);
     }
 
 
@@ -53,6 +65,20 @@ namespace deblur {
 
             // convert and show
             copy.convertTo(dst, CV_8U, 255.0/(max-min));
+        }
+    }
+
+
+    void showFloat(const string name, const Mat& src, const bool write){
+        assert(src.type() == CV_32F && "works for single channel ");
+
+        Mat srcUchar;
+        convertFloatToUchar(src, srcUchar);
+        imshow(name, srcUchar);
+
+        if (write){
+            string filename = name + ".png";
+            imwrite(filename, srcUchar);
         }
     }
 
