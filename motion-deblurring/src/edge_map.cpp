@@ -39,7 +39,7 @@ namespace DepthAwareDeblurring {
 
         // #ifndef NDEBUG
         //     Mat normalized;
-        //     convertFloatToUchar(normalized, gradients[0]);
+        //     convertFloatToUchar(gradients[0], normalized);
         //     imshow("x-gradient", normalized);
         // #endif
     }
@@ -59,7 +59,7 @@ namespace DepthAwareDeblurring {
 
         #ifndef NDEBUG
             Mat ucharGrads;
-            convertFloatToUchar(ucharGrads, masked[0]);
+            convertFloatToUchar(masked[0], ucharGrads);
             imshow("input x gradients", ucharGrads);
         #endif
 
@@ -68,7 +68,7 @@ namespace DepthAwareDeblurring {
 
         // quantizies magnitude to 255 bins
         Mat discreteMag;
-        convertFloatToUchar(discreteMag, magnitude);
+        convertFloatToUchar(magnitude, discreteMag);
 
         // histograms for 4 bins of angles (45 degrees)
         uchar histo[4][255] = {{0}};
@@ -128,7 +128,7 @@ namespace DepthAwareDeblurring {
         #ifndef NDEBUG
             // display salient edges
             Mat _display;
-            convertFloatToUchar(_display, thresholded[0]);
+            convertFloatToUchar(thresholded[0], _display);
             imshow("salient edges x", _display);
         #endif
     }

@@ -37,10 +37,10 @@ namespace deblur {
      * Converts a matrix containing floats to a matrix
      * conatining uchars
      * 
-     * @param ucharMat resulting matrix
-     * @param floatMat input matrix
+     * @param src input matrix
+     * @param dst resulting matrix
      */
-    void convertFloatToUchar(cv::Mat& ucharMat, const cv::Mat& floatMat);
+    void convertFloatToUchar(const cv::Mat& src, cv::Mat& dst);
 
     /**
      * Rearrange quadrants of an image so that the origin is at the image center.

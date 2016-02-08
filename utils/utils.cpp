@@ -36,23 +36,23 @@ namespace deblur {
     }
 
 
-    void convertFloatToUchar(Mat& ucharMat, const Mat& floatMat) {
+    void convertFloatToUchar(const Mat& src, Mat& dst) {
         // find min and max value
         double min; double max;
-        minMaxLoc(floatMat, &min, &max);
+        minMaxLoc(src, &min, &max);
 
         // if the matrix is in the range [0, 1] just scale with 255
         if (min >= 0 && max < 1) {
-            floatMat.convertTo(ucharMat, CV_8U, 255.0/(max-min));
+            src.convertTo(dst, CV_8U, 255.0/(max-min));
         } else {
             Mat copy;
-            floatMat.copyTo(copy);
+            src.copyTo(copy);
 
             // handling that floats could be negative
             copy -= min;
 
             // convert and show
-            copy.convertTo(ucharMat, CV_8U, 255.0/(max-min));
+            copy.convertTo(dst, CV_8U, 255.0/(max-min));
         }
     }
 

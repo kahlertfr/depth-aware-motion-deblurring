@@ -158,7 +158,7 @@ namespace DepthAwareDeblurring {
 
         #ifndef NDEBUG
             Mat kernelUchar;
-            convertFloatToUchar(kernelUchar, channels[0]);
+            convertFloatToUchar(channels[0], kernelUchar);
             imshow("full psf", kernelUchar);
             waitKey(0);
         #endif

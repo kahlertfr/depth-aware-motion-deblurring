@@ -108,8 +108,8 @@ namespace TwoPhaseKernelEstimation {
         // #ifndef NDEBUG
         //     // display gradients
         //     Mat xGradientsViewable, yGradientsViewable;
-        //     convertFloatToUchar(xGradientsViewable, gradients[0]);
-        //     convertFloatToUchar(yGradientsViewable, gradients[1]);
+        //     convertFloatToUchar(gradients[0], xGradientsViewable);
+        //     convertFloatToUchar(gradients[1], yGradientsViewable);
         //     imshow("x gradient shock", xGradientsViewable);
         //     imshow("y gradient shock", yGradientsViewable);
         // #endif
@@ -230,7 +230,7 @@ namespace TwoPhaseKernelEstimation {
         // dft(kernelFourier, kernel, DFT_INVERSE | DFT_REAL_OUTPUT);
 
         // Mat kernelUchar;
-        // convertFloatToUchar(kernelUchar, kernel);
+        // convertFloatToUchar(kernel, kernelUchar);
         // imshow("kernel (real part)", kernelUchar);
 
         // // // compute inverse FFT of the kernel in frequency domain
@@ -245,7 +245,7 @@ namespace TwoPhaseKernelEstimation {
 
         // normalizeOne(channels);
 
-        // // convertFloatToUchar(kernelUchar, channels[0]);
+        // // convertFloatToUchar(channels[0], kernelUchar);
         // // // swapQuadrants(kernelUchar);
         // // imshow("kernel (real part)", kernelUchar);
 
@@ -257,7 +257,7 @@ namespace TwoPhaseKernelEstimation {
 
         merge(channels, kernel);
 
-        // // convertFloatToUchar(kernelUchar, channels[1]);
+        // // convertFloatToUchar(channels[1], kernelUchar);
         // // // swapQuadrants(kernelUchar);
         // // imshow("kernel (imag part)", kernelUchar);
 
@@ -280,11 +280,11 @@ namespace TwoPhaseKernelEstimation {
      */
     void coarseImageEstimation(const Mat& blurredImage, const Mat& kernel,
                                const array<Mat,2>& selectionGrads, Mat& latentImage) {
-        //                ____              ______                ______
-        //             (  F(k) * F(B) + λ * F(∂_x) * F(∂_x I^s) + F(∂_y) * F(∂_y I^s) )
-        // I = F^-1 * ( -------------------------------------------------------------  )
-        //            (     ____              ______            ______                 )
-        //             (    F(k) * F(k) + λ * F(∂_x) * F(∂_x) + F(∂_y) * F(∂_y)       )
+        //                ____               ______                ______
+        //             (  F(k) * F(B) + λ * (F(∂_x) * F(∂_x I^s) + F(∂_y) * F(∂_y I^s)) )
+        // I = F^-1 * ( ---------------------------------------------------------------  )
+        //            (     ____               ______            ______                  )
+        //             (    F(k) * F(k) + λ * (F(∂_x) * F(∂_x) + F(∂_y) * F(∂_y))       )
         // where * is pointwise multiplication
         // 
         // here: F(k)       = k
@@ -334,6 +334,19 @@ namespace TwoPhaseKernelEstimation {
         // go through fourier transformed image
         Mat imageFourier = Mat::zeros(xS.size(), xS.type());
 
+
+        // gradients
+        Mat sobelx = Mat::zeros(blurredImage.size(), CV_32F);
+        sobelx.at<float>(0,0) = -1;
+        sobelx.at<float>(0,1) = 1;
+        Mat sobely = Mat::zeros(blurredImage.size(), CV_32F);
+        sobely.at<float>(0,0) = -1;
+        sobely.at<float>(1,0) = 1;
+
+        Mat Dx, Dy;
+        FFT(sobelx, Dx);
+        FFT(sobely, Dy);
+
         for (int x = 0; x < xS.cols; x++) {
             for (int y = 0; y < xS.rows; y++) {
                 // complex entries at the current position
@@ -342,10 +355,12 @@ namespace TwoPhaseKernelEstimation {
                 complex<float> ys(yS.at<Vec2f>(y, x)[0], yS.at<Vec2f>(y, x)[1]);
                 complex<float> b(B.at<Vec2f>(y, x)[0], B.at<Vec2f>(y, x)[1]);
 
-                // F(∂_x) is the factor: 2 * π * i * x
-                complex<float> dx(0, 2 * M_PI * x);
-                // F(∂_y) is the factor: 2 * π * i * y
-                complex<float> dy(0, 2 * M_PI * y);
+                // // F(∂_x) is the factor: 2 * π * i * x
+                // complex<float> dx(0, 2 * M_PI * x);
+                // // F(∂_y) is the factor: 2 * π * i * y
+                // complex<float> dy(0, 2 * M_PI * y);
+                complex<float> dx(Dx.at<Vec2f>(y, x)[0], Dx.at<Vec2f>(y, x)[1]);
+                complex<float> dy(Dy.at<Vec2f>(y, x)[0], Dy.at<Vec2f>(y, x)[1]);
 
                 // weight from paper
                 complex<float> weight(2.0e-3, 0.0);
@@ -365,10 +380,10 @@ namespace TwoPhaseKernelEstimation {
 
         Mat imageUchar;
         split(imageFourier, channels);
-        convertFloatToUchar(imageUchar, channels[0]);
+        convertFloatToUchar(channels[0], imageUchar);
         imshow("real image fourier", imageUchar);
 
-        convertFloatToUchar(imageUchar, channels[1]);
+        convertFloatToUchar(channels[1], imageUchar);
         imshow("imag image fourier", imageUchar);
 
 
@@ -378,7 +393,7 @@ namespace TwoPhaseKernelEstimation {
         imageResult.copyTo(latentImage);
 
         // Mat imageUchar;
-        // convertFloatToUchar(imageUchar, imageResult);
+        // convertFloatToUchar(imageResult, imageUchar);
         // imshow("result", imageUchar);
 
         showComplexImage("complex", imageResult);
@@ -388,10 +403,10 @@ namespace TwoPhaseKernelEstimation {
         split(imageResult, channels);
         // swapQuadrants(channels[0]);
         // 
-        convertFloatToUchar(imageUchar, channels[0]);
+        convertFloatToUchar(channels[0], imageUchar);
         imshow("real latent", imageUchar);
 
-        convertFloatToUchar(imageUchar, channels[1]);
+        convertFloatToUchar(channels[1], imageUchar);
         imshow("imag latent", imageUchar);
 
         channels[0].copyTo(latentImage);
@@ -429,7 +444,7 @@ namespace TwoPhaseKernelEstimation {
         // // swapQuadrants(channels[0]);
         // // 
         // Mat imageUchar;
-        // convertFloatToUchar(imageUchar, channels[1]);
+        // convertFloatToUchar(channels[1], imageUchar);
         // imshow("imaginary", imageUchar);
 
         // minMaxLoc(channels[0], &_min, &_max);
@@ -437,7 +452,7 @@ namespace TwoPhaseKernelEstimation {
         // minMaxLoc(channels[1], &_min, &_max);
         // cout << "inverse imag: min = " << _min << ", max = " << _max << endl;
 
-        // convertFloatToUchar(imageUchar, channels[0]);
+        // convertFloatToUchar(channels[0], imageUchar);
         // imshow("real", imageUchar);
         // return;
 
@@ -506,8 +521,8 @@ namespace TwoPhaseKernelEstimation {
             // #ifndef NDEBUG
             //     // display gradients
             //     Mat xGradientsViewable, yGradientsViewable;
-            //     convertFloatToUchar(xGradientsViewable, erodedXGradients);
-            //     convertFloatToUchar(yGradientsViewable, erodedYGradients);
+            //     convertFloatToUchar(erodedXGradients, xGradientsViewable);
+            //     convertFloatToUchar(erodedYGradients, yGradientsViewable);
             //     imshow("x gradient", xGradientsViewable);
             //     imshow("y gradient", yGradientsViewable);
             // #endif
@@ -519,7 +534,7 @@ namespace TwoPhaseKernelEstimation {
             // #ifndef NDEBUG
             //     // print confidence matrix
             //     Mat confidenceUchar;
-            //     convertFloatToUchar(confidenceUchar, gradientConfidence);
+            //     convertFloatToUchar(gradientConfidence, confidenceUchar);
             //     imshow("confidence", confidenceUchar);
             // #endif
 
@@ -539,12 +554,12 @@ namespace TwoPhaseKernelEstimation {
                  #ifndef NDEBUG
                     Mat xGradientsViewable, yGradientsViewable;
                     // display gradients
-                    convertFloatToUchar(xGradientsViewable, selectedEdges[0]);
-                    convertFloatToUchar(yGradientsViewable, selectedEdges[1]);
+                    convertFloatToUchar(selectedEdges[0], xGradientsViewable);
+                    convertFloatToUchar(selectedEdges[1], yGradientsViewable);
                     imshow("x gradient selection " + i, xGradientsViewable);
                     imshow("y gradient selection " + i, yGradientsViewable);
                 #endif
-
+                    cout << "here" << endl;
                 // estimate kernel with gaussian prior
                 fastKernelEstimation(selectedEdges, gradients, tmpKernel);
 
@@ -562,8 +577,8 @@ namespace TwoPhaseKernelEstimation {
                 // #ifndef NDEBUG
                 //     // print kernel
                 //     Mat kernelUchar;
-                //     // convertFloatToUchar(kernelUchar, newKernel);
-                //     convertFloatToUchar(kernelUchar, tmpKernel);
+                //     // convertFloatToUchar(newKernel, kernelUchar);
+                //     convertFloatToUchar(tmpKernel, kernelUchar);
                 //     swapQuadrants(kernelUchar);
                 //     imshow("tmp kernel " + i, kernelUchar);
                 //     imwrite("kernel.jpg", kernelUchar);
@@ -580,12 +595,12 @@ namespace TwoPhaseKernelEstimation {
                     // vector<Mat> channels(2);
                     // split(tmpKernel, channels);
 
-                    // // convertFloatToUchar(kernelUchar, newKernel);
-                    // convertFloatToUchar(kernelUchar, channels[0]);
+                    // // convertFloatToUchar(newKernel, kernelUchar);
+                    // convertFloatToUchar(channels[0], kernelUchar);
                     // swapQuadrants(kernelUchar);
                     // imshow("kernel (real part) " + i, kernelUchar);
 
-                    // convertFloatToUchar(kernelUchar, channels[1]);
+                    // convertFloatToUchar(channels[1], kernelUchar);
                     // swapQuadrants(kernelUchar);
                     // imshow("kernel (imag part) " + i, kernelUchar);
                 #endif
@@ -613,16 +628,16 @@ namespace TwoPhaseKernelEstimation {
                 // Mat newUchar;
                 // minMaxLoc(newKernel, &min, &max);
                 // cout << min << " " << max << endl;
-                // convertFloatToUchar(newUchar, newKernel);
+                // convertFloatToUchar(newKernel, newUchar);
                 // imshow("new kernel", newUchar);
                 // filter2D(pyramid[l], latentImage, CV_32F, newKernel);
                 // Mat latentUchar;
-                // convertFloatToUchar(latentUchar, latentImage);
+                // convertFloatToUchar(latentImage, latentUchar);
                 // imshow("latent", latentUchar);
 
                 // set current image to coarse latent image
                 Mat imageUchar;
-                convertFloatToUchar(imageUchar, latentImage);
+                convertFloatToUchar(latentImage, imageUchar);
 
                 // the latent image is some pixel larger than the original one therefore
                 // cut it out in the right size
@@ -645,7 +660,7 @@ namespace TwoPhaseKernelEstimation {
         // #ifndef NDEBUG
         //     // print kernel
         //     Mat kernelUchar;
-        //     convertFloatToUchar(kernelUchar, tmpKernel);
+        //     convertFloatToUchar(tmpKernel, kernelUchar);
         //     imshow("kernel result", kernelUchar);
         // #endif
 
@@ -657,8 +672,8 @@ namespace TwoPhaseKernelEstimation {
 
         // // convert kernel to uchar
         // Mat resultUchar;
-        // convertFloatToUchar(resultUchar, kernelROI);
-        // // convertFloatToUchar(resultUchar, kernel);
+        // convertFloatToUchar(kernelROI, resultUchar);
+        // // convertFloatToUchar(kernel, resultUchar);
 
         // resultUchar.copyTo(kernel);
     }
