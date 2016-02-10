@@ -106,12 +106,8 @@ namespace TwoPhaseKernelEstimation {
         normalizeOne(gradients);
 
         // #ifndef NDEBUG
-        //     // display gradients
-        //     Mat xGradientsViewable, yGradientsViewable;
-        //     convertFloatToUchar(gradients[0], xGradientsViewable);
-        //     convertFloatToUchar(gradients[1], yGradientsViewable);
-        //     imshow("x gradient shock", xGradientsViewable);
-        //     imshow("y gradient shock", yGradientsViewable);
+        //     showFloat("x gradient shock", gradients[0]);
+        //     showFloat("y gradient shock", gradients[1]);
         // #endif
 
         // save gradients of the final selected edges
@@ -143,16 +139,15 @@ namespace TwoPhaseKernelEstimation {
      * With the critical edge selection, initial kernel erstimation can be accomplished quickly.
      * Objective function: E(k) = ||∇I^s ⊗ k - ∇B||² + γ||k||²
      * 
-     * @param selectionGrads  array of x and y gradients of final selected edges (∇I^s)
-     * @param blurredGrads    array of x and y gradients of blurred image (∇B)
-     * @param kernel          result (k)
+     * @param selectionGrads  array of x and y gradients of final selected edges (∇I^s) [-1, 1]
+     * @param blurredGrads    array of x and y gradients of blurred image (∇B) [-1, 1]
+     * @param kernel          energy preserving kernel (k)
      */
-    void fastKernelEstimation(const array<Mat,2>& selectionGrads, const array<Mat,2>& blurredGrads, Mat& kernel) {
+    void fastKernelEstimation(const array<Mat,2>& selectionGrads,
+                              const array<Mat,2>& blurredGrads, Mat& kernel) {
+
         assert(selectionGrads[0].rows == blurredGrads[0].rows && "matrixes have to be of same size!");
         assert(selectionGrads[0].cols == blurredGrads[0].cols && "matrixes have to be of same size!");
-
-        int rows = selectionGrads[0].rows;
-        int cols = selectionGrads[0].cols;
 
         // based on Perseval's theorem, perform FFT
         //                __________              __________
@@ -171,34 +166,19 @@ namespace TwoPhaseKernelEstimation {
         // compute FFTs
         // the result are stored as 2 channel matrices: Re(FFT(I)), Im(FFT(I))
         Mat xS, xB, yS, yB;
-        fft(selectionGrads[0], xS);
-        fft(blurredGrads[0], xB);
-        fft(selectionGrads[1], yS);
-        fft(blurredGrads[1], yB);
+        deblur::dft(selectionGrads[0], xS);
+        deblur::dft(blurredGrads[0], xB);
+        deblur::dft(selectionGrads[1], yS);
+        deblur::dft(blurredGrads[1], yB);
 
-        // #ifndef NDEBUG
-        //     showComplexImage("spectrum magnitude xS", xS);
-        //     showComplexImage("spectrum magnitude yS", yS);
-        //     showComplexImage("spectrum magnitude xB", xB);
-        //     showComplexImage("spectrum magnitude yB", yB);
-        // #endif
+        complex<float> weight(0.0, 0.0);
 
-        Mat kernelFourier = Mat::zeros(xS.size(), xS.type());
+        // kernel in Fourier domain
+        Mat K = Mat::zeros(xS.size(), xS.type());
 
-        assert(xS.type() == CV_32FC2);
-        assert(yS.type() == CV_32FC2);
-        assert(xB.type() == CV_32FC2);
-        assert(yB.type() == CV_32FC2);
-
-        // // delta function as one white pixel in black image
-        // Mat deltaFloat = Mat::zeros(xS.size(), CV_32F);
-        // deltaFloat.at<float>(xS.rows / 2, xS.cols / 2) = 1;
-        // Mat delta;
-        // FFT(deltaFloat, delta);
-
-        // go through all pixel and calculate the value in the brackets of the equation
-        for (int y = 0; y < xS.rows; y++) {
-            for (int x = 0; x < xS.cols; x++) { 
+        // pixelwise computation of kernel
+        for (int y = 0; y < K.rows; y++) {
+            for (int x = 0; x < K.cols; x++) { 
                 // complex entries at the current position
                 complex<float> xs(xS.at<Vec2f>(y, x)[0], xS.at<Vec2f>(y, x)[1]);
                 complex<float> ys(yS.at<Vec2f>(y, x)[0], yS.at<Vec2f>(y, x)[1]);
@@ -206,65 +186,36 @@ namespace TwoPhaseKernelEstimation {
                 complex<float> xb(xB.at<Vec2f>(y, x)[0], xB.at<Vec2f>(y, x)[1]);
                 complex<float> yb(yB.at<Vec2f>(y, x)[0], yB.at<Vec2f>(y, x)[1]);
 
-                // complex<float> d(delta.at<Vec2f>(y, x)[0], delta.at<Vec2f>(y, x)[1]);
-
-                complex<float> weight(0.0, 0.0);
 
                 // kernel entry in the Fourier space
-                // complex<float> k = (conj(xs) * xb + conj(ys) * yb + xs * conj(xb) + ys * conj(yb)) /
                 complex<float> k = (conj(xs) * xb + conj(ys) * yb) /
-                                   (conj(xs) * xs + conj(ys) * ys + weight );
-                                   // (conj(xs) * xs + conj(ys) * ys + weight * d);
+                                   (conj(xs) * xs + conj(ys) * ys + weight);
                                    // (abs(xs) * abs(xs) + abs(ys) * abs(ys) + weight); // equivalent
                 
-                kernelFourier.at<Vec2f>(y, x) = { real(k), imag(k) };
-                // kernelFourier.at<Vec2f>(y, x) = xS.at<Vec2f>(y, x);
-                // kernelFourier.at<Vec2f>(y, x) = { real(xs), imag(xs) };
+                K.at<Vec2f>(y, x) = { real(k), imag(k) };
             }
         }
 
-        // kernelFourier.copyTo(kernel);
-        dft(kernelFourier, kernel, DFT_INVERSE);
+        // only use the real part of the complex output
+        Mat kernelBig;
+        dft(K, kernelBig, DFT_INVERSE | DFT_REAL_OUTPUT);
 
-        // // // only use the real part of the complex output
-        // dft(kernelFourier, kernel, DFT_INVERSE | DFT_REAL_OUTPUT);
+        // cut of kernel in middle of the temporary kernel
+        int x = kernelBig.cols / 2 - kernel.cols / 2;
+        int y = kernelBig.rows / 2 - kernel.rows / 2;
+        swapQuadrants(kernelBig);
+        Mat kernelROI = kernelBig(Rect(x, y, kernel.cols, kernel.rows));
 
-        // Mat kernelUchar;
-        // convertFloatToUchar(kernel, kernelUchar);
-        // imshow("kernel (real part)", kernelUchar);
+        // copy the ROI to the kernel to avoid that some OpenCV functions accidently
+        // uses the information outside of the ROI (like copyMakeBorder())
+        kernelROI.copyTo(kernel);
 
-        // // // compute inverse FFT of the kernel in frequency domain
-        // // Mat kernelResult;
-        // // // dft(kernelFourier, kernelResult, DFT_INVERSE);
+        // threshold kernel to erease negative values
+        threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
 
-        vector<Mat> channels(2);
-        split(kernel, channels);
-        // // // swapQuadrants(channels[0]);
-        
-        // // // showComplexImage("complex kernel my", kernelResult);
-
-        // normalizeOne(channels);
-
-        // // convertFloatToUchar(channels[0], kernelUchar);
-        // // // swapQuadrants(kernelUchar);
-        // // imshow("kernel (real part)", kernelUchar);
-
-        double min, max;
-        minMaxLoc(channels[0], &min, &max);
-        cout << "kernel real: " << min << " " << max << endl;
-        minMaxLoc(channels[1], &min, &max);
-        cout << "kernel imag: " << min << " " << max << endl;
-
-        merge(channels, kernel);
-
-        // // convertFloatToUchar(channels[1], kernelUchar);
-        // // // swapQuadrants(kernelUchar);
-        // // imshow("kernel (imag part)", kernelUchar);
-
-        // waitKey(0);
-
-        // // // only copy real part of the complex output
-        // // channels[0].copyTo(kernel);
+        // // kernel has to be energy preserving
+        // // this means: sum(kernel) = 1
+        kernel /= sum(kernel)[0];
     }
 
 
@@ -273,13 +224,40 @@ namespace TwoPhaseKernelEstimation {
      * the recovery of a coarse version of the latent image.
      * Objective function: E(I) = ||I ⊗ k - B||² + λ||∇I - ∇I^s||²
      * 
-     * @param blurredImage   blurred image
-     * @param kernel         kernel in image size
-     * @param selectionGrads gradients of selected edges (x and y direction)
-     * @param latentImage    resulting image
+     * @param blurred        blurred grayvalue image (B)
+     * @param kernel         energy presserving kernel (k)
+     * @param selectionGrads gradients of selected edges (x and y direction) (∇I^s)
+     * @param latent         resulting image (I)
+     * @param weight         λ, default is 2.0e-3 (weight from paper)
      */
-    void coarseImageEstimation(const Mat& blurredImage, const Mat& kernel,
-                               const array<Mat,2>& selectionGrads, Mat& latentImage) {
+    void coarseImageEstimation(Mat blurred, const Mat& kernel,
+                               const array<Mat,2>& selectionGrads, Mat& latent,
+                               double weight = 2.0e-3) {
+
+        assert(kernel.type() == CV_32F && "works with energy preserving float kernel");
+        assert(blurred.type() == CV_8U && "works with gray valued blurred image");
+
+        // convert grayvalue image to float and normalize it to [0,1]
+        blurred.convertTo(blurred, CV_32F);
+        blurred /= 255.0;
+
+        // fill kernel with zeros to get to the blurred image size
+        // it's important to use BORDER_ISOLATED flag if the kernel is an ROI of a greater image!
+        Mat pkernel;
+        copyMakeBorder(kernel, pkernel, 0,
+                       blurred.rows - kernel.rows, 0,
+                       blurred.cols - kernel.cols,
+                       BORDER_CONSTANT, Scalar::all(0));
+
+        // using sobel filter as gradients dx and dy
+        Mat sobelx = Mat::zeros(blurred.size(), CV_32F);
+        sobelx.at<float>(0,0) = -1;
+        sobelx.at<float>(0,1) = 1;
+        Mat sobely = Mat::zeros(blurred.size(), CV_32F);
+        sobely.at<float>(0,0) = -1;
+        sobely.at<float>(1,0) = 1;
+
+
         //                ____               ______                ______
         //             (  F(k) * F(B) + λ * (F(∂_x) * F(∂_x I^s) + F(∂_y) * F(∂_y I^s)) )
         // I = F^-1 * ( ---------------------------------------------------------------  )
@@ -294,129 +272,76 @@ namespace TwoPhaseKernelEstimation {
         //       F(∂_y)     = dy
         //       F(B)       = B
 
-        // compute FFTs
+        // compute DFT (withoud padding)
         // the result are stored as 2 channel matrices: Re(FFT(I)), Im(FFT(I))
-        Mat K, xS, yS, B;
+        Mat K, xS, yS, B, Dx, Dy;
+        deblur::dft(pkernel, K);
+        deblur::dft(selectionGrads[0], xS);
+        deblur::dft(selectionGrads[1], yS);
+        deblur::dft(blurred, B);
+        deblur::dft(sobelx, Dx);
+        deblur::dft(sobely, Dy);
 
-        assert(kernel.type() == CV_32FC2 && "Kernel must be complex IFFT");
+        // weight from paper
+        complex<float> we(weight, 0.0);
 
-        fft(kernel, K);
-        // kernel.copyTo(K);
-        
-        vector<Mat> channels(2);
-        split(K, channels);
+        // latent image in fourier domain
+        Mat I = Mat::zeros(xS.size(), xS.type());
 
-        double min, max;
-        minMaxLoc(channels[0], &min, &max);
-        cout << "K real: " << min << " " << max << endl;
-        minMaxLoc(channels[1], &min, &max);
-        cout << "K imag: " << min << " " << max << endl;
-
-
-        fft(selectionGrads[0], xS);
-        fft(selectionGrads[1], yS);
-
-        Mat blurredFloat;
-        assert(blurredImage.type() == CV_8U && "gray value image needed");
-        blurredImage.convertTo(blurredFloat, CV_32F);
-
-        // normalizes blurred input image into range [-1, 1]
-        normalizeOne(blurredFloat);
-
-        #ifndef NDEBUG
-            // double min, max;
-            minMaxLoc(blurredFloat, &min, &max);
-            cout << "blurred float " << min << " " << max << endl;
-        #endif
-        
-        fft(blurredFloat, B);
-
-        // go through fourier transformed image
-        Mat imageFourier = Mat::zeros(xS.size(), xS.type());
-
-
-        // gradients
-        Mat sobelx = Mat::zeros(blurredImage.size(), CV_32F);
-        sobelx.at<float>(0,0) = -1;
-        sobelx.at<float>(0,1) = 1;
-        Mat sobely = Mat::zeros(blurredImage.size(), CV_32F);
-        sobely.at<float>(0,0) = -1;
-        sobely.at<float>(1,0) = 1;
-
-        Mat Dx, Dy;
-        fft(sobelx, Dx);
-        fft(sobely, Dy);
-
+        // pointwise computation of I
         for (int x = 0; x < xS.cols; x++) {
             for (int y = 0; y < xS.rows; y++) {
                 // complex entries at the current position
+                complex<float> b(B.at<Vec2f>(y, x)[0], B.at<Vec2f>(y, x)[1]);
                 complex<float> k(K.at<Vec2f>(y, x)[0], K.at<Vec2f>(y, x)[1]);
+
                 complex<float> xs(xS.at<Vec2f>(y, x)[0], xS.at<Vec2f>(y, x)[1]);
                 complex<float> ys(yS.at<Vec2f>(y, x)[0], yS.at<Vec2f>(y, x)[1]);
-                complex<float> b(B.at<Vec2f>(y, x)[0], B.at<Vec2f>(y, x)[1]);
 
-                // // F(∂_x) is the factor: 2 * π * i * x
-                // complex<float> dx(0, 2 * M_PI * x);
-                // // F(∂_y) is the factor: 2 * π * i * y
-                // complex<float> dy(0, 2 * M_PI * y);
                 complex<float> dx(Dx.at<Vec2f>(y, x)[0], Dx.at<Vec2f>(y, x)[1]);
                 complex<float> dy(Dy.at<Vec2f>(y, x)[0], Dy.at<Vec2f>(y, x)[1]);
 
-                // weight from paper
-                complex<float> weight(2.0e-3, 0.0);
-                // complex<float> weight(0.0, 0.0);
-
-                // image deblurring in the Fourier space
-                complex<float> i = (conj(k) * b ) /
-                // complex<float> i = (conj(k) * b + weight * (conj(dx) * xs + conj(dy) * ys)) /
-                                   (conj(k) * k + weight * (conj(dx) * dx + conj(dy) * dy));
+                // compute current point of latent image in fourier domain
+                complex<float> i = (conj(k) * b + we * (conj(dx) * xs + conj(dy) * ys)) /
+                                   (conj(k) * k + we * (conj(dx) * dx + conj(dy) * dy));
                 
-                imageFourier.at<Vec2f>(y, x) = { real(i), imag(i) };
+                I.at<Vec2f>(y, x) = { real(i), imag(i) };
             }
         }
-        Mat _imageFourier;
-        normalizeOne(imageFourier, _imageFourier);
-        showComplexImage("fimage foureir", _imageFourier);
 
-        Mat imageUchar;
-        split(imageFourier, channels);
-        convertFloatToUchar(channels[0], imageUchar);
-        imshow("real image fourier", imageUchar);
-
-        convertFloatToUchar(channels[1], imageUchar);
-        imshow("imag image fourier", imageUchar);
+        // compute inverse DFT of the latent image
+        dft(I, latent, DFT_INVERSE | DFT_REAL_OUTPUT);
 
 
-        // compute inverse FFT of the latent image in frequency domain
-        Mat imageResult;
-        dft(imageFourier, imageResult, DFT_INVERSE);
-        imageResult.copyTo(latentImage);
-
-        // Mat imageUchar;
-        // convertFloatToUchar(imageResult, imageUchar);
-        // imshow("result", imageUchar);
-
-        showComplexImage("complex", imageResult);
-
-        // split complex matrix where the result of the dft is stored in channel 1
-        // vector<Mat> channels(2);
-        split(imageResult, channels);
-        // swapQuadrants(channels[0]);
-        // 
-        convertFloatToUchar(channels[0], imageUchar);
-        imshow("real latent", imageUchar);
-
-        convertFloatToUchar(channels[1], imageUchar);
-        imshow("imag latent", imageUchar);
-
-        channels[0].copyTo(latentImage);
+        // threshold the result because it has large negative and positive values
+        // which would result in a very grayish image
+        threshold(latent, latent, 0.0, -1, THRESH_TOZERO);
 
 
-        fft(latentImage, imageFourier);
-        normalizeOne(imageFourier);
-        showComplexImage("image foureir 2",imageFourier);
+        // swap slices of the result
+        // because the image is shifted to the upper-left corner (why??)
+        int x = latent.cols;
+        int y = latent.rows;
+        int hs1 = (kernel.cols - 1) / 2;
+        int hs2 = (kernel.rows - 1) / 2;
 
+        // create rects per image slice
+        // rect gets the coordinates of the top-left corner, width and height
+        Mat q0(latent, Rect(0, 0, x - hs1, y - hs2));                    // Top-Left
+        Mat q1(latent, Rect(x - hs1 + 1, 0, hs1 - 1, y - hs2));          // Top-Right
+        Mat q2(latent, Rect(0, y - hs2 + 1, x - hs1, hs2 -1));           // Bottom-Left
+        Mat q3(latent, Rect(x - hs1 + 1, y - hs2 + 1, hs1 - 1, hs2 -1)); // Bottom-Right
+
+        Mat latentSwap;
+        cv::hconcat(q3, q2, latentSwap);
+        Mat tmp;
+        cv::hconcat(q1, q0, tmp);
+        cv::vconcat(latentSwap, tmp, latentSwap);
+
+        // convert result to uchar image
+        convertFloatToUchar(latentSwap, latent);
     }
+
 
     void initKernel(Mat& kernel, const Mat& blurredGray, const int width, const Mat& mask, 
                     const int pyrLevel, const int iterations, float thresholdR, float thresholdS) {
@@ -424,47 +349,13 @@ namespace TwoPhaseKernelEstimation {
         assert(blurredGray.type() == CV_8U && "gray value image needed");
         assert(mask.type() == CV_8U && "mask should be binary image");
         
-        imshow("blurred", blurredGray);
+        #ifndef NDEBUG
+            imshow("blurred", blurredGray);
+        #endif
 
-        // // DEBUG
-        // Mat _blurred, _fblurred;
-        // double _min; double _max;
-        // minMaxLoc(blurredGray, &_min, &_max);
-        // blurredGray.convertTo(_blurred, CV_32F, 1.0 / (_max - _min));
-
-        // minMaxLoc(_blurred, &_min, &_max);
-        // cout << "min = " << _min << ", max = " << _max << endl;
-
-        // FFT(_blurred, _fblurred);
-        // dft(_fblurred, _blurred, DFT_INVERSE);
-
-        // // split complex matrix where the result of the dft is stored in channel 1
-        // vector<Mat> channels(2);
-        // split(_blurred, channels);
-        // // swapQuadrants(channels[0]);
-        // // 
-        // Mat imageUchar;
-        // convertFloatToUchar(channels[1], imageUchar);
-        // imshow("imaginary", imageUchar);
-
-        // minMaxLoc(channels[0], &_min, &_max);
-        // cout << "inverse real: min = " << _min << ", max = " << _max << endl;
-        // minMaxLoc(channels[1], &_min, &_max);
-        // cout << "inverse imag: min = " << _min << ", max = " << _max << endl;
-
-        // convertFloatToUchar(channels[0], imageUchar);
-        // imshow("real", imageUchar);
-        // return;
-
-        kernel = Mat::zeros(width, width, CV_8U);
-
-        // build an image pyramid
+        // build an image pyramid with gray value images
         vector<Mat> pyramid;
         pyramid.push_back(blurredGray);
-
-        double min; double max;
-        minMaxLoc(blurredGray, &min, &max);
-        cout << "blurred image " << min << " " << max << endl;
 
         for (int i = 0; i < (pyrLevel - 1); i++) {
             Mat downImage;
@@ -473,7 +364,8 @@ namespace TwoPhaseKernelEstimation {
             pyramid.push_back(pyramid[i]);
         }
 
-        // in the iterations this kernel is used
+        // init kernel but in the iterations the tmp-kernel is used
+        kernel = Mat::zeros(width, width, CV_8U);
         Mat tmpKernel;
 
         assert(pyramid.size() == 1 && "Implement multiple pyramid levels");
@@ -485,171 +377,75 @@ namespace TwoPhaseKernelEstimation {
             // gaussian blur (in-place operation is supported)
             GaussianBlur(pyramid[l], pyramid[l], Size(3,3), 0, 0, BORDER_DEFAULT);
 
+            assert(pyramid[l].type() == CV_8U && "sobel on gray value image");
+
+            // parameter for sobel filtering to obtain gradients
+            array<Mat,2> gradients;
             const int delta = 0;
             const int ddepth = CV_32F;
             const int ksize = 3;
             const int scale = 1;
 
-            assert(pyramid[l].type() == CV_8U && "sobel on gray value image");
-
-            array<Mat,2> gradients;
-            // gradient x / y
+            // gradient x and y
             Sobel(pyramid[l], gradients[0], ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
             Sobel(pyramid[l], gradients[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
             // normalize gradients into range [-1,1]
             normalizeOne(gradients);
 
-            // // FIXME(?): scale maks to current pyramid level
-            // //           (do erosion once, than scale the eroded mask)
-            // //        
-            // // remove borders of region through erosion of the mask
-            // Mat element = getStructuringElement(MORPH_CROSS, Size(7, 7), Point(3, 3));
-            // Mat erodedMask;
-            // erode(mask, erodedMask, element);
-
-            // // save x and y gradients in a vector and erase borders because of region
-            // Mat erodedXGradients, erodedYGradients;
-
-            // gradients[0].copyTo(ero)
-
-            // gradients[0].copyTo(erodedXGradients, erodedMask);
-            // gradients[1].copyTo(erodedYGradients, erodedMask);
-
-            // vector<Mat> gradients = {erodedXGradients, erodedYGradients};
-
-            // #ifndef NDEBUG
-            //     // display gradients
-            //     Mat xGradientsViewable, yGradientsViewable;
-            //     convertFloatToUchar(erodedXGradients, xGradientsViewable);
-            //     convertFloatToUchar(erodedYGradients, yGradientsViewable);
-            //     imshow("x gradient", xGradientsViewable);
-            //     imshow("y gradient", yGradientsViewable);
+            //  #ifndef NDEBUG
+            //     showFloat("x gradient", gradients[0]);
+            //     showFloat("y gradient", gradients[1]);
             // #endif
+            
 
             // compute gradient confidence for al pixels
             Mat gradientConfidence;
             // FIXME: Scale mask to the current pyramid level!
             computeGradientConfidence(gradientConfidence, gradients, width, mask);
+
             // #ifndef NDEBUG
-            //     // print confidence matrix
-            //     Mat confidenceUchar;
-            //     convertFloatToUchar(gradientConfidence, confidenceUchar);
-            //     imshow("confidence", confidenceUchar);
+            //     showFloat("confidence", gradientConfidence);
             // #endif
 
+
+            // each iterations works on an updated image
             Mat currentImage;
             pyramid[l].copyTo(currentImage);
 
+            assert(iterations == 1 && "Implement multiple iterations");
+
             for (int i = 0; i < iterations; i++) {
-                // select edges for kernel estimation
+                // select edges for kernel estimation (normalized gradients [-1,1])
                 array<Mat,2> selectedEdges;
                 selectEdges(currentImage, gradientConfidence, thresholdR, thresholdS, selectedEdges);
 
-                minMaxLoc(selectedEdges[0], &min, &max);
-                cout << "selectedEdges x " << min << " " << max << endl;
-                minMaxLoc(selectedEdges[1], &min, &max);
-                cout << "selectedEdges y " << min << " " << max << endl;
-
-                 #ifndef NDEBUG
-                    Mat xGradientsViewable, yGradientsViewable;
-                    // display gradients
-                    convertFloatToUchar(selectedEdges[0], xGradientsViewable);
-                    convertFloatToUchar(selectedEdges[1], yGradientsViewable);
-                    imshow("x gradient selection " + i, xGradientsViewable);
-                    imshow("y gradient selection " + i, yGradientsViewable);
-                #endif
-                    cout << "here" << endl;
-                // estimate kernel with gaussian prior
-                fastKernelEstimation(selectedEdges, gradients, tmpKernel);
-
-
-                // minMaxLoc(tmpKernel, &min, &max);
-                // cout << "kernel " << min << " " << max << endl;
-
-                // Mat kernelmask;
-                // inRange(tmpKernel, min + max/10, max, kernelmask);
-                // Mat newKernel; 
-                // tmpKernel.copyTo(newKernel, kernelmask);
-                // // blur(newKernel, newKernel, Size(3,3));
-
-                // // DEBUG: Show real-part-only kernel
                 // #ifndef NDEBUG
-                //     // print kernel
-                //     Mat kernelUchar;
-                //     // convertFloatToUchar(newKernel, kernelUchar);
-                //     convertFloatToUchar(tmpKernel, kernelUchar);
-                //     swapQuadrants(kernelUchar);
-                //     imshow("tmp kernel " + i, kernelUchar);
-                //     imwrite("kernel.jpg", kernelUchar);
+                //     showFloat("x gradient selection", selectedEdges[0]);
+                //     showFloat("y gradient selection", selectedEdges[1]);
                 // #endif
 
-                // DEBUG: Show complex kernel
+
+                // estimate kernel with gaussian prior
+                fastKernelEstimation(selectedEdges, gradients, kernel);
+
+                // #ifndef NDEBUG                  
+                    // showFloat("tmp-kernel", kernel, true);
+                // #endif
+
+
+                // coarse image estimation with a spatial prior
+                Mat latentImage;
+                coarseImageEstimation(pyramid[l], kernel, selectedEdges, latentImage);
+
                 #ifndef NDEBUG
-                    showComplexImage("complex kernel", tmpKernel);
-
-                    // // print kernel
-                    // Mat kernelUchar;
-
-                    // // split complex matrix where the result of the dft is stored in channel 1
-                    // vector<Mat> channels(2);
-                    // split(tmpKernel, channels);
-
-                    // // convertFloatToUchar(newKernel, kernelUchar);
-                    // convertFloatToUchar(channels[0], kernelUchar);
-                    // swapQuadrants(kernelUchar);
-                    // imshow("kernel (real part) " + i, kernelUchar);
-
-                    // convertFloatToUchar(channels[1], kernelUchar);
-                    // swapQuadrants(kernelUchar);
-                    // imshow("kernel (imag part) " + i, kernelUchar);
+                    imshow("tmp latent image", latentImage);
+                    imwrite("latent.jpg", latentImage);
                 #endif
 
-                // // coarse image estimation with a spatial prior
-                Mat latentImage;
-                // coarseImageEstimation(pyramid[l], newKernel, selectedEdges, latentImage);
-                coarseImageEstimation(pyramid[l], tmpKernel, selectedEdges, latentImage);
-
-                minMaxLoc(latentImage, &min, &max);
-                cout << "latentImage " << min << " " << max << endl;
-                
-                // // cut of kernel in middle of the temporary kernel
-                // int x = tmpKernel.cols / 2 - kernel.cols / 2;
-                // int y = tmpKernel.rows / 2 - kernel.rows / 2;
-                // swapQuadrants(tmpKernel);
-                // kernel = tmpKernel(Rect(x, y, kernel.cols, kernel.rows));
-                // double min; double max;
-                // minMaxLoc(kernel, &min, &max);
-                // cout << min << " " << max << endl;
-                // Mat kernelmask;
-                // inRange(kernel, min + max/12, max, kernelmask);
-                // Mat newKernel; 
-                // kernel.copyTo(newKernel, kernelmask);
-                // Mat newUchar;
-                // minMaxLoc(newKernel, &min, &max);
-                // cout << min << " " << max << endl;
-                // convertFloatToUchar(newKernel, newUchar);
-                // imshow("new kernel", newUchar);
-                // filter2D(pyramid[l], latentImage, CV_32F, newKernel);
-                // Mat latentUchar;
-                // convertFloatToUchar(latentImage, latentUchar);
-                // imshow("latent", latentUchar);
 
                 // set current image to coarse latent image
-                Mat imageUchar;
-                convertFloatToUchar(latentImage, imageUchar);
-
-                // the latent image is some pixel larger than the original one therefore
-                // cut it out in the right size
-                currentImage = imageUchar(Rect((imageUchar.cols - pyramid[l].cols) / 2,
-                                               (imageUchar.rows - pyramid[l].rows) / 2,
-                                               pyramid[l].cols, pyramid[l].rows));
-                
-                #ifndef NDEBUG
-                    // print latent image
-                    imshow("tmp latent image " + i, imageUchar);
-                    imwrite("latent.jpg", imageUchar);
-                #endif
+                // TODO
 
                 // decrease thresholds τ_r and τ_s will to include more and more edges
                 thresholdR = thresholdR / 1.1;
