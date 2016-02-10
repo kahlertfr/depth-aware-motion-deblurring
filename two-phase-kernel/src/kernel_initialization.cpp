@@ -84,12 +84,14 @@ namespace TwoPhaseKernelEstimation {
         // M = H(r - τ_r) where H is Heaviside step function
         Mat mask;
         inRange(confidence, r + 0.00001, 1, mask);  // add a very small value to r to exclude zero values
-        // imshow("edge mask", mask);
 
         // shock filter the input image
         Mat shockImage;
         coherenceFilter(image, shockImage);
-        // imshow("shock filter", shockImage);
+
+        // #ifndef NDEBUG
+        //      imshow("shock filter", shockImage);
+        // #endif
 
         // gradients of shock filtered image
         const int delta = 0;
@@ -393,18 +395,21 @@ namespace TwoPhaseKernelEstimation {
             // gaussian blur (in-place operation is supported)
             GaussianBlur(pyramid[l], pyramid[l], Size(3,3), 0, 0, BORDER_DEFAULT);
 
-            assert(pyramid[l].type() == CV_8U && "sobel on gray value image");
-
             // parameter for sobel filtering to obtain gradients
-            array<Mat,2> gradients;
+            array<Mat,2> gradients, tmpGradients;
             const int delta = 0;
             const int ddepth = CV_32F;
             const int ksize = 3;
             const int scale = 1;
 
             // gradient x and y
-            Sobel(pyramid[l], gradients[0], ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
-            Sobel(pyramid[l], gradients[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+            Sobel(pyramid[l], tmpGradients[0], ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+            Sobel(pyramid[l], tmpGradients[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+
+            // cut off gradients outside the mask
+            // FIXME: Scale mask to the current pyramid level!
+            tmpGradients[0].copyTo(gradients[0], mask);
+            tmpGradients[1].copyTo(gradients[1], mask);
 
             // normalize gradients into range [-1,1]
             normalizeOne(gradients);
@@ -417,7 +422,6 @@ namespace TwoPhaseKernelEstimation {
 
             // compute gradient confidence for al pixels
             Mat gradientConfidence;
-            // FIXME: Scale mask to the current pyramid level!
             computeGradientConfidence(gradientConfidence, gradients, width, mask);
 
             // #ifndef NDEBUG
@@ -446,7 +450,7 @@ namespace TwoPhaseKernelEstimation {
                 fastKernelEstimation(selectedEdges, gradients, kernel, 0.0);
 
                 // #ifndef NDEBUG                  
-                    // showFloat("tmp-kernel", kernel, true);
+                //     showFloat("tmp-kernel", kernel, true);
                 // #endif
 
 

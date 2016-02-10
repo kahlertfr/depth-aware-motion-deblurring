@@ -22,7 +22,7 @@ using namespace cv;
 
 // global structs for command line parsing
 struct arg_lit *help;
-struct arg_file *image;
+struct arg_file *image, *mask;
 struct arg_end *end_args;
 struct arg_int *psf_width;
 
@@ -33,6 +33,7 @@ struct arg_int *psf_width;
  */
 static bool parse_commandline_args(int argc, char** argv, 
                                    string &imageName,
+                                   string &maskName,
                                    int &psfWidth,
                                    int &exitcode) {
     
@@ -40,13 +41,15 @@ static bool parse_commandline_args(int argc, char** argv,
     // the global arg_xxx structs are initialized within the argtable
     void *argtable[] = {
         help        = arg_litn("h", "help", 0, 1, "display this help and exit"),
-        psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 24"),
-        image  = arg_filen(nullptr, nullptr, "<image>",  1, 1, "image"),
+        psf_width   = arg_intn ("w", "psf-width", "<n>", 0, 1, "approximate PSF width. Default: 24"),
+        mask        = arg_filen ("m", "mask", "<path>", 0, 1, "mask of an image region. Default: complete image"),
+        image       = arg_filen(nullptr, nullptr, "<image>",  1, 1, "image"),
         end_args    = arg_end(20),
     };
 
     // default values (they weren't set if there is a value given)
     psf_width->ival[0] = 25;
+    mask->filename[0] = "none";
 
     // parsing arguments
     int nerrors = arg_parse(argc,argv,argtable);
@@ -80,6 +83,7 @@ static bool parse_commandline_args(int argc, char** argv,
     // saving arguments in variables
     // path to input model
     imageName = image->filename[0];
+    maskName = mask->filename[0];
     psfWidth = psf_width->ival[0];
 
     // deallocate each non-null entry in argtable[]
@@ -92,11 +96,12 @@ static bool parse_commandline_args(int argc, char** argv,
 int main(int argc, char** argv) {
     // path to models and other parameter
     string imageName;
+    string maskName;
     int psfWidth;
 
     // parse command line arguments
     int exitcode = 0;
-    bool success = parse_commandline_args(argc, argv, imageName, psfWidth, exitcode);
+    bool success = parse_commandline_args(argc, argv, imageName, maskName, psfWidth, exitcode);
 
     if (success == false) {
         return exitcode;
@@ -109,11 +114,18 @@ int main(int argc, char** argv) {
     cout << endl;
 
     try {
+        Mat psf, mask;
+
         // load image
         Mat image = imread(imageName, 1);
-        Mat psf;
 
-        TwoPhaseKernelEstimation::estimateKernel(psf, image, psfWidth);
+        // load mask
+        if (maskName != "none") {
+            mask = imread(maskName, CV_LOAD_IMAGE_GRAYSCALE);
+            mask /= 255;
+        }
+
+        TwoPhaseKernelEstimation::estimateKernel(psf, image, psfWidth, mask);
         
         #ifndef NDEBUG
             // Wait for a key stroke

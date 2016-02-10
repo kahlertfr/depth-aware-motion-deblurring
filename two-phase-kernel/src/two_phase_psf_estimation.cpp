@@ -13,7 +13,7 @@ using namespace std;
 
 namespace TwoPhaseKernelEstimation {
 
-    void estimateKernel(Mat& psf, const Mat& blurredImage, const int psfWidth, const Mat& mask) {
+    void estimateKernel(Mat& psf, const Mat& blurred, const int psfWidth, const Mat& mask) {
         // set expected kernel witdh to odd number
         int width = (psfWidth % 2 == 0) ? psfWidth + 1 : psfWidth;
 
@@ -23,7 +23,10 @@ namespace TwoPhaseKernelEstimation {
 
         // convert blurred image to gray
         Mat blurredGray;
-        cvtColor(blurredImage, blurredGray, CV_BGR2GRAY);
+        if (blurred.type() == CV_8UC3)
+            cvtColor(blurred, blurredGray, CV_BGR2GRAY);
+        else
+            blurred.copyTo(blurredGray);
 
         // TODO: change number of pyrLevel and iterations
         initKernel(kernel, blurredGray, width, mask, 1, 1);
