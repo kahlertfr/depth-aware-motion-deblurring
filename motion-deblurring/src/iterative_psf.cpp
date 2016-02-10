@@ -5,7 +5,7 @@
 #include "utils.hpp"
 #include "region_tree.hpp"
 #include "edge_map.hpp"
-// #include "two_phase_psf_estimation.hpp"
+#include "two_phase_psf_estimation.hpp"
 
 #include "iterative_psf.hpp"
 
@@ -29,36 +29,54 @@ namespace DepthAwareDeblurring {
 
 
     void IterativePSF::toplevelKernelEstimation(const string filePrefix) {
+        Mat blurred = *(regionTree.images[RegionTree::LEFT]);
+
         // go through each top-level node
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
             int id = regionTree.topLevelNodeIds[i];
 
-            // get an image of the top-level region
-            Mat region, mask;
-            regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
 
+            // get the mask of the top-level region
+            Mat mask;
+            regionTree.getMask(id, mask, RegionTree::LEFT);
 
+            // compute kernel
+            TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, blurred, psfWidth, mask);
+
+            #ifndef NDEBUG
+                Mat tmp;
+                regionTree[id].psf.copyTo(tmp);
+                // tmp *= 255;
+                convertFloatToUchar(tmp, tmp);
+                string filename = "kernel-" + to_string(i) + ".png";
+                imwrite(filename, tmp);
+            #endif
+
+            // // WORKAROUND because of deferred two-phase kernel estimation
+            // // use the next to steps after each other
+            // //
+            // // 1. save the tappered region images for the exe
+            // // get an image of the top-level region
+            // Mat region, mask;
+            // regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
+            //
             // // edge tapering to remove high frequencies at the border of the region
             // Mat taperedRegion;
             // regionTree.edgeTaper(taperedRegion, region, mask, *(regionTree.images[LEFT]));
-
+            //
             // // use this images for example for the .exe of the two-phase kernel estimation
             // string name = "tapered" + to_string(i) + ".jpg";
             // imwrite(name, taperedRegion);
             
-
-            // // calculate PSF with two-phase kernel estimation (deferred)
-            // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf[0], region, psfWidth, mask);
-            // 
-            // because this algorithm won't work
-            // load the kernel images which should be named left/right-kerneli.png
-            // they should be located in the folder where this algorithm is started
-            string filename = filePrefix + "-kernel" + to_string(i) + ".png";
-            regionTree[id].psf = imread(filename, 1);
-
-            if (!regionTree[id].psf.data) {
-                throw runtime_error("Can not load kernel!");
-            }
+            // // 2. load kernels for toplevels
+            // // load the kernel images which should be named left/right-kerneli.png
+            // // they should be located in the folder where this algorithm is started
+            // string filename = filePrefix + "-kernel" + to_string(i) + ".png";
+            // regionTree[id].psf = imread(filename, 1);
+            //
+            // if (!regionTree[id].psf.data) {
+            //     throw runtime_error("Can not load kernel!");
+            // }
         }
     }
 

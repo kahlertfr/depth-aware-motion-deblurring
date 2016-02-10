@@ -31,7 +31,7 @@ set(LIB_SOURCES src/depth_aware_deblurring.cpp
 add_library(libmdeblur SHARED ${LIB_SOURCES} $<TARGET_OBJECTS:utils>)
 set_target_properties(libmdeblur PROPERTIES
                                  OUTPUT_NAME "mdeblur")
-target_link_libraries(libmdeblur ${OpenCV_LIBS})
+target_link_libraries(libmdeblur ${OpenCV_LIBS} lib2psfest)
 
 # The main.cc is just the command line interface for the library. Using this
 # separation you can use the library functions independently of the 

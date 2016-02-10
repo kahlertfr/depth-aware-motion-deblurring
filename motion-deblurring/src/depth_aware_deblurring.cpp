@@ -3,15 +3,16 @@
 #include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
 #include <opencv2/imgproc/imgproc.hpp>  // convert
 
-#include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "iterative_psf.hpp"
 #include "utils.hpp"                    // convertFloatToUchar
 
+#include "depth_aware_deblurring.hpp"
 
 using namespace std;
 using namespace cv;
 using namespace deblur;
+
 
 namespace DepthAwareDeblurring {
 
@@ -43,15 +44,6 @@ namespace DepthAwareDeblurring {
         pyrDown(blurredLeft, blurredLeftSmall, downsampledSize);
         pyrDown(blurredRight, blurredRightSmall, downsampledSize);
 
-        #ifndef NDEBUG
-            imshow("blurred left image", blurredLeftSmall);
-            imshow("blurred right image", blurredRightSmall);
-        #endif
-
-        // // convert color images to gray images
-        // cvtColor(blurredLeftSmall, blurredLeftSmall, CV_BGR2GRAY);
-        // cvtColor(blurredRightSmall, blurredRightSmall, CV_BGR2GRAY);
-
         // disparity map with occlusions as black regions
         // 
         // here a different algorithm as the paper approach is used
@@ -79,7 +71,7 @@ namespace DepthAwareDeblurring {
         }
 
         // #ifndef NDEBUG
-            string prefix = (inverse) ? "_inverse" : "";
+        //     string prefix = (inverse) ? "_inverse" : "";
         //     // imshow("original disparity map " + prefix, disparityMapSmall);
         //     imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
         // #endif
@@ -96,16 +88,16 @@ namespace DepthAwareDeblurring {
         Mat quantizedDisparity;
         DisparityEstimation::quantizeImage(disparityMapSmall, l, quantizedDisparity);
 
-        #ifndef NDEBUG
-            // convert quantized image to be displayable
-            Mat disparityViewable;
-            double min; double max;
-            minMaxLoc(quantizedDisparity, &min, &max);
-            quantizedDisparity.convertTo(disparityViewable, CV_8U, 255.0/(max-min));
+        // #ifndef NDEBUG
+        //     // convert quantized image to be displayable
+        //     Mat disparityViewable;
+        //     double min; double max;
+        //     minMaxLoc(quantizedDisparity, &min, &max);
+        //     quantizedDisparity.convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
-            imshow("quantized disparity map " + prefix, disparityViewable);
-            imwrite("dmap_final" + prefix + ".jpg", disparityViewable);
-        #endif
+        //     imshow("quantized disparity map " + prefix, disparityViewable);
+        //     imwrite("dmap_final" + prefix + ".jpg", disparityViewable);
+        // #endif
 
         // up sample disparity map to original resolution
         pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
@@ -139,6 +131,12 @@ namespace DepthAwareDeblurring {
         else {
             grayRight = blurredRight;
         }
+
+
+        #ifndef NDEBUG
+            imshow("blurred left image", blurredLeft);
+            imshow("blurred right image", blurredRight);
+        #endif
 
 
         // initial disparity estimation of blurred images
