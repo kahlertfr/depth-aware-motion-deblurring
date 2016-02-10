@@ -46,9 +46,9 @@ make motion-deblurring
 bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg
 ```
 
-#### two-phase-kernel
+#### two-phase-kernel  !! deferred !!
 
-This part of the Depth-Aware Motion Deblurring Algorithm can be used completly independent of the whole algorithm
+This part of the Depth-Aware Motion Deblurring Algorithm can be used completely independent of the whole algorithm
 
 ```bash
 make two-phase-kernel
@@ -57,6 +57,7 @@ make two-phase-kernel
 bin/two-phase-kernel../images/mouse-left.jpg
 ```
 
+Work-around: use the sample top-level kernels - place them in the folder where you starts the algorithm (they will be loaded automatically).
 
 
 ## Literature on Motion Deblurring

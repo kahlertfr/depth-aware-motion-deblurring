@@ -5,11 +5,13 @@
 
 #include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
-#include "region_tree.hpp"
-#include "two_phase_psf_estimation.hpp"
+#include "iterative_psf.hpp"
+#include "utils.hpp"                    // convertFloatToUchar
+
 
 using namespace std;
 using namespace cv;
+using namespace deblur;
 
 namespace DepthAwareDeblurring {
 
@@ -26,6 +28,8 @@ namespace DepthAwareDeblurring {
      */
     void quantizedDisparityEstimation(const Mat &blurredLeft, const Mat &blurredRight,
                                       const int l, Mat &disparityMap, bool inverse=false) {
+
+        assert(blurredLeft.type() == CV_8U && "gray values needed");
 
         // down sample images to roughly reduce blur for disparity estimation
         Mat blurredLeftSmall, blurredRightSmall;
@@ -44,9 +48,9 @@ namespace DepthAwareDeblurring {
             imshow("blurred right image", blurredRightSmall);
         #endif
 
-        // convert color images to gray images
-        cvtColor(blurredLeftSmall, blurredLeftSmall, CV_BGR2GRAY);
-        cvtColor(blurredRightSmall, blurredRightSmall, CV_BGR2GRAY);
+        // // convert color images to gray images
+        // cvtColor(blurredLeftSmall, blurredLeftSmall, CV_BGR2GRAY);
+        // cvtColor(blurredRightSmall, blurredRightSmall, CV_BGR2GRAY);
 
         // disparity map with occlusions as black regions
         // 
@@ -74,19 +78,19 @@ namespace DepthAwareDeblurring {
             disparityFlipped.copyTo(disparityMapSmall);
         }
 
-        #ifndef NDEBUG
+        // #ifndef NDEBUG
             string prefix = (inverse) ? "_inverse" : "";
-            // imshow("original disparity map " + prefix, disparityMapSmall);
-            imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
-        #endif
+        //     // imshow("original disparity map " + prefix, disparityMapSmall);
+        //     imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
+        // #endif
 
         // fill occlusion regions (= value < 10)
         DisparityEstimation::fillOcclusionRegions(disparityMapSmall, 10);
 
-        #ifndef NDEBUG
-            // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
-            imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
-        #endif
+        // #ifndef NDEBUG
+        //     // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
+        //     imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
+        // #endif
 
         // quantize the image
         Mat quantizedDisparity;
@@ -112,13 +116,30 @@ namespace DepthAwareDeblurring {
                       const int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():Images aren't of same size!");
+            throw runtime_error("Images aren't of same size!");
         }
 
         // approximate PSF width has to be greater than 0
         if (psfWidth < 1) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():PSF width has to be greater zero!");
+            throw runtime_error("PSF width has to be greater zero!");
         }
+
+        // compute gray value images
+        Mat grayLeft, grayRight;
+        if (blurredLeft.type() == CV_8UC3) {
+            cvtColor(blurredLeft, grayLeft, CV_BGR2GRAY);
+        }
+        else {
+            grayLeft = blurredLeft;
+        }
+
+        if (blurredRight.type() == CV_8UC3) {
+            cvtColor(blurredRight, grayRight, CV_BGR2GRAY);
+        }
+        else {
+            grayRight = blurredRight;
+        }
+
 
         // initial disparity estimation of blurred images
         // here: left image is matching image and right image is reference image
@@ -133,40 +154,28 @@ namespace DepthAwareDeblurring {
         cout << "quantized to " << regions << " regions ..." << endl;
 
         cout << " ... d_m: left to right" << endl;
-        quantizedDisparityEstimation(blurredLeft, blurredRight, regions, disparityMapM);
+        quantizedDisparityEstimation(grayLeft, grayRight, regions, disparityMapM);
 
         cout << " ... d_r: right to left" << endl;
-        quantizedDisparityEstimation(blurredRight, blurredLeft, regions, disparityMapR, true);
+        quantizedDisparityEstimation(grayRight, grayLeft, regions, disparityMapR, true);
         
 
         cout << "Step 2: region tree reconstruction ..." << endl;
-        cout << " ... tree for d_m" << endl;
-        RegionTree regionTreeM;
-        regionTreeM.create(disparityMapM, regions, &blurredLeft, maxTopLevelNodes);
-
-        cout << " ... tree for d_r" << endl;
-        RegionTree regionTreeR;
-        regionTreeR.create(disparityMapR, regions, &blurredRight, maxTopLevelNodes);
+        cout << " ... tree for d_m and d_r" << endl;
+        IterativePSF psfEstimator = IterativePSF(disparityMapM, disparityMapR,
+                                                 regions, &grayLeft, &grayRight,
+                                                 maxTopLevelNodes, psfWidth);
 
 
         // compute PSFs for toplevels of the region trees
         cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
         cout << " ... top-level regions of d_m" << endl;
+        psfEstimator.toplevelKernelEstimation("left");
 
-        for (int i = 0; i < regionTreeM.topLevelNodeIds.size(); i++) {
-            int id = regionTreeM.topLevelNodeIds[i];
+        cout << "Step 3.1: Iterative PSF estimation" << endl;
 
-            // get an image of the top-level region
-            Mat region, mask;
-            regionTreeM.getRegionImage(id, region, mask);
-
-            // fill PSF kernel with zeros 
-            regionTreeM[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
-
-            // calculate PSF
-            TwoPhaseKernelEstimation::estimateKernel(regionTreeM[id].psf[0], region, psfWidth, mask);
-        }
-
+        cout << "... jointly compute PSF for middle & leaf level-regions of both views" << endl;
+        psfEstimator.midLevelKernelEstimation();
 
         // TODO: to be continued ...
         
@@ -188,7 +197,7 @@ namespace DepthAwareDeblurring {
         blurredRight = imread(filenameRight, 1);
 
         if (!blurredLeft.data || !blurredRight.data) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load images!");
+            throw runtime_error("Can not load images!");
         }
 
         runAlgorithm(blurredLeft, blurredRight, psfWidth, maxTopLevelNodes);
