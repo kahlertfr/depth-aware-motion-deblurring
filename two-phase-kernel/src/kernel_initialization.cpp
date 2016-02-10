@@ -326,11 +326,19 @@ namespace TwoPhaseKernelEstimation {
         int hs2 = (kernel.rows - 1) / 2;
 
         // create rects per image slice
+        //  __________
+        // |      |   |
+        // |   0  | 1 |
+        // |      |   |
+        // |------|---|
+        // |   2  | 3 |
+        // |______|___|
+        // 
         // rect gets the coordinates of the top-left corner, width and height
-        Mat q0(latent, Rect(0, 0, x - hs1, y - hs2));                    // Top-Left
-        Mat q1(latent, Rect(x - hs1 + 1, 0, hs1 - 1, y - hs2));          // Top-Right
-        Mat q2(latent, Rect(0, y - hs2 + 1, x - hs1, hs2 -1));           // Bottom-Left
-        Mat q3(latent, Rect(x - hs1 + 1, y - hs2 + 1, hs1 - 1, hs2 -1)); // Bottom-Right
+        Mat q0(latent, Rect(0, 0, x - hs1, y - hs2));      // Top-Left
+        Mat q1(latent, Rect(x - hs1, 0, hs1, y - hs2));    // Top-Right
+        Mat q2(latent, Rect(0, y - hs2, x - hs1, hs2));    // Bottom-Left
+        Mat q3(latent, Rect(x - hs1, y - hs2, hs1, hs2));  // Bottom-Right
 
         Mat latentSwap;
         cv::hconcat(q3, q2, latentSwap);
@@ -338,8 +346,12 @@ namespace TwoPhaseKernelEstimation {
         cv::hconcat(q1, q0, tmp);
         cv::vconcat(latentSwap, tmp, latentSwap);
 
+
         // convert result to uchar image
         convertFloatToUchar(latentSwap, latent);
+
+        assert(blurred.size() == latent.size()
+               && "Something went wrong - latent and blurred size has to be equal");
     }
 
 
@@ -445,7 +457,7 @@ namespace TwoPhaseKernelEstimation {
 
 
                 // set current image to coarse latent image
-                // TODO
+                latentImage.copyTo(currentImage);
 
                 // decrease thresholds τ_r and τ_s will to include more and more edges
                 thresholdR = thresholdR / 1.1;
