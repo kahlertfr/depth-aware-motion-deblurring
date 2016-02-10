@@ -1,80 +1,99 @@
 #include "utils.hpp"
 
+using namespace cv;
+using namespace std;
 
 namespace deblur {
 
-    /**
-     * Applies DFT after expanding input image to optimal size for Fourier transformation
-     * 
-     * @param image   input image with 1 channel
-     * @param complex result as 2 channel matrix with complex numbers
-     */
-    void FFT(const cv::Mat& image, cv::Mat& complex) {
-        assert(image.type() == CV_32F && "fft works on 32FC1-images");
+    void fft(const Mat& src, Mat& dst) {
+        if (src.type() == CV_32F) {
+            // for fast DFT expand image to optimal size
+            Mat padded;
+            int m = getOptimalDFTSize( src.rows );
+            int n = getOptimalDFTSize( src.cols );
 
-        // for fast DFT expand image to optimal size
-        cv::Mat padded;
-        int m = cv::getOptimalDFTSize( image.rows );
-        int n = cv::getOptimalDFTSize( image.cols );
+            // on the border add zero pixels
+            copyMakeBorder(src, padded, 0, m - src.rows, 0, n - src.cols,
+                               BORDER_CONSTANT, Scalar::all(0));
 
-        // on the border add zero pixels
-        cv::copyMakeBorder(image, padded, 0, m - image.rows, 0, n - image.cols,
-                           cv::BORDER_CONSTANT, cv::Scalar::all(0));
-
-        // Add to the expanded another plane with zeros
-        cv::Mat planes[] = {padded, cv::Mat::zeros(padded.size(), CV_32F)};
-        cv::merge(planes, 2, complex);
+            // add to the expanded real plane another imagniary plane with zeros
+            Mat planes[] = {padded,
+                                Mat::zeros(padded.size(), CV_32F)};
+            merge(planes, 2, dst);
+        } else if (src.type() == CV_32FC2) {
+            src.copyTo(dst);
+        } else {
+            assert(false && "fft works on 32FC1- and 32FC1-images");
+        }
 
         // this way the result may fit in the source matrix
-        cv::dft(complex, complex, cv::DFT_COMPLEX_OUTPUT);
+        // 
+        // DFT_COMPLEX_OUTPUT suppress to creation of a dense CCS matrix
+        // but we want a simple complex matrix
+        dft(dst, dst, DFT_COMPLEX_OUTPUT);
 
-        assert(padded.size() == complex.size() && "Resulting complex matrix must be of same size");
+        // assert(padded.size() == dst.size() && "Resulting complex matrix must be of same size");
     }
 
 
-    /**
-     * Converts a matrix containing floats to a matrix
-     * conatining uchars
-     * 
-     * @param ucharMat resulting matrix
-     * @param floatMat input matrix
-     */
-    void convertFloatToUchar(cv::Mat& ucharMat, const cv::Mat& floatMat) {
+    void dft(Mat& src, Mat& dst){
+        // create complex matrix
+        Mat planes[] = {src,
+                        Mat::zeros(src.size(), CV_32F)};
+        merge(planes, 2, dst);
+
+        // DFT_COMPLEX_OUTPUT suppress to creation of a dense CCS matrix
+        // but we want a simple complex matrix
+        dft(dst, dst, DFT_COMPLEX_OUTPUT);
+    }
+
+
+    void convertFloatToUchar(const Mat& src, Mat& dst) {
         // find min and max value
         double min; double max;
-        cv::minMaxLoc(floatMat, &min, &max);
+        minMaxLoc(src, &min, &max);
 
         // if the matrix is in the range [0, 1] just scale with 255
         if (min >= 0 && max < 1) {
-            floatMat.convertTo(ucharMat, CV_8U, 255.0/(max-min));
+            src.convertTo(dst, CV_8U, 255.0/(max-min));
         } else {
-            cv::Mat copy;
-            floatMat.copyTo(copy);
+            Mat copy;
+            src.copyTo(copy);
 
             // handling that floats could be negative
             copy -= min;
 
             // convert and show
-            copy.convertTo(ucharMat, CV_8U, 255.0/(max-min));
+            copy.convertTo(dst, CV_8U, 255.0/(max-min));
         }
     }
 
 
-    /**
-     * Rearrange quadrants of an image so that the origin is at the image center.
-     * This is useful for fourier images. 
-     */
-    void swapQuadrants(cv::Mat& image) {
+    void showFloat(const string name, const Mat& src, const bool write){
+        assert(src.type() == CV_32F && "works for single channel ");
+
+        Mat srcUchar;
+        convertFloatToUchar(src, srcUchar);
+        imshow(name, srcUchar);
+
+        if (write){
+            string filename = name + ".png";
+            imwrite(filename, srcUchar);
+        }
+    }
+
+
+    void swapQuadrants(Mat& image) {
         // rearrange the quadrants of Fourier image  so that the origin is at the image center
         int cx = image.cols/2;
         int cy = image.rows/2;
 
-        cv::Mat q0(image, cv::Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
-        cv::Mat q1(image, cv::Rect(cx, 0, cx, cy));  // Top-Right
-        cv::Mat q2(image, cv::Rect(0, cy, cx, cy));  // Bottom-Left
-        cv::Mat q3(image, cv::Rect(cx, cy, cx, cy)); // Bottom-Right
+        Mat q0(image, Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+        Mat q1(image, Rect(cx, 0, cx, cy));  // Top-Right
+        Mat q2(image, Rect(0, cy, cx, cy));  // Bottom-Left
+        Mat q3(image, Rect(cx, cy, cx, cy)); // Bottom-Right
 
-        cv::Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
+        Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
         q0.copyTo(tmp);
         q3.copyTo(q0);
         tmp.copyTo(q3);
@@ -85,33 +104,45 @@ namespace deblur {
     }
 
 
-    /**
-     * Displays a matrix with complex numbers stored as 2 channels
-     * Copied from: http://docs.opencv.org/2.4/doc/tutorials/core/
-     * discrete_fourier_transform/discrete_fourier_transform.html
-     * 
-     * @param windowName name of window
-     * @param complex    matrix that should be displayed
-     */
-    void showComplexImage(const std::string windowName, const cv::Mat& complex) {
+    void showComplexImage(const string windowName, const Mat& complex) {
         // compute the magnitude and switch to logarithmic scale
         // => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
-        cv::Mat planes[] = {cv::Mat::zeros(complex.size(), CV_32F), cv::Mat::zeros(complex.size(), CV_32F)};
-        cv::split(complex, planes);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
-        cv::magnitude(planes[0], planes[1], planes[0]);// planes[0] = magnitude
-        cv::Mat magI = planes[0];
+        Mat planes[] = {Mat::zeros(complex.size(), CV_32F), Mat::zeros(complex.size(), CV_32F)};
+        split(complex, planes);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
+        magnitude(planes[0], planes[1], planes[0]);// planes[0] = magnitude
+        Mat magI = planes[0];
 
-        magI += cv::Scalar::all(1);                    // switch to logarithmic scale
-        cv::log(magI, magI);
+        magI += Scalar::all(1);                    // switch to logarithmic scale
+        log(magI, magI);
 
         // crop the spectrum, if it has an odd number of rows or columns
-        magI = magI(cv::Rect(0, 0, magI.cols & -2, magI.rows & -2));
+        magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
 
         swapQuadrants(magI);
 
-        cv::normalize(magI, magI, 0, 1, CV_MINMAX); // Transform the matrix with float values into a
+        normalize(magI, magI, 0, 1, CV_MINMAX); // Transform the matrix with float values into a
                                                 // viewable image form (float between values 0 and 1).
 
-        cv::imshow(windowName, magI);
+        imshow(windowName, magI);
+    }
+
+
+    void normalizeOne(Mat& src, Mat& dst) {
+        if (src.channels() == 1) {
+            double min, max;
+            minMaxLoc(src, &min, &max);
+            const double scale = std::max(abs(min), abs(max));
+            normalize(src, dst, min / scale, max / scale, NORM_MINMAX);
+        } else if (src.channels() == 2) {
+            vector<Mat> channels;
+            vector<Mat> tmp(2);
+
+            split(src, channels);
+            normalizeOne(channels, tmp);
+            merge(tmp, dst);
+
+        } else {
+            assert(false && "Input must have 1- or 2-channels");
+        }
     }
 }

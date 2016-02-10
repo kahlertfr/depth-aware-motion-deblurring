@@ -5,10 +5,9 @@
 
 #include "depth_aware_deblurring.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
-#include "region_tree.hpp"
-#include "edge_map.hpp"
-#include "utils.hpp"  // convertFloatToUchar
-// #include "two_phase_psf_estimation.hpp"
+#include "iterative_psf.hpp"
+#include "utils.hpp"                    // convertFloatToUchar
+
 
 using namespace std;
 using namespace cv;
@@ -79,19 +78,19 @@ namespace DepthAwareDeblurring {
             disparityFlipped.copyTo(disparityMapSmall);
         }
 
-        #ifndef NDEBUG
+        // #ifndef NDEBUG
             string prefix = (inverse) ? "_inverse" : "";
-            // imshow("original disparity map " + prefix, disparityMapSmall);
-            imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
-        #endif
+        //     // imshow("original disparity map " + prefix, disparityMapSmall);
+        //     imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
+        // #endif
 
         // fill occlusion regions (= value < 10)
         DisparityEstimation::fillOcclusionRegions(disparityMapSmall, 10);
 
-        #ifndef NDEBUG
-            // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
-            imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
-        #endif
+        // #ifndef NDEBUG
+        //     // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
+        //     imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
+        // #endif
 
         // quantize the image
         Mat quantizedDisparity;
@@ -113,65 +112,16 @@ namespace DepthAwareDeblurring {
     }
 
 
-    /**
-     * Estimates the PSFs of the top-level regions.
-     *
-     * Because the algorithm for estimation isn't working yet it loads
-     * kernel images as initial kernel estimation.
-     * 
-     * @param regionTree current region tree to  store the PSFs
-     * @param psfWidth   approximate kernel width
-     * @param filePrefix for loading kernel images
-     * @param gray       original gray image
-     */
-    void toplevelKernelEstimation(RegionTree& regionTree, const int psfWidth,
-                                  const string filePrefix, const Mat& gray) {
-        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
-            int id = regionTree.topLevelNodeIds[i];
-
-            // get an image of the top-level region
-            Mat region, mask;
-            regionTree.getRegionImage(id, region, mask);
-            
-            // fill PSF kernel with zeros 
-            regionTree[id].psf.push_back(Mat::zeros(psfWidth, psfWidth, CV_8U));
-
-
-            // // edge tapering to remove high frequencies at the border of the region
-            // Mat taperedRegion;
-            // regionTree.edgeTaper(taperedRegion, region, mask, gray);
-
-            // // use this images for example for the .exe of the two-phase kernel estimation
-            // string name = "tapered" + to_string(i) + ".jpg";
-            // imwrite(name, taperedRegion);
-            
-
-            // // calculate PSF with two-phase kernel estimation (deferred)
-            // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf[0], region, psfWidth, mask);
-            // 
-            // because this algorithm won't work
-            // load the kernel images which should be named left/right-kerneli.png
-            // they should be located in the folder where this algorithm is started
-            string filename = filePrefix + "-kernel" + to_string(i) + ".png";
-            regionTree[id].psf[0] = imread(filename, 1);
-
-            if (!regionTree[id].psf[0].data) {
-                throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load kernel!");
-            }
-        }
-    }
-
-
     void runAlgorithm(const Mat &blurredLeft, const Mat &blurredRight,
                       const int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():Images aren't of same size!");
+            throw runtime_error("Images aren't of same size!");
         }
 
         // approximate PSF width has to be greater than 0
         if (psfWidth < 1) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():PSF width has to be greater zero!");
+            throw runtime_error("PSF width has to be greater zero!");
         }
 
         // compute gray value images
@@ -211,39 +161,21 @@ namespace DepthAwareDeblurring {
         
 
         cout << "Step 2: region tree reconstruction ..." << endl;
-        cout << " ... tree for d_m" << endl;
-        RegionTree regionTreeM;
-        regionTreeM.create(disparityMapM, regions, &grayLeft, maxTopLevelNodes);
-
-        cout << " ... tree for d_r" << endl;
-        RegionTree regionTreeR;
-        regionTreeR.create(disparityMapR, regions, &grayRight, maxTopLevelNodes);
+        cout << " ... tree for d_m and d_r" << endl;
+        IterativePSF psfEstimator = IterativePSF(disparityMapM, disparityMapR,
+                                                 regions, &grayLeft, &grayRight,
+                                                 maxTopLevelNodes, psfWidth);
 
 
         // compute PSFs for toplevels of the region trees
         cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
         cout << " ... top-level regions of d_m" << endl;
-        toplevelKernelEstimation(regionTreeM, psfWidth, "left", grayLeft);
-
-        cout << " ... top-level regions of d_r" << endl;
-        toplevelKernelEstimation(regionTreeR, psfWidth, "right", grayRight);
+        psfEstimator.toplevelKernelEstimation("left");
 
         cout << "Step 3.1: Iterative PSF estimation" << endl;
 
-        cout << "... compute PSF for middle & leaf level-regions of d_m"
-        array<Mat,2> gradients;
-        gradientMaps(grayLeft, gradients);
-
-        Mat region, mask;
-        regionTreeM.getRegionImage(40, region, mask);
-
-        array<Mat,2> salientEdges;
-        thresholdGradients(gradients, salientEdges, psfWidth, mask);
-
-        Mat _display;
-        convertFloatToUchar(_display, salientEdges[0]);
-        imshow("region", region);
-        imshow("salient edges x", _display);
+        cout << "... jointly compute PSF for middle & leaf level-regions of both views" << endl;
+        psfEstimator.midLevelKernelEstimation();
 
         // TODO: to be continued ...
         
@@ -265,7 +197,7 @@ namespace DepthAwareDeblurring {
         blurredRight = imread(filenameRight, 1);
 
         if (!blurredLeft.data || !blurredRight.data) {
-            throw runtime_error("ParallelTRDiff::runAlgorithm():Can not load images!");
+            throw runtime_error("Can not load images!");
         }
 
         runAlgorithm(blurredLeft, blurredRight, psfWidth, maxTopLevelNodes);

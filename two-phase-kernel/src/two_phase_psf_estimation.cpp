@@ -33,11 +33,11 @@ namespace TwoPhaseKernelEstimation {
         // Mat delta = Mat::zeros(50, 50, CV_32F);
         // delta.at<float>(25, 25) = 1;
         // Mat deltaUchar;
-        // convertFloatToUchar(deltaUchar, delta);
+        // convertFloatToUchar(delta, deltaUchar);
         // imshow("spatial domain", deltaUchar);
 
         // Mat fourier;
-        // FFT(delta, fourier);
+        // fft(delta, fourier);
 
         // for (int x = 0; x < fourier.cols; x++) {
         //     for (int y = 0; y < fourier.rows; y++) {

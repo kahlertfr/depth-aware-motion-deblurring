@@ -21,7 +21,7 @@ namespace TwoPhaseKernelEstimation {
      * Initializes the kernel through an iterative process
      * 
      * @param kernel      resulting kernel
-     * @param blurredGray gray value image
+     * @param blurredGray whole gray value image (with regions outside mask)
      * @param width       approximate width of kernel
      * @param mask        mask which region should be computed
      * @param pyrLevel    number of image pyramid levels

@@ -39,17 +39,17 @@ namespace DepthAwareDeblurring {
 
         // #ifndef NDEBUG
         //     Mat normalized;
-        //     convertFloatToUchar(normalized, gradients[0]);
+        //     convertFloatToUchar(gradients[0], normalized);
         //     imshow("x-gradient", normalized);
         // #endif
     }
 
 
-    void thresholdGradients(const std::array<cv::Mat,2>& gradients, std::array<cv::Mat,2>& maps,
-                            const int psfWidth, const InputArray& mask) {
+    void thresholdGradients(const std::array<cv::Mat,2>& gradients, std::array<cv::Mat,2>& thresholded,
+                            const int psfWidth, const InputArray& mask, const int r) {
 
         assert(gradients[0].size() == gradients[1].size() && "Gradients must be of same size");
-
+            
         // Apply mask
         array<Mat,2> masked = { Mat::zeros(gradients[0].size(), gradients[0].type()),
                                 Mat::zeros(gradients[1].size(), gradients[1].type()) };
@@ -57,12 +57,18 @@ namespace DepthAwareDeblurring {
         gradients[0].copyTo(masked[0], mask);
         gradients[1].copyTo(masked[1], mask);
 
+        #ifndef NDEBUG
+            Mat ucharGrads;
+            convertFloatToUchar(masked[0], ucharGrads);
+            imshow("input x gradients", ucharGrads);
+        #endif
+
         Mat magnitude, angle;
         cartToPolar(masked[0], masked[1], magnitude, angle, true);
 
         // quantizies magnitude to 255 bins
         Mat discreteMag;
-        convertFloatToUchar(discreteMag, magnitude);
+        convertFloatToUchar(magnitude, discreteMag);
 
         // histograms for 4 bins of angles (45 degrees)
         uchar histo[4][255] = {{0}};
@@ -88,9 +94,11 @@ namespace DepthAwareDeblurring {
         
         // get range (threshold) of colors that keep at least r*psfWidth pixel of
         // the largest magnitude of each quantized angle
-        Mat thresholded = Mat::zeros(gradients[0].size(), gradients[0].type());
         // TODO: parameter for r
-        int quantity = 3 * psfWidth;
+        int quantity = r * psfWidth * psfWidth;
+
+        // overall threshold
+        int threshold = 255;
 
         // for each histogram
         for (int i = 0; i < 4; i++) {
@@ -103,15 +111,26 @@ namespace DepthAwareDeblurring {
                 minValue--;
             }
 
-            // get mask of this values
-            Mat mask;
-            inRange(histoMags[i], minValue, 255, mask);
-
-            // copy the values of the original magnitude to the thresholded one
-            magnitude.copyTo(thresholded, mask);
+            // save the found value as threshold for all direction
+            // if it is smaller as the current one
+            if (minValue < threshold)
+                threshold = minValue;
         }
 
-        polarToCart(thresholded, angle, maps[0], maps[1]);
+        // get mask of this values
+        Mat thresholdMask;
+        inRange(discreteMag, threshold, 255, thresholdMask);
+
+        // copy the gradients within the mask
+        gradients[0].copyTo(thresholded[0], thresholdMask);
+        gradients[1].copyTo(thresholded[1], thresholdMask);
+
+        #ifndef NDEBUG
+            // display salient edges
+            Mat _display;
+            convertFloatToUchar(thresholded[0], _display);
+            imshow("salient edges x", _display);
+        #endif
     }
 
 }
