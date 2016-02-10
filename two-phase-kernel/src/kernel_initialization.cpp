@@ -144,7 +144,8 @@ namespace TwoPhaseKernelEstimation {
      * @param kernel          energy preserving kernel (k)
      */
     void fastKernelEstimation(const array<Mat,2>& selectionGrads,
-                              const array<Mat,2>& blurredGrads, Mat& kernel) {
+                              const array<Mat,2>& blurredGrads, Mat& kernel,
+                              const float weight = 1e-2) {
 
         assert(selectionGrads[0].rows == blurredGrads[0].rows && "matrixes have to be of same size!");
         assert(selectionGrads[0].cols == blurredGrads[0].cols && "matrixes have to be of same size!");
@@ -171,7 +172,7 @@ namespace TwoPhaseKernelEstimation {
         deblur::dft(selectionGrads[1], yS);
         deblur::dft(blurredGrads[1], yB);
 
-        complex<float> weight(0.0, 0.0);
+        complex<float> we(weight, 0.0);
 
         // kernel in Fourier domain
         Mat K = Mat::zeros(xS.size(), xS.type());
@@ -189,8 +190,8 @@ namespace TwoPhaseKernelEstimation {
 
                 // kernel entry in the Fourier space
                 complex<float> k = (conj(xs) * xb + conj(ys) * yb) /
-                                   (conj(xs) * xs + conj(ys) * ys + weight);
-                                   // (abs(xs) * abs(xs) + abs(ys) * abs(ys) + weight); // equivalent
+                                   (conj(xs) * xs + conj(ys) * ys + we);
+                                   // (abs(xs) * abs(xs) + abs(ys) * abs(ys) + we); // equivalent
                 
                 K.at<Vec2f>(y, x) = { real(k), imag(k) };
             }
@@ -199,6 +200,9 @@ namespace TwoPhaseKernelEstimation {
         // only use the real part of the complex output
         Mat kernelBig;
         dft(K, kernelBig, DFT_INVERSE | DFT_REAL_OUTPUT);
+
+        // FIXME: find kernel inside image (kind of bounding box) instead of force user to
+        // approximate a correct kernel-width (otherwise some information are lost)
 
         // cut of kernel in middle of the temporary kernel
         int x = kernelBig.cols / 2 - kernel.cols / 2;
@@ -232,7 +236,7 @@ namespace TwoPhaseKernelEstimation {
      */
     void coarseImageEstimation(Mat blurred, const Mat& kernel,
                                const array<Mat,2>& selectionGrads, Mat& latent,
-                               double weight = 2.0e-3) {
+                               const float weight = 2.0e-3) {
 
         assert(kernel.type() == CV_32F && "works with energy preserving float kernel");
         assert(blurred.type() == CV_8U && "works with gray valued blurred image");
@@ -361,9 +365,9 @@ namespace TwoPhaseKernelEstimation {
         assert(blurredGray.type() == CV_8U && "gray value image needed");
         assert(mask.type() == CV_8U && "mask should be binary image");
         
-        #ifndef NDEBUG
-            imshow("blurred", blurredGray);
-        #endif
+        // #ifndef NDEBUG
+        //     imshow("blurred", blurredGray);
+        // #endif
 
         // build an image pyramid with gray value images
         vector<Mat> pyramid;
@@ -439,7 +443,7 @@ namespace TwoPhaseKernelEstimation {
 
 
                 // estimate kernel with gaussian prior
-                fastKernelEstimation(selectedEdges, gradients, kernel);
+                fastKernelEstimation(selectedEdges, gradients, kernel, 0.0);
 
                 // #ifndef NDEBUG                  
                     // showFloat("tmp-kernel", kernel, true);
@@ -448,12 +452,16 @@ namespace TwoPhaseKernelEstimation {
 
                 // coarse image estimation with a spatial prior
                 Mat latentImage;
+                // FIXME: it looks like there are some edges of the gradients in the latent image.
+                //        with more iterations it becomes worse
                 coarseImageEstimation(pyramid[l], kernel, selectedEdges, latentImage);
 
-                #ifndef NDEBUG
-                    imshow("tmp latent image", latentImage);
-                    imwrite("latent.jpg", latentImage);
-                #endif
+                // #ifndef NDEBUG
+                //     string name = "tmp-latent" + i;
+                //     imshow(name, latentImage);
+                //     string filename = name + ".png";
+                //     imwrite(filename, latentImage);
+                // #endif
 
 
                 // set current image to coarse latent image
@@ -466,23 +474,7 @@ namespace TwoPhaseKernelEstimation {
         }
 
         // #ifndef NDEBUG
-        //     // print kernel
-        //     Mat kernelUchar;
-        //     convertFloatToUchar(tmpKernel, kernelUchar);
-        //     imshow("kernel result", kernelUchar);
+        //     imshow("kernel", kernel);
         // #endif
-
-        // // cut of kernel in middle of the temporary kernel
-        // int x = tmpKernel.cols / 2 - kernel.cols / 2;
-        // int y = tmpKernel.rows / 2 - kernel.rows / 2;
-        // swapQuadrants(tmpKernel);
-        // Mat kernelROI = tmpKernel(Rect(x, y, kernel.cols, kernel.rows));
-
-        // // convert kernel to uchar
-        // Mat resultUchar;
-        // convertFloatToUchar(kernelROI, resultUchar);
-        // // convertFloatToUchar(kernel, resultUchar);
-
-        // resultUchar.copyTo(kernel);
     }
 }
