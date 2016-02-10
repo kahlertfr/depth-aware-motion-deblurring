@@ -36,7 +36,7 @@ namespace deblur {
     }
 
 
-    void dft(Mat& src, Mat& dst){
+    void dft(const Mat& src, Mat& dst){
         // create complex matrix
         Mat planes[] = {src,
                         Mat::zeros(src.size(), CV_32F)};
