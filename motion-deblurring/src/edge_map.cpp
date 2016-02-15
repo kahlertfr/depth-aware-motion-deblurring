@@ -57,11 +57,11 @@ namespace DepthAwareDeblurring {
         gradients[0].copyTo(masked[0], mask);
         gradients[1].copyTo(masked[1], mask);
 
-        #ifndef NDEBUG
-            Mat ucharGrads;
-            convertFloatToUchar(masked[0], ucharGrads);
-            imshow("input x gradients", ucharGrads);
-        #endif
+        // #ifndef NDEBUG
+        //     Mat ucharGrads;
+        //     convertFloatToUchar(masked[0], ucharGrads);
+        //     imshow("input x gradients", ucharGrads);
+        // #endif
 
         Mat magnitude, angle;
         cartToPolar(masked[0], masked[1], magnitude, angle, true);
@@ -125,12 +125,12 @@ namespace DepthAwareDeblurring {
         gradients[0].copyTo(thresholded[0], thresholdMask);
         gradients[1].copyTo(thresholded[1], thresholdMask);
 
-        #ifndef NDEBUG
-            // display salient edges
-            Mat _display;
-            convertFloatToUchar(thresholded[0], _display);
-            imshow("salient edges x", _display);
-        #endif
+        // #ifndef NDEBUG
+        //     // display salient edges
+        //     Mat _display;
+        //     convertFloatToUchar(thresholded[0], _display);
+        //     imshow("salient edges x", _display);
+        // #endif
     }
 
 
