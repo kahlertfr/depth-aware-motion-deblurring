@@ -31,8 +31,8 @@ namespace DepthAwareDeblurring {
         /**
          * Estimates the PSFs of the top-level regions.
          *
-         * Because the algorithm for estimation isn't working yet it loads
-         * kernel images as initial kernel estimation.
+         * There is a possibility to load kernel-images because
+         * the used algorithm doesn't work very well.
          * 
          * @param filePrefix for loading kernel images
          */
@@ -59,26 +59,12 @@ namespace DepthAwareDeblurring {
         RegionTree regionTree;
 
         /**
-         * Enhanced gradients (using bilateral and shock filtering) of left image
-         * in x and y direction
-         */
-        std::array<cv::Mat,2> enhancedGradsLeft;
-
-        /**
-         * Enhanced gradients (using bilateral and shock filtering) of right image
-         * in x and y direction
-         */
-        std::array<cv::Mat,2> enhancedGradsRight;
-
-        /**
-         * Enhanced gradients (using bilateral and shock filtering) of left image
-         * in x and y direction
+         * Gradients of left image in x and y direction
          */
         std::array<cv::Mat,2> gradsLeft;
 
         /**
-         * Enhanced gradients (using bilateral and shock filtering) of right image
-         * in x and y direction
+         * Gradients of right image in x and y direction
          */
         std::array<cv::Mat,2> gradsRight;
 
@@ -89,12 +75,23 @@ namespace DepthAwareDeblurring {
          * @param maskRight      mask for region of reference view
          * @param psf            resulting psf
          */
-        void jointPSFEstimation(const cv::Mat& maskLeft, const cv::Mat& maskRight, cv::Mat& psf);
+        void jointPSFEstimation(const cv::Mat& maskLeft, const cv::Mat& maskRight,
+                                const std::array<cv::Mat,2>& salientEdgesLeft,
+                                const std::array<cv::Mat,2>& salientEdgesRight, cv::Mat& psf);
 
         /**
-         * Computes the enhanced and simple gradients
+         * Computes gradients of the two blurred images
          */
-        void gradientComputation();
+        void computeBlurredGradients();
+
+        /**
+         * Executes a joint psf estimation after computing the salient edge map of
+         * this region node.
+         * 
+         * @param id     current node
+         * @param parent id of parent node
+         */
+        void estimateChildPSF(int id, int parent);
     };
 }
 

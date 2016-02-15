@@ -45,7 +45,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void thresholdGradients(const std::array<cv::Mat,2>& gradients, std::array<cv::Mat,2>& thresholded,
+    void thresholdGradients(const array<Mat,2>& gradients, array<Mat,2>& thresholded,
                             const int psfWidth, const InputArray& mask, const int r) {
 
         assert(gradients[0].size() == gradients[1].size() && "Gradients must be of same size");
@@ -133,4 +133,19 @@ namespace DepthAwareDeblurring {
         #endif
     }
 
+
+    void computeSalientEdgeMap(const Mat& image, array<Mat,2>& edgeMaps,
+                               const int psfWidth, const InputArray& mask, const int r) {
+
+        // compute enhanced gradients of blurred image
+        array<Mat,2> gradients;
+        gradientMaps(image, gradients);
+
+        // norm gradients 
+        array<Mat,2> normedGradients;
+        normalize(gradients[0], normedGradients[0], -1, 1);
+        normalize(gradients[1], normedGradients[1], -1, 1);
+
+        thresholdGradients(normedGradients, edgeMaps, psfWidth, mask);
+    }
 }

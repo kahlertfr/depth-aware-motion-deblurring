@@ -5,7 +5,8 @@
 #include "utils.hpp"
 #include "region_tree.hpp"
 #include "edge_map.hpp"
-// #include "two_phase_psf_estimation.hpp"
+#include "two_phase_psf_estimation.hpp"
+#include "deconvolution.hpp"
 
 #include "iterative_psf.hpp"
 
@@ -33,11 +34,30 @@ namespace DepthAwareDeblurring {
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
             int id = regionTree.topLevelNodeIds[i];
 
-            // get an image of the top-level region
-            Mat region, mask;
-            regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
+            // get the mask of the top-level region
+            Mat mask;
+            regionTree.getMask(id, mask, RegionTree::LEFT);
 
+            // compute kernel
+            TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, blurred, psfWidth, mask);
 
+            #ifndef NDEBUG
+                Mat tmp;
+                regionTree[id].psf.copyTo(tmp);
+                // tmp *= 255;
+                convertFloatToUchar(tmp, tmp);
+                string filename = "kernel-" + to_string(i) + ".png";
+                imwrite(filename, tmp);
+            #endif
+
+            // // WORKAROUND because of deferred two-phase kernel estimation
+            // // use the next two steps after each other
+            // //
+            // // 1. save the tappered region images for the exe of two-phase kernel estimation
+            // // get an image of the top-level region
+            // Mat region, mask;
+            // regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
+            //
             // // edge tapering to remove high frequencies at the border of the region
             // Mat taperedRegion;
             // regionTree.edgeTaper(taperedRegion, region, mask, *(regionTree.images[LEFT]));
@@ -46,29 +66,23 @@ namespace DepthAwareDeblurring {
             // string name = "tapered" + to_string(i) + ".jpg";
             // imwrite(name, taperedRegion);
             
-
-            // // calculate PSF with two-phase kernel estimation (deferred)
-            // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf[0], region, psfWidth, mask);
-            // 
-            // because this algorithm won't work
-            // load the kernel images which should be named left/right-kerneli.png
-            // they should be located in the folder where this algorithm is started
-            string filename = filePrefix + "-kernel" + to_string(i) + ".png";
-            regionTree[id].psf = imread(filename, 1);
-
-            if (!regionTree[id].psf.data) {
-                throw runtime_error("Can not load kernel!");
-            }
+            // // 2. load kernel images generated with the exe for toplevels
+            // // load the kernel images which should be named left/right-kerneli.png
+            // // they should be located in the folder where this algorithm is started
+            // string filename = filePrefix + "-kernel" + to_string(i) + ".png";
+            // regionTree[id].psf = imread(filename, 1);
+            //
+            // if (!regionTree[id].psf.data) {
+            //     throw runtime_error("Can not load kernel!");
+            // }
         }
     }
 
 
-    void IterativePSF::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, Mat& psf) {
-
-        // compute a gradient image with salient edge
-        array<Mat,2> salientEdgesLeft, salientEdgesRight;
-        thresholdGradients(enhancedGradsLeft, salientEdgesLeft, psfWidth, maskLeft);
-        thresholdGradients(enhancedGradsRight, salientEdgesRight, psfWidth, maskRight);
+    void IterativePSF::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, 
+                                          const array<Mat,2>& salientEdgesLeft,
+                                          const array<Mat,2>& salientEdgesRight,
+                                          Mat& psf) {
 
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
         // where i ∈ {r, m}, and S_i is the region for reference and matching view 
@@ -165,20 +179,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::gradientComputation() {
-        // compute enhanced gradients for regions
-        std::array<cv::Mat,2> enhancedGradsR, enhancedGradsL;
-
-        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsL);
-        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsR);
-
-        // norm the gradients
-        normalize(enhancedGradsR[0], enhancedGradsRight[0], -255, 255);
-        normalize(enhancedGradsR[1], enhancedGradsRight[1], -255, 255);
-        normalize(enhancedGradsL[0], enhancedGradsLeft[0], -255, 255);
-        normalize(enhancedGradsL[1], enhancedGradsLeft[1], -255, 255);
-
-
+    void IterativePSF::computeBlurredGradients() {
         // compute simple gradients for blurred images
         std::array<cv::Mat,2> gradsR, gradsL;
 
@@ -201,17 +202,41 @@ namespace DepthAwareDeblurring {
               ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
         // norm the gradients
-        normalize(gradsR[0], gradsRight[0], -255, 255);
-        normalize(gradsR[1], gradsRight[1], -255, 255);
-        normalize(gradsL[0], gradsLeft[0], -255, 255);
-        normalize(gradsL[1], gradsLeft[1], -255, 255);
+        normalize(gradsR[0], gradsRight[0], -1, 1);
+        normalize(gradsR[1], gradsRight[1], -1, 1);
+        normalize(gradsL[0], gradsLeft[0], -1, 1);
+        normalize(gradsL[1], gradsLeft[1], -1, 1);
+    }
+
+
+    void IterativePSF::estimateChildPSF(int id, int parent) {
+        // get masks for regions of both views
+        Mat maskM, maskR;
+        regionTree.getMasks(id, maskM, maskR);
+
+        // compute salient edge map ∇S_i for region
+        // 
+        // deblur the current views with psf from parent
+        Mat deblurredLeft, deblurredRight;
+        deconvolve(*(regionTree.images[RegionTree::LEFT]), deblurredLeft, regionTree[parent].psf);
+        deconvolve(*(regionTree.images[RegionTree::RIGHT]), deblurredRight, regionTree[parent].psf);
+
+        imshow("deblurred l", deblurredLeft);
+        waitKey();
+
+        // compute a gradient image with salient edge (they are normalized to [-1, 1])
+        array<Mat,2> salientEdgesLeft, salientEdgesRight;
+        computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
+        computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
+
+        // estimate psf for the first child node
+        jointPSFEstimation(maskM, maskR, salientEdgesLeft, salientEdgesRight, regionTree[id].psf);
     }
 
 
     void IterativePSF::midLevelKernelEstimation() {
-        // we can compute the enhanced gradients for each blurred image ones
-        // and later cut off the necessary regions ∇S_i
-        gradientComputation();
+        // we can compute the gradients for each blurred image ones
+        computeBlurredGradients();
 
         // go through all nodes of the region tree in a top-down manner
         // 
@@ -247,16 +272,9 @@ namespace DepthAwareDeblurring {
                 remainingNodes.push(regionTree[id].children.second);
 
                 // PSF estimation for each children
-                Mat maskM, maskR;
-
-                // estimate psf for the first child node
-                regionTree.getMasks(cId1, maskM, maskR);
-                jointPSFEstimation(maskM, maskR, regionTree[cId1].psf);
-
-                // estimate psf for the second child node
-                regionTree.getMasks(cId2, maskM, maskR);
-                jointPSFEstimation(maskM, maskR, regionTree[cId2].psf);
-
+                // (salient edge map computation and joint psf estimation)
+                estimateChildPSF(cId1, id);
+                estimateChildPSF(cId2, id);
 
                 // to eliminate errors make a candidate selection
                 // TODO: continue
