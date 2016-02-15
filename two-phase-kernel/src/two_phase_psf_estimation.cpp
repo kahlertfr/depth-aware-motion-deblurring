@@ -13,7 +13,7 @@ using namespace std;
 
 namespace TwoPhaseKernelEstimation {
 
-    void estimateKernel(Mat& psf, const Mat& blurredImage, const int psfWidth, const Mat& mask) {
+    void estimateKernel(Mat& psf, const Mat& blurred, const int psfWidth, const Mat& mask) {
         // set expected kernel witdh to odd number
         int width = (psfWidth % 2 == 0) ? psfWidth + 1 : psfWidth;
 
@@ -23,37 +23,15 @@ namespace TwoPhaseKernelEstimation {
 
         // convert blurred image to gray
         Mat blurredGray;
-        cvtColor(blurredImage, blurredGray, CV_BGR2GRAY);
+        if (blurred.type() == CV_8UC3)
+            cvtColor(blurred, blurredGray, CV_BGR2GRAY);
+        else
+            blurred.copyTo(blurredGray);
 
         // TODO: change number of pyrLevel and iterations
         initKernel(kernel, blurredGray, width, mask, 1, 1);
-        
 
-        // // delta function as image with one white pixel
-        // Mat delta = Mat::zeros(50, 50, CV_32F);
-        // delta.at<float>(25, 25) = 1;
-        // Mat deltaUchar;
-        // convertFloatToUchar(delta, deltaUchar);
-        // imshow("spatial domain", deltaUchar);
-
-        // Mat fourier;
-        // fft(delta, fourier);
-
-        // for (int x = 0; x < fourier.cols; x++) {
-        //     for (int y = 0; y < fourier.rows; y++) {
-        //         // complex entries at the current position
-        //         complex<float> k(fourier.at<Vec2f>(y, x)[0], fourier.at<Vec2f>(y, x)[1]);
-        //         cout << k << endl;
-        //     }
-        // }
-
-        // Mat uchar;
-        // showComplexImage("fourier domain", fourier);
-
-
-        #ifndef NDEBUG
-            // imshow("kernel", kernel);
-        #endif
+        kernel.copyTo(psf);
     }
 
 

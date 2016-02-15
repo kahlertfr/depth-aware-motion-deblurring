@@ -30,6 +30,8 @@ namespace DepthAwareDeblurring {
 
 
     void IterativePSF::toplevelKernelEstimation(const string filePrefix) {
+        Mat blurred = *(regionTree.images[RegionTree::LEFT]);
+
         // go through each top-level node
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
             int id = regionTree.topLevelNodeIds[i];
