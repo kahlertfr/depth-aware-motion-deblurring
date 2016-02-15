@@ -11,7 +11,7 @@ using namespace deblur;
 namespace DepthAwareDeblurring {
 
     void deconvolve(Mat src, Mat& dst, Mat& kernel, float weight){
-        assert(src.type() == CV_32F && "works on gray value images");
+        assert(src.type() == CV_8U && "works on gray value images");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
         // convert input images to floats
@@ -81,15 +81,16 @@ namespace DepthAwareDeblurring {
         // showComplexImage("result complex", deconv, false);
 
         // inverse dft with real output
-        dft(X, dst, DFT_INVERSE | DFT_REAL_OUTPUT);
+        Mat deconv;
+        dft(X, deconv, DFT_INVERSE | DFT_REAL_OUTPUT);
 
 
         // swap slices of the result
         // because the image is shifted to the upper-left corner (why??)
-        int x = dst.cols;
-        int y = dst.rows;
-        int hs1 = (kernel.cols - 1);
-        int hs2 = (kernel.rows - 1);
+        int x = deconv.cols;
+        int y = deconv.rows;
+        int hs1 = (kernel.cols - 1) / 2;
+        int hs2 = (kernel.rows - 1) / 2;
 
         // create rects per image slice
         //  __________
@@ -101,24 +102,26 @@ namespace DepthAwareDeblurring {
         // |______|___|
         // 
         // rect gets the coordinates of the top-left corner, width and height
-        Mat q0(dst, Rect(0, 0, x - hs1, y - hs2));      // Top-Left
-        Mat q1(dst, Rect(x - hs1, 0, hs1, y - hs2));    // Top-Right
-        Mat q2(dst, Rect(0, y - hs2, x - hs1, hs2));    // Bottom-Left
-        Mat q3(dst, Rect(x - hs1, y - hs2, hs1, hs2));  // Bottom-Right
+        Mat q0(deconv, Rect(0, 0, x - hs1, y - hs2));      // Top-Left
+        Mat q1(deconv, Rect(x - hs1, 0, hs1, y - hs2));    // Top-Right
+        Mat q2(deconv, Rect(0, y - hs2, x - hs1, hs2));    // Bottom-Left
+        Mat q3(deconv, Rect(x - hs1, y - hs2, hs1, hs2));  // Bottom-Right
 
-        Mat dstSwap;
-        cv::hconcat(q3, q2, dstSwap);
+        Mat deconvSwap;
+        cv::hconcat(q3, q2, deconvSwap);
         Mat tmp;
         cv::hconcat(q1, q0, tmp);
-        cv::vconcat(dstSwap, tmp, dstSwap);
-        dstSwap.copyTo(dst);
+        cv::vconcat(deconvSwap, tmp, deconvSwap);
+        deconvSwap.copyTo(deconv);
 
 
         // show and save the deblurred image
         //
         // threshold the result because it has large negative and positive values
         // which would result in a very grayish image
-        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
+
+        convertFloatToUchar(deconv, dst);
     }
 
 }
