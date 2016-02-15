@@ -99,7 +99,8 @@ namespace DepthAwareDeblurring {
         //                   __________
         // and F(∂_x S_i)² = F(∂_x S_i) * F(∂_x S_i)
         // and F_1 is the fourier transform of a delta function with a uniform 
-        // energy distribution
+        // energy distribution - they probably use this to transform the scalar weight
+        // to a complex matrix
         // 
         // here: F(∂_x S_i) = xSr / xSm
         //       F(∂_x B)   = xB
@@ -119,13 +120,15 @@ namespace DepthAwareDeblurring {
         fft(gradsRight[0], xBr);
         fft(gradsRight[1], yBr);
 
-        Mat kernelFourier = Mat::zeros(xSm.size(), xSm.type());
 
         // delta function as one white pixel in black image
         Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
         deltaFloat.at<float>(xSm.rows / 2, xSm.cols / 2) = 1;
         Mat delta;
         fft(deltaFloat, delta);
+
+        // kernel in Fourier domain
+        Mat K = Mat::zeros(xSm.size(), xSm.type());
 
         // go through all pixel and calculate the value in the brackets of the equation
         for (int x = 0; x < xSm.cols; x++) {
@@ -152,29 +155,35 @@ namespace DepthAwareDeblurring {
                                        (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
                                        // (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
                 
-                kernelFourier.at<Vec2f>(y, x) = { real(k), imag(k) };
+                K.at<Vec2f>(y, x) = { real(k), imag(k) };
             }
         }
 
-        // compute inverse FFT of the kernel in frequency domain
-        Mat kernelResult;
-        dft(kernelFourier, kernelResult, DFT_INVERSE);
+        // compute inverse FFT of the kernel
+        Mat kernel;
+        dft(K, kernel, DFT_INVERSE | DFT_REAL_OUTPUT);
 
-        // the real value result of the kernel is stored in the first channel
-        vector<Mat> channels(2);
-        split(kernelResult, channels);
+        // threshold kernel to erease negative values
+        // this is done because otherwise the resulting kernel is very grayish
+        threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
+
+        // kernel has to be energy preserving
+        // this means: sum(kernel) = 1
+        kernel /= sum(kernel)[0];
 
         // cut of the psf-kernel
-        int x = channels[0].cols / 2 - psfWidth / 2;
-        int y = channels[0].rows / 2 - psfWidth / 2;
-        swapQuadrants(channels[0]);
-        Mat kernelROI = channels[0](Rect(x, y, psfWidth, psfWidth));
+        int x = kernel.cols / 2 - psfWidth / 2;
+        int y = kernel.rows / 2 - psfWidth / 2;
+        swapQuadrants(kernel);
+        Mat kernelROI = kernel(Rect(x, y, psfWidth, psfWidth));
 
+        // important to copy the roi - otherwise for padding the originial image
+        // will be used (we don't want this behavior)
         kernelROI.copyTo(psf);
 
         #ifndef NDEBUG
             Mat kernelUchar;
-            convertFloatToUchar(channels[0], kernelUchar);
+            convertFloatToUchar(kernel, kernelUchar);
             imshow("full psf", kernelUchar);
             waitKey(0);
         #endif
@@ -223,13 +232,16 @@ namespace DepthAwareDeblurring {
         deconvolve(*(regionTree.images[RegionTree::LEFT]), deblurredLeft, regionTree[parent].psf);
         deconvolve(*(regionTree.images[RegionTree::RIGHT]), deblurredRight, regionTree[parent].psf);
 
-        imshow("deblurred l", deblurredLeft);
-        waitKey();
-
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
         computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
         computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
+
+        // #ifndef NDEBUG
+        //     showFloat("salient edges left x", salientEdgesLeft[0]);
+        //     showFloat("salient edges right x", salientEdgesRight[0]);
+        //     waitKey();
+        // #endif
 
         // estimate psf for the first child node
         jointPSFEstimation(maskM, maskR, salientEdgesLeft, salientEdgesRight, regionTree[id].psf);
