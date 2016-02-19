@@ -35,26 +35,26 @@ End: 21.03.2016
 - Week 10 (04.01.): two-phase kernel estimation (tried)
 - Week 11 (11.01.): two-phase kernel estimation (tried)
 - Week 12 (18.01.): two-phase kernel estimation (deferred :( )
-- Week 13 (25.01.): top-level PSF computation
-- Week 14 (01.02.): iterative PSF computation
-- Week 15 (08.02.): blur removal and second-pass estimation
+- Week 13 (25.01.): top-level PSF computation (workaround)
+- Week 14 (01.02.): solve FFT-problems (tried)
+- Week 15 (08.02.): solve FFT-problems (done)
+- Week 16 (15.02.): iterative PSF computation
+- Week 17 (22.02.): blur removal and second-pass estimation
 
 
 ### evaluating
 
-- Week 16 (15.02.): take pictures with stereo camera
-- Week 17 (22.02.): run algorithm on different settings && write down results
+- Week 18 (29.02.): run algorithm on different settings && write down results
 
 
 ### finish writing study thesis
 
-- Week 18 (29.02.):
 - Week 19 (07.03.):
+- Week 20 (14.03.): 
 
 
 ### preparation of presentation
 
-- Week 20 (14.03.): make nice presentation
-
+- afterwards: make nice presentation
 
 Afterwards: two-phase kernel estimation fix
