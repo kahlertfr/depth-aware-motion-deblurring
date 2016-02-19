@@ -89,9 +89,8 @@ namespace DepthAwareDeblurring {
          * this region node and saves the psf in the region tree.
          * 
          * @param id     current node
-         * @param parent id of parent node
          */
-        void estimateChildPSF(int id, int parent);
+        void estimateChildPSF(int id);
 
         /**
          * Calculates the entropy of the kernel
@@ -102,6 +101,29 @@ namespace DepthAwareDeblurring {
          * @return        [description]
          */
         float computeEntropy(cv::Mat& kernel);
+
+        /**
+         * Selects candiates for psf selection
+         * 
+         * The following psfs are candidates:
+         *      - own psf (also it may be unreliable)
+         *      - parent psf
+         *      - reliable sibbling psf
+         *      
+         * @param candiates resulting vector of candidates
+         * @param id        current node id
+         * @param sId       sibbling node id
+         */
+        void candidateSelection(std::vector<cv::Mat>& candiates, int id, int sId);
+
+        /**
+         * Selects a suitable PSF for the given Node
+         *
+         * @param candiates possible PSFs
+         * @param id        node ID
+         */
+        void psfSelection(std::vector<cv::Mat>& candiates, int id);
+
     };
 }
 

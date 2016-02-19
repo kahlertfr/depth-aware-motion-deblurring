@@ -221,10 +221,13 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::estimateChildPSF(int id, int parent) {
+    void IterativePSF::estimateChildPSF(int id) {
         // get masks for regions of both views
         Mat maskM, maskR;
         regionTree.getMasks(id, maskM, maskR);
+
+        // get parent id
+        int parent = regionTree[id].parent;
 
         // compute salient edge map ∇S_i for region
         // 
@@ -272,6 +275,37 @@ namespace DepthAwareDeblurring {
     }
 
 
+    void IterativePSF::candidateSelection(vector<Mat>& candiates, int id, int sid) {
+        // own psf is added as candidate
+        candiates.push_back(regionTree[id].psf);
+
+        // psf of parent is added as candidate
+        int pid = regionTree[id].parent;
+        candiates.push_back(regionTree[pid].psf);
+
+        // add sibbling psf just if it is reliable
+        // this means: entropy - mean < threshold
+        float mean = (regionTree[id].entropy + regionTree[sid].entropy) / 2.0;
+
+        // emperically choosen threshold
+        float threshold = 0.2 * mean;
+
+        // cout << "entropy (" << id << "," << sid << "): " << regionTree[id].entropy << " " << regionTree[sid].entropy;
+        // cout << " mean: " << mean << " thres: " << threshold << endl;
+
+        if (regionTree[sid].entropy - mean < threshold) {
+            candiates.push_back(regionTree[sid].psf);
+        }
+
+        // cout << "candidate number: " << candiates.size() << endl;
+    }
+
+
+    void IterativePSF::psfSelection(vector<Mat>& candiates, int id) {
+
+    }
+
+
     void IterativePSF::midLevelKernelEstimation() {
         // we can compute the gradients for each blurred image ones
         computeBlurredGradients();
@@ -299,30 +333,35 @@ namespace DepthAwareDeblurring {
             remainingNodes.pop();
 
             // get IDs of the child nodes
-            int cId1 = regionTree[id].children.first;
-            int cId2 = regionTree[id].children.second;
+            int cid1 = regionTree[id].children.first;
+            int cid2 = regionTree[id].children.second;
 
             // do PSF computation for a middle node with its children
             // (leaf nodes doesn't have any children)
-            if (cId1 != -1 && cId2 != -1) {
+            if (cid1 != -1 && cid2 != -1) {
                 // add children ids to the back of the queue
                 remainingNodes.push(regionTree[id].children.first);
                 remainingNodes.push(regionTree[id].children.second);
 
                 // PSF estimation for each children
                 // (salient edge map computation and joint psf estimation)
-                estimateChildPSF(cId1, id);
-                estimateChildPSF(cId2, id);
+                estimateChildPSF(cid1);
+                estimateChildPSF(cid2);
 
-                // to eliminate errors make a candidate selection
+                // to eliminate errors
                 //
                 // calucate entropy of the found psf
-                float entropy1 = computeEntropy(regionTree[cId1].psf);
-                float entropy2 = computeEntropy(regionTree[cId2].psf);
+                regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
+                regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
-                float mean = (entropy1 + entropy2) / 2.0;
+                // candiate selection
+                vector<Mat> candiates1, candiates2;
+                candidateSelection(candiates1, cid1, cid2);
+                candidateSelection(candiates2, cid2, cid1);
 
-                cout << "entropies for c(" << cId1 << "," << cId2 << "): " << entropy1 << " " << entropy2 << " mean: " << mean << endl;
+                // final psf selection
+                psfSelection(candiates1, cid1);
+                psfSelection(candiates2, cid2);
 
                 // TODO: continue
             }

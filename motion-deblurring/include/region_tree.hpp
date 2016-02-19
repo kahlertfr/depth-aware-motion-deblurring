@@ -45,7 +45,8 @@ namespace DepthAwareDeblurring {
         std::vector<int>     layers;    // contained disparity layers
         int                  parent;    // index of parent node
         std::pair<int, int>  children;  // indices of child nodes
-        cv::Mat              psf;
+        cv::Mat              psf;       // kernel
+        float                entropy;   // entropy of kernel
     };
 
 
