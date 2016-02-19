@@ -1,6 +1,7 @@
 #include <iostream>                     // cout, cerr, endl
 #include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
 #include <queue>                        // FIFO queue
+#include <cmath>                        // log
 
 #include "utils.hpp"
 #include "region_tree.hpp"
@@ -181,12 +182,12 @@ namespace DepthAwareDeblurring {
         // will be used (we don't want this behavior)
         kernelROI.copyTo(psf);
 
-        #ifndef NDEBUG
-            Mat kernelUchar;
-            convertFloatToUchar(kernel, kernelUchar);
-            imshow("full psf", kernelUchar);
-            waitKey(0);
-        #endif
+        // #ifndef NDEBUG
+        //     Mat kernelUchar;
+        //     convertFloatToUchar(kernel, kernelUchar);
+        //     imshow("full psf", kernelUchar);
+        //     waitKey(0);
+        // #endif
     }
 
 
@@ -248,6 +249,29 @@ namespace DepthAwareDeblurring {
     }
 
 
+    float IterativePSF::computeEntropy(Mat& kernel) {
+        assert(kernel.type() == CV_32F && "works with float values");
+
+        float entropy = 0.0;
+
+        // go through all pixel of the kernel
+        for (int row = 0; row < kernel.rows; row++) {
+            for (int col = 0; col < kernel.cols; col++) {
+                float x = kernel.at<float>(row, col);
+                
+                // prevent caculation of log(0)
+                if (x > 0) {
+                    entropy += x * log(x);
+                }
+            }
+        }
+
+        entropy = -1 * entropy;
+
+        return entropy; 
+    }
+
+
     void IterativePSF::midLevelKernelEstimation() {
         // we can compute the gradients for each blurred image ones
         computeBlurredGradients();
@@ -291,6 +315,15 @@ namespace DepthAwareDeblurring {
                 estimateChildPSF(cId2, id);
 
                 // to eliminate errors make a candidate selection
+                //
+                // calucate entropy of the found psf
+                float entropy1 = computeEntropy(regionTree[cId1].psf);
+                float entropy2 = computeEntropy(regionTree[cId2].psf);
+
+                float mean = (entropy1 + entropy2) / 2.0;
+
+                cout << "entropies for c(" << cId1 << "," << cId2 << "): " << entropy1 << " " << entropy2 << " mean: " << mean << endl;
+
                 // TODO: continue
             }
         }

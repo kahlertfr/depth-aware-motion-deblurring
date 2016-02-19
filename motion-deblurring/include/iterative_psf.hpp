@@ -86,12 +86,22 @@ namespace DepthAwareDeblurring {
 
         /**
          * Executes a joint psf estimation after computing the salient edge map of
-         * this region node.
+         * this region node and saves the psf in the region tree.
          * 
          * @param id     current node
          * @param parent id of parent node
          */
         void estimateChildPSF(int id, int parent);
+
+        /**
+         * Calculates the entropy of the kernel
+         *
+         * H(k) = -1 * sum_x(x*log(x))
+         * 
+         * @param  kernel [description]
+         * @return        [description]
+         */
+        float computeEntropy(cv::Mat& kernel);
     };
 }
 
