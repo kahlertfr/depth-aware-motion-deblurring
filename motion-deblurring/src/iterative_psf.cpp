@@ -1,11 +1,14 @@
 #include <iostream>                     // cout, cerr, endl
 #include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
 #include <queue>                        // FIFO queue
+#include <cmath>                        // log
 
 #include "utils.hpp"
 #include "region_tree.hpp"
 #include "edge_map.hpp"
 #include "two_phase_psf_estimation.hpp"
+#include "deconvolution.hpp"
+#include "coherence_filter.hpp"
 
 #include "iterative_psf.hpp"
 
@@ -35,7 +38,6 @@ namespace DepthAwareDeblurring {
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
             int id = regionTree.topLevelNodeIds[i];
 
-
             // get the mask of the top-level region
             Mat mask;
             regionTree.getMask(id, mask, RegionTree::LEFT);
@@ -53,9 +55,9 @@ namespace DepthAwareDeblurring {
             #endif
 
             // // WORKAROUND because of deferred two-phase kernel estimation
-            // // use the next to steps after each other
+            // // use the next two steps after each other
             // //
-            // // 1. save the tappered region images for the exe
+            // // 1. save the tappered region images for the exe of two-phase kernel estimation
             // // get an image of the top-level region
             // Mat region, mask;
             // regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
@@ -63,12 +65,12 @@ namespace DepthAwareDeblurring {
             // // edge tapering to remove high frequencies at the border of the region
             // Mat taperedRegion;
             // regionTree.edgeTaper(taperedRegion, region, mask, *(regionTree.images[LEFT]));
-            //
+
             // // use this images for example for the .exe of the two-phase kernel estimation
             // string name = "tapered" + to_string(i) + ".jpg";
             // imwrite(name, taperedRegion);
             
-            // // 2. load kernels for toplevels
+            // // 2. load kernel images generated with the exe for toplevels
             // // load the kernel images which should be named left/right-kerneli.png
             // // they should be located in the folder where this algorithm is started
             // string filename = filePrefix + "-kernel" + to_string(i) + ".png";
@@ -81,12 +83,10 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, Mat& psf) {
-
-        // compute a gradient image with salient edge
-        array<Mat,2> salientEdgesLeft, salientEdgesRight;
-        thresholdGradients(enhancedGradsLeft, salientEdgesLeft, psfWidth, maskLeft);
-        thresholdGradients(enhancedGradsRight, salientEdgesRight, psfWidth, maskRight);
+    void IterativePSF::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, 
+                                          const array<Mat,2>& salientEdgesLeft,
+                                          const array<Mat,2>& salientEdgesRight,
+                                          Mat& psf) {
 
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
         // where i ∈ {r, m}, and S_i is the region for reference and matching view 
@@ -101,7 +101,8 @@ namespace DepthAwareDeblurring {
         //                   __________
         // and F(∂_x S_i)² = F(∂_x S_i) * F(∂_x S_i)
         // and F_1 is the fourier transform of a delta function with a uniform 
-        // energy distribution
+        // energy distribution - they probably use this to transform the scalar weight
+        // to a complex matrix
         // 
         // here: F(∂_x S_i) = xSr / xSm
         //       F(∂_x B)   = xB
@@ -121,13 +122,15 @@ namespace DepthAwareDeblurring {
         fft(gradsRight[0], xBr);
         fft(gradsRight[1], yBr);
 
-        Mat kernelFourier = Mat::zeros(xSm.size(), xSm.type());
 
         // delta function as one white pixel in black image
         Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
         deltaFloat.at<float>(xSm.rows / 2, xSm.cols / 2) = 1;
         Mat delta;
         fft(deltaFloat, delta);
+
+        // kernel in Fourier domain
+        Mat K = Mat::zeros(xSm.size(), xSm.type());
 
         // go through all pixel and calculate the value in the brackets of the equation
         for (int x = 0; x < xSm.cols; x++) {
@@ -154,49 +157,42 @@ namespace DepthAwareDeblurring {
                                        (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
                                        // (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
                 
-                kernelFourier.at<Vec2f>(y, x) = { real(k), imag(k) };
+                K.at<Vec2f>(y, x) = { real(k), imag(k) };
             }
         }
 
-        // compute inverse FFT of the kernel in frequency domain
-        Mat kernelResult;
-        dft(kernelFourier, kernelResult, DFT_INVERSE);
+        // compute inverse FFT of the kernel
+        Mat kernel;
+        dft(K, kernel, DFT_INVERSE | DFT_REAL_OUTPUT);
 
-        // the real value result of the kernel is stored in the first channel
-        vector<Mat> channels(2);
-        split(kernelResult, channels);
+        // threshold kernel to erease negative values
+        // this is done because otherwise the resulting kernel is very grayish
+        threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
+
+        // kernel has to be energy preserving
+        // this means: sum(kernel) = 1
+        kernel /= sum(kernel)[0];
 
         // cut of the psf-kernel
-        int x = channels[0].cols / 2 - psfWidth / 2;
-        int y = channels[0].rows / 2 - psfWidth / 2;
-        swapQuadrants(channels[0]);
-        Mat kernelROI = channels[0](Rect(x, y, psfWidth, psfWidth));
+        int x = kernel.cols / 2 - psfWidth / 2;
+        int y = kernel.rows / 2 - psfWidth / 2;
+        swapQuadrants(kernel);
+        Mat kernelROI = kernel(Rect(x, y, psfWidth, psfWidth));
 
+        // important to copy the roi - otherwise for padding the originial image
+        // will be used (we don't want this behavior)
         kernelROI.copyTo(psf);
 
-        #ifndef NDEBUG
-            Mat kernelUchar;
-            convertFloatToUchar(channels[0], kernelUchar);
-            imshow("full psf", kernelUchar);
-            waitKey(0);
-        #endif
+        // #ifndef NDEBUG
+        //     Mat kernelUchar;
+        //     convertFloatToUchar(kernel, kernelUchar);
+        //     imshow("full psf", kernelUchar);
+        //     waitKey(0);
+        // #endif
     }
 
 
-    void IterativePSF::gradientComputation() {
-        // compute enhanced gradients for regions
-        std::array<cv::Mat,2> enhancedGradsR, enhancedGradsL;
-
-        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsL);
-        gradientMaps(*(regionTree.images[RegionTree::LEFT]), enhancedGradsR);
-
-        // norm the gradients
-        normalize(enhancedGradsR[0], enhancedGradsRight[0], -255, 255);
-        normalize(enhancedGradsR[1], enhancedGradsRight[1], -255, 255);
-        normalize(enhancedGradsL[0], enhancedGradsLeft[0], -255, 255);
-        normalize(enhancedGradsL[1], enhancedGradsLeft[1], -255, 255);
-
-
+    void IterativePSF::computeBlurredGradients() {
         // compute simple gradients for blurred images
         std::array<cv::Mat,2> gradsR, gradsL;
 
@@ -219,17 +215,256 @@ namespace DepthAwareDeblurring {
               ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
         // norm the gradients
-        normalize(gradsR[0], gradsRight[0], -255, 255);
-        normalize(gradsR[1], gradsRight[1], -255, 255);
-        normalize(gradsL[0], gradsLeft[0], -255, 255);
-        normalize(gradsL[1], gradsLeft[1], -255, 255);
+        normalize(gradsR[0], gradsRight[0], -1, 1);
+        normalize(gradsR[1], gradsRight[1], -1, 1);
+        normalize(gradsL[0], gradsLeft[0], -1, 1);
+        normalize(gradsL[1], gradsLeft[1], -1, 1);
+    }
+
+
+    void IterativePSF::estimateChildPSF(int id) {
+        // get masks for regions of both views
+        Mat maskM, maskR;
+        regionTree.getMasks(id, maskM, maskR);
+
+        // get parent id
+        int parent = regionTree[id].parent;
+
+        // compute salient edge map ∇S_i for region
+        // 
+        // deblur the current views with psf from parent
+        Mat deblurredLeft, deblurredRight;
+        deconvolve(*(regionTree.images[RegionTree::LEFT]), deblurredLeft, regionTree[parent].psf);
+        deconvolve(*(regionTree.images[RegionTree::RIGHT]), deblurredRight, regionTree[parent].psf);
+
+        // compute a gradient image with salient edge (they are normalized to [-1, 1])
+        array<Mat,2> salientEdgesLeft, salientEdgesRight;
+        computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
+        computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
+
+        // #ifndef NDEBUG
+        //     showFloat("salient edges left x", salientEdgesLeft[0]);
+        //     showFloat("salient edges right x", salientEdgesRight[0]);
+        //     waitKey();
+        // #endif
+
+        // estimate psf for the first child node
+        jointPSFEstimation(maskM, maskR, salientEdgesLeft, salientEdgesRight, regionTree[id].psf);
+    }
+
+
+    float IterativePSF::computeEntropy(Mat& kernel) {
+        assert(kernel.type() == CV_32F && "works with float values");
+
+        float entropy = 0.0;
+
+        // go through all pixel of the kernel
+        for (int row = 0; row < kernel.rows; row++) {
+            for (int col = 0; col < kernel.cols; col++) {
+                float x = kernel.at<float>(row, col);
+                
+                // prevent caculation of log(0)
+                if (x > 0) {
+                    entropy += x * log(x);
+                }
+            }
+        }
+
+        entropy = -1 * entropy;
+
+        return entropy; 
+    }
+
+
+    void IterativePSF::candidateSelection(vector<Mat>& candiates, int id, int sid) {
+        // own psf is added as candidate
+        candiates.push_back(regionTree[id].psf);
+
+        // psf of parent is added as candidate
+        int pid = regionTree[id].parent;
+        candiates.push_back(regionTree[pid].psf);
+
+        // add sibbling psf just if it is reliable
+        // this means: entropy - mean < threshold
+        float mean = (regionTree[id].entropy + regionTree[sid].entropy) / 2.0;
+
+        // emperically choosen threshold
+        float threshold = 0.2 * mean;
+
+        if (regionTree[sid].entropy - mean < threshold) {
+            candiates.push_back(regionTree[sid].psf);
+        }
+    }
+
+
+    void IterativePSF::psfSelection(vector<Mat>& candiates, int id) {
+        float minEnergy = 2;
+        int winner = 0;
+        
+        for (int i = 0; i < candiates.size(); i++) {
+            // get mask of this region
+            Mat mask;
+            regionTree.getMask(id, mask, RegionTree::LEFT);
+
+            // compute latent image
+            Mat latent;
+            // FIXME: latent image just of one view?
+            deconvolve(*(regionTree.images[RegionTree::LEFT]), latent, candiates[i]);
+
+            // slightly Gaussian smoothed
+            // use the complete image to avoid unwanted effects at the borders
+            Mat smoothed;
+            GaussianBlur(latent, smoothed, Size(5, 5), 0, 0, BORDER_DEFAULT);
+            
+            // shock filtered
+            Mat shockFiltered;
+            coherenceFilter(smoothed, shockFiltered);
+
+            // #ifndef NDEBUG
+            //     imshow("latent region", latentShock);
+            //     waitKey();
+            // #endif
+            
+            
+            // compute correlation of the latent image and the shockfiltered image
+            float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
+            cout << energy << endl;
+
+            if (energy < minEnergy) {
+                winner = i;
+            }
+        }
+
+        // save the winner of the psf selection in the current node
+        candiates[winner].copyTo(regionTree[id].psf);
+    }
+
+
+    float IterativePSF::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
+        assert(mask.type() == CV_8U && "mask is uchar image with zeros and ones");
+
+        // compute gradients
+        // parameter for sobel filtering to obtain gradients
+        array<Mat,2> tmpGrads1, tmpGrads2;
+        const int delta = 0;
+        const int ddepth = CV_32F;
+        const int ksize = 3;
+        const int scale = 1;
+
+        // gradient x and y for both images
+        Sobel(image1, tmpGrads1[0], ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(image1, tmpGrads1[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(image2, tmpGrads2[0], ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(image2, tmpGrads2[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+
+        // compute single channel gradient image
+        Mat gradients1, gradients2;
+        normedGradients(tmpGrads1, gradients1);
+        normedGradients(tmpGrads2, gradients2);
+
+        // norm gradients to [0,1]
+        double min; double max;
+        minMaxLoc(gradients1, &min, &max);
+        gradients1 /= max;
+        minMaxLoc(gradients2, &min, &max);
+        gradients2 /= max;
+
+        // cut of region
+        Mat X, Y;
+        gradients1.copyTo(X, mask);
+        gradients2.copyTo(Y, mask);
+
+       
+        // compute correlation
+        //
+        // compute mean of the matrices
+        // use just the pixel inside the mask
+        float meanX = 0;
+        float meanY = 0;
+        float N = 0;
+
+        for (int row = 0; row < X.rows; row++) {
+            for (int col = 0; col < X.cols; col++) {
+                // compute if inside mask (0 - ouside, 255 -inside)
+                if (mask.at<uchar>(row, col) > 0) {
+                    // expected values                
+                    meanX += X.at<float>(row, col);
+                    meanY += Y.at<float>(row, col);
+                    N += 1;
+                }
+            }
+        }
+
+        meanX /= N;
+        meanY /= N;
+        
+        cout << "means: " << meanX << " " << meanY << endl;
+
+        // expected value can be computed using the mean:
+        // E(X - μx) = 1/N * sum_x(x - μx) ... denoted as Ex
+        float Ex = 0;
+        float Ey = 0;
+
+        // deviation = sqrt(1/N * sum_x(x - μx)²)
+        float deviationX = 0;
+        float deviationY = 0;
+
+        assert(X.size() == Y.size() && "images of same size");
+        
+        // go through each gradient map and
+        // compute the sums in the computation of expedted values and deviations
+        for (int row = 0; row < X.rows; row++) {
+            for (int col = 0; col < X.cols; col++) {
+                // compute if inside mask
+                if (mask.at<uchar>(row, col) > 0) {
+                    float valueX = X.at<float>(row, col) - meanX;
+                    float valueY = Y.at<float>(row, col) - meanY;
+
+                    // expected values                
+                    Ex += valueX;
+                    Ey += valueY;
+
+                    // deviation
+                    deviationX += (valueX * valueX);
+                    deviationY += (valueY * valueY);
+                }
+            }
+        }
+
+        // // FIXME: does the paper use the corr2 function of matlab?
+        // // I think so
+        // 
+        // // divide through number of pixel       
+        // Ex /= N;
+        // Ey /= N;
+        // deviationX = sqrt(deviationX / N);
+        // deviationY = sqrt(deviationY / N);
+    
+        cout << " E (" << Ex << "," << Ey    << ")" << endl;
+        
+        deviationX = sqrt(deviationX);
+        deviationY = sqrt(deviationY);
+
+        cout << " deviations (" << deviationX << "," << deviationY    << ")" << endl;
+        float correlation = (Ex * Ey) / (deviationX * deviationY);
+        cout << "correlation " << correlation << endl;
+
+
+        // #ifndef NDEBUG
+        //     // showFloat("gradients x", tmpGrads[0]);
+        //     // showFloat("gradients y", tmpGrads[1]);
+        //     showFloat("combined gradients X", X);
+        //     showFloat("combined gradients Y", Y);
+        //     waitKey();
+        // #endif
+
+        return correlation;
     }
 
 
     void IterativePSF::midLevelKernelEstimation() {
-        // we can compute the enhanced gradients for each blurred image ones
-        // and later cut off the necessary regions ∇S_i
-        gradientComputation();
+        // we can compute the gradients for each blurred image ones
+        computeBlurredGradients();
 
         // go through all nodes of the region tree in a top-down manner
         // 
@@ -254,30 +489,35 @@ namespace DepthAwareDeblurring {
             remainingNodes.pop();
 
             // get IDs of the child nodes
-            int cId1 = regionTree[id].children.first;
-            int cId2 = regionTree[id].children.second;
+            int cid1 = regionTree[id].children.first;
+            int cid2 = regionTree[id].children.second;
 
             // do PSF computation for a middle node with its children
             // (leaf nodes doesn't have any children)
-            if (cId1 != -1 && cId2 != -1) {
+            if (cid1 != -1 && cid2 != -1) {
                 // add children ids to the back of the queue
                 remainingNodes.push(regionTree[id].children.first);
                 remainingNodes.push(regionTree[id].children.second);
 
                 // PSF estimation for each children
-                Mat maskM, maskR;
+                // (salient edge map computation and joint psf estimation)
+                estimateChildPSF(cid1);
+                estimateChildPSF(cid2);
 
-                // estimate psf for the first child node
-                regionTree.getMasks(cId1, maskM, maskR);
-                jointPSFEstimation(maskM, maskR, regionTree[cId1].psf);
+                // to eliminate errors
+                //
+                // calucate entropy of the found psf
+                regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
+                regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
-                // estimate psf for the second child node
-                regionTree.getMasks(cId2, maskM, maskR);
-                jointPSFEstimation(maskM, maskR, regionTree[cId2].psf);
+                // candiate selection
+                vector<Mat> candiates1, candiates2;
+                candidateSelection(candiates1, cid1, cid2);
+                candidateSelection(candiates2, cid2, cid1);
 
-
-                // to eliminate errors make a candidate selection
-                // TODO: continue
+                // final psf selection
+                psfSelection(candiates1, cid1);
+                psfSelection(candiates2, cid2);
             }
         }
     }

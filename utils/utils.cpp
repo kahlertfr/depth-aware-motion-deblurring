@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "utils.hpp"
 
 using namespace cv;
@@ -143,6 +145,19 @@ namespace deblur {
 
         } else {
             assert(false && "Input must have 1- or 2-channels");
+        }
+    }
+
+
+    void normedGradients(array<Mat, 2>& gradients, Mat& gradient) {
+        gradient = Mat::zeros(gradients[0].size(), CV_32F);
+
+        for (int row = 0; row < gradient.rows; row++) {
+            for (int col = 0; col < gradient.cols; col++) {
+                float value = gradients[0].at<float>(row, col) * gradients[0].at<float>(row, col) 
+                              + gradients[1].at<float>(row, col) * gradients[1].at<float>(row, col);
+                gradient.at<float>(row, col) = sqrt(value);
+            }
         }
     }
 }

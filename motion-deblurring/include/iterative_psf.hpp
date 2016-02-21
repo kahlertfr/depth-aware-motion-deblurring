@@ -31,8 +31,8 @@ namespace DepthAwareDeblurring {
         /**
          * Estimates the PSFs of the top-level regions.
          *
-         * Because the algorithm for estimation isn't working yet it loads
-         * kernel images as initial kernel estimation.
+         * There is a possibility to load kernel-images because
+         * the used algorithm doesn't work very well.
          * 
          * @param filePrefix for loading kernel images
          */
@@ -59,26 +59,12 @@ namespace DepthAwareDeblurring {
         RegionTree regionTree;
 
         /**
-         * Enhanced gradients (using bilateral and shock filtering) of left image
-         * in x and y direction
-         */
-        std::array<cv::Mat,2> enhancedGradsLeft;
-
-        /**
-         * Enhanced gradients (using bilateral and shock filtering) of right image
-         * in x and y direction
-         */
-        std::array<cv::Mat,2> enhancedGradsRight;
-
-        /**
-         * Enhanced gradients (using bilateral and shock filtering) of left image
-         * in x and y direction
+         * Gradients of left image in x and y direction
          */
         std::array<cv::Mat,2> gradsLeft;
 
         /**
-         * Enhanced gradients (using bilateral and shock filtering) of right image
-         * in x and y direction
+         * Gradients of right image in x and y direction
          */
         std::array<cv::Mat,2> gradsRight;
 
@@ -89,12 +75,76 @@ namespace DepthAwareDeblurring {
          * @param maskRight      mask for region of reference view
          * @param psf            resulting psf
          */
-        void jointPSFEstimation(const cv::Mat& maskLeft, const cv::Mat& maskRight, cv::Mat& psf);
+        void jointPSFEstimation(const cv::Mat& maskLeft, const cv::Mat& maskRight,
+                                const std::array<cv::Mat,2>& salientEdgesLeft,
+                                const std::array<cv::Mat,2>& salientEdgesRight, cv::Mat& psf);
 
         /**
-         * Computes the enhanced and simple gradients
+         * Computes gradients of the two blurred images
          */
-        void gradientComputation();
+        void computeBlurredGradients();
+
+        /**
+         * Executes a joint psf estimation after computing the salient edge map of
+         * this region node and saves the psf in the region tree.
+         * 
+         * @param id     current node
+         */
+        void estimateChildPSF(int id);
+
+        /**
+         * Calculates the entropy of the kernel
+         *
+         * H(k) = -1 * sum_x(x*log(x))
+         * 
+         * @param  kernel [description]
+         * @return        [description]
+         */
+        float computeEntropy(cv::Mat& kernel);
+
+        /**
+         * Selects candiates for psf selection
+         * 
+         * The following psfs are candidates:
+         *      - own psf (also it may be unreliable)
+         *      - parent psf
+         *      - reliable sibbling psf
+         *      
+         * @param candiates resulting vector of candidates
+         * @param id        current node id
+         * @param sId       sibbling node id
+         */
+        void candidateSelection(std::vector<cv::Mat>& candiates, int id, int sId);
+
+        /**
+         * Selects a suitable PSF for the given Node
+         *
+         * @param candiates possible PSFs
+         * @param id        node ID
+         */
+        void psfSelection(std::vector<cv::Mat>& candiates, int id);
+
+        /**
+         * Computed the correlation of gradient magnitudes inside the same region
+         * of two images.
+         *
+         * X and Y are normed gradients ∥∇I∥_2
+         *
+         *              E(X - μx) * E(Y - μy)
+         * corr(X,Y) = ----------------------
+         *                     σx * σy
+         *
+         * where E is the expectation operator
+         *       σ is signal standard deviation
+         *       μ is signal standard mean
+         * 
+         * @param  image1 first image
+         * @param  image2 second image
+         * @param  mask   mask of the region
+         * @return        correlation value
+         */
+        float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask);
+
     };
 }
 

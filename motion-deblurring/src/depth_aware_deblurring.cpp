@@ -160,6 +160,8 @@ namespace DepthAwareDeblurring {
 
         cout << "Step 2: region tree reconstruction ..." << endl;
         cout << " ... tree for d_m and d_r" << endl;
+        // it is essential for the psfEstimator to work on a region tree
+        // that's why this tree is build inside the constructor
         IterativePSF psfEstimator = IterativePSF(disparityMapM, disparityMapR,
                                                  regions, &grayLeft, &grayRight,
                                                  maxTopLevelNodes, psfWidth);
@@ -171,7 +173,6 @@ namespace DepthAwareDeblurring {
         psfEstimator.toplevelKernelEstimation("left");
 
         cout << "Step 3.1: Iterative PSF estimation" << endl;
-
         cout << "... jointly compute PSF for middle & leaf level-regions of both views" << endl;
         psfEstimator.midLevelKernelEstimation();
 

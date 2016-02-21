@@ -78,6 +78,15 @@ namespace deblur {
     void showComplexImage(const std::string windowName, const cv::Mat& complex);
 
     /**
+     * Computes one channel gradients:
+     *     sqrt(x² + y²)
+     * 
+     * @param gradients gradients of x- and y-direction
+     * @param gradient  resulting combined gradients
+     */
+    void normedGradients(std::array<cv::Mat, 2>& gradients, cv::Mat& gradient);
+
+    /**
      * Normalizes an input array into range [-1, 1] by conserving
      * zero.
      *
@@ -137,7 +146,6 @@ namespace deblur {
     inline void normalizeOne(std::vector<cv::Mat>& input) {
         normalizeOne<std::vector<cv::Mat>>(input, input);
     }
-
 }
 
 #endif
