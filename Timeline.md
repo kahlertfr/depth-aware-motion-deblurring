@@ -38,7 +38,7 @@ End: 21.03.2016
 - Week 13 (25.01.): top-level PSF computation (workaround)
 - Week 14 (01.02.): solve FFT-problems (tried)
 - Week 15 (08.02.): solve FFT-problems (done)
-- Week 16 (15.02.): iterative PSF computation
+- Week 16 (15.02.): iterative PSF computation (done)
 - Week 17 (22.02.): blur removal and second-pass estimation
 
 
