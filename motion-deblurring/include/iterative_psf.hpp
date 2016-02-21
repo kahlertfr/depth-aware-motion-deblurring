@@ -124,6 +124,27 @@ namespace DepthAwareDeblurring {
          */
         void psfSelection(std::vector<cv::Mat>& candiates, int id);
 
+        /**
+         * Computed the correlation of gradient magnitudes inside the same region
+         * of two images.
+         *
+         * X and Y are normed gradients ∥∇I∥_2
+         *
+         *              E(X - μx) * E(Y - μy)
+         * corr(X,Y) = ----------------------
+         *                     σx * σy
+         *
+         * where E is the expectation operator
+         *       σ is signal standard deviation
+         *       μ is signal standard mean
+         * 
+         * @param  image1 first image
+         * @param  image2 second image
+         * @param  mask   mask of the region
+         * @return        correlation value
+         */
+        float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask);
+
     };
 }
 

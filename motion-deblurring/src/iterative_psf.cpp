@@ -8,6 +8,7 @@
 #include "edge_map.hpp"
 #include "two_phase_psf_estimation.hpp"
 #include "deconvolution.hpp"
+#include "coherence_filter.hpp"
 
 #include "iterative_psf.hpp"
 
@@ -290,19 +291,174 @@ namespace DepthAwareDeblurring {
         // emperically choosen threshold
         float threshold = 0.2 * mean;
 
-        // cout << "entropy (" << id << "," << sid << "): " << regionTree[id].entropy << " " << regionTree[sid].entropy;
-        // cout << " mean: " << mean << " thres: " << threshold << endl;
-
         if (regionTree[sid].entropy - mean < threshold) {
             candiates.push_back(regionTree[sid].psf);
         }
-
-        // cout << "candidate number: " << candiates.size() << endl;
     }
 
 
     void IterativePSF::psfSelection(vector<Mat>& candiates, int id) {
+        float minEnergy = 2;
+        int winner = 0;
+        
+        for (int i = 0; i < candiates.size(); i++) {
+            // get mask of this region
+            Mat mask;
+            regionTree.getMask(id, mask, RegionTree::LEFT);
 
+            // compute latent image
+            Mat latent;
+            // FIXME: latent image just of one view?
+            deconvolve(*(regionTree.images[RegionTree::LEFT]), latent, candiates[i]);
+
+            // slightly Gaussian smoothed
+            // use the complete image to avoid unwanted effects at the borders
+            Mat smoothed;
+            GaussianBlur(latent, smoothed, Size(5, 5), 0, 0, BORDER_DEFAULT);
+            
+            // shock filtered
+            Mat shockFiltered;
+            coherenceFilter(smoothed, shockFiltered);
+
+            // #ifndef NDEBUG
+            //     imshow("latent region", latentShock);
+            //     waitKey();
+            // #endif
+            
+            
+            // compute correlation of the latent image and the shockfiltered image
+            float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
+            cout << energy << endl;
+
+            if (energy < minEnergy) {
+                winner = i;
+            }
+        }
+
+        // save the winner of the psf selection in the current node
+        candiates[winner].copyTo(regionTree[id].psf);
+    }
+
+
+    float IterativePSF::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
+        assert(mask.type() == CV_8U && "mask is uchar image with zeros and ones");
+
+        // compute gradients
+        // parameter for sobel filtering to obtain gradients
+        array<Mat,2> tmpGrads1, tmpGrads2;
+        const int delta = 0;
+        const int ddepth = CV_32F;
+        const int ksize = 3;
+        const int scale = 1;
+
+        // gradient x and y for both images
+        Sobel(image1, tmpGrads1[0], ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(image1, tmpGrads1[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(image2, tmpGrads2[0], ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
+        Sobel(image2, tmpGrads2[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
+
+        // compute single channel gradient image
+        Mat gradients1, gradients2;
+        normedGradients(tmpGrads1, gradients1);
+        normedGradients(tmpGrads2, gradients2);
+
+        // norm gradients to [0,1]
+        double min; double max;
+        minMaxLoc(gradients1, &min, &max);
+        gradients1 /= max;
+        minMaxLoc(gradients2, &min, &max);
+        gradients2 /= max;
+
+        // cut of region
+        Mat X, Y;
+        gradients1.copyTo(X, mask);
+        gradients2.copyTo(Y, mask);
+
+       
+        // compute correlation
+        //
+        // compute mean of the matrices
+        // use just the pixel inside the mask
+        float meanX = 0;
+        float meanY = 0;
+        float N = 0;
+
+        for (int row = 0; row < X.rows; row++) {
+            for (int col = 0; col < X.cols; col++) {
+                // compute if inside mask (0 - ouside, 255 -inside)
+                if (mask.at<uchar>(row, col) > 0) {
+                    // expected values                
+                    meanX += X.at<float>(row, col);
+                    meanY += Y.at<float>(row, col);
+                    N += 1;
+                }
+            }
+        }
+
+        meanX /= N;
+        meanY /= N;
+        
+        cout << "means: " << meanX << " " << meanY << endl;
+
+        // expected value can be computed using the mean:
+        // E(X - μx) = 1/N * sum_x(x - μx) ... denoted as Ex
+        float Ex = 0;
+        float Ey = 0;
+
+        // deviation = sqrt(1/N * sum_x(x - μx)²)
+        float deviationX = 0;
+        float deviationY = 0;
+
+        assert(X.size() == Y.size() && "images of same size");
+        
+        // go through each gradient map and
+        // compute the sums in the computation of expedted values and deviations
+        for (int row = 0; row < X.rows; row++) {
+            for (int col = 0; col < X.cols; col++) {
+                // compute if inside mask
+                if (mask.at<uchar>(row, col) > 0) {
+                    float valueX = X.at<float>(row, col) - meanX;
+                    float valueY = Y.at<float>(row, col) - meanY;
+
+                    // expected values                
+                    Ex += valueX;
+                    Ey += valueY;
+
+                    // deviation
+                    deviationX += (valueX * valueX);
+                    deviationY += (valueY * valueY);
+                }
+            }
+        }
+
+        // // FIXME: does the paper use the corr2 function of matlab?
+        // // I think so
+        // 
+        // // divide through number of pixel       
+        // Ex /= N;
+        // Ey /= N;
+        // deviationX = sqrt(deviationX / N);
+        // deviationY = sqrt(deviationY / N);
+    
+        cout << " E (" << Ex << "," << Ey    << ")" << endl;
+        
+        deviationX = sqrt(deviationX);
+        deviationY = sqrt(deviationY);
+
+        cout << " deviations (" << deviationX << "," << deviationY    << ")" << endl;
+        float correlation = (Ex * Ey) / (deviationX * deviationY);
+        cout << "correlation " << correlation << endl;
+
+
+        // #ifndef NDEBUG
+        //     // showFloat("gradients x", tmpGrads[0]);
+        //     // showFloat("gradients y", tmpGrads[1]);
+        //     showFloat("combined gradients X", X);
+        //     showFloat("combined gradients Y", Y);
+        //     waitKey();
+        // #endif
+
+        return correlation;
     }
 
 
@@ -362,8 +518,6 @@ namespace DepthAwareDeblurring {
                 // final psf selection
                 psfSelection(candiates1, cid1);
                 psfSelection(candiates2, cid2);
-
-                // TODO: continue
             }
         }
     }
