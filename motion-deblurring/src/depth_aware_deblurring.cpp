@@ -6,6 +6,7 @@
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "iterative_psf.hpp"
 #include "utils.hpp"                    // convertFloatToUchar
+#include "deconvolution.hpp"
 
 #include "depth_aware_deblurring.hpp"
 
@@ -139,44 +140,61 @@ namespace DepthAwareDeblurring {
         #endif
 
 
-        // initial disparity estimation of blurred images
-        // here: left image is matching image and right image is reference image
-        //       I_m(x) = I_r(x + d_m(x))
-        cout << "Step 1: disparity estimation - ";
-        Mat disparityMapM;  // disparity map of [m]atching view: left to rigth disparity
-        Mat disparityMapR;  // disparity map of [r]eference view: right to left disparity
+        // input images at each iteration step
+        Mat left, right;
+        grayLeft.copyTo(left);
+        grayRight.copyTo(right);
 
-        // quantization factor is approximated PSF width/height
-        // set it to an even number because this is usefull for the region tree construction
-        int regions = (psfWidth % 2 == 0) ? psfWidth : psfWidth - 1;
-        cout << "quantized to " << regions << " regions ..." << endl;
+        // two passes through algorithm
+        for (int i = 0; i < 2; i++) {
+            cout << i + 1 << ". Pass Estimation" << endl;
 
-        cout << " ... d_m: left to right" << endl;
-        quantizedDisparityEstimation(grayLeft, grayRight, regions, disparityMapM);
+            // initial disparity estimation of blurred images
+            // here: left image is matching image and right image is reference image
+            //       I_m(x) = I_r(x + d_m(x))
+            cout << " Step 1: disparity estimation - ";
+            Mat disparityMapM;  // disparity map of [m]atching view: left to rigth disparity
+            Mat disparityMapR;  // disparity map of [r]eference view: right to left disparity
 
-        cout << " ... d_r: right to left" << endl;
-        quantizedDisparityEstimation(grayRight, grayLeft, regions, disparityMapR, true);
-        
+            // quantization factor is approximated PSF width/height
+            // set it to an even number because this is usefull for the region tree construction
+            int regions = (psfWidth % 2 == 0) ? psfWidth : psfWidth - 1;
+            cout << "quantized to " << regions << " regions ..." << endl;
 
-        cout << "Step 2: region tree reconstruction ..." << endl;
-        cout << " ... tree for d_m and d_r" << endl;
-        // it is essential for the psfEstimator to work on a region tree
-        // that's why this tree is build inside the constructor
-        IterativePSF psfEstimator = IterativePSF(disparityMapM, disparityMapR,
-                                                 regions, &grayLeft, &grayRight,
-                                                 maxTopLevelNodes, psfWidth);
+            cout << "  ... d_m: left to right" << endl;
+            quantizedDisparityEstimation(grayLeft, grayRight, regions, disparityMapM);
+
+            cout << "  ... d_r: right to left" << endl;
+            quantizedDisparityEstimation(grayRight, grayLeft, regions, disparityMapR, true);
+            
+
+            cout << " Step 2: region tree reconstruction ..." << endl;
+            cout << "  ... tree for d_m and d_r" << endl;
+            // it is essential for the psfEstimator to work on a region tree
+            // that's why this tree is build inside the constructor
+            IterativePSF psfEstimator = IterativePSF(disparityMapM, disparityMapR,
+                                                     regions, &grayLeft, &grayRight,
+                                                     maxTopLevelNodes, psfWidth);
 
 
-        // compute PSFs for toplevels of the region trees
-        cout << "Step 3: PSF estimation for top-level regions in trees" << endl;
-        cout << " ... top-level regions of d_m" << endl;
-        psfEstimator.toplevelKernelEstimation("left");
+            // compute PSFs for toplevels of the region trees
+            cout << " Step 3: PSF estimation for top-level regions in trees" << endl;
+            cout << "  ... top-level regions of d_m" << endl;
+            psfEstimator.toplevelKernelEstimation("left");
 
-        cout << "Step 3.1: Iterative PSF estimation" << endl;
-        cout << "... jointly compute PSF for middle & leaf level-regions of both views" << endl;
-        psfEstimator.midLevelKernelEstimation();
 
-        // TODO: to be continued ...
+            cout << " Step 3.1: Iterative PSF estimation" << endl;
+            cout << "   ... jointly compute PSF for middle & leaf level-regions of both views" << endl;
+            psfEstimator.midLevelKernelEstimation();
+
+            // cout << " Step 4: Blur removal given PSF estimate"
+            // deconvolveIRLS();
+            
+            // TODO: deconvolve images
+            // TODO: set new left and right input image 
+            // TODO: update parameters
+            i++; // for debugging without second pass
+        }
         
         cout << "finished Algorithm" << endl;
 
