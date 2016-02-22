@@ -410,7 +410,7 @@ namespace deblur {
         meanX /= N;
         meanY /= N;
         
-        cout << "means: " << meanX << " " << meanY << endl;
+        // cout << "means: " << meanX << " " << meanY << endl;
 
         // expected value can be computed using the mean:
         // E(X - μx) = 1/N * sum_x(x - μx) ... denoted as Ex
@@ -452,14 +452,14 @@ namespace deblur {
         // deviationX = sqrt(deviationX / N);
         // deviationY = sqrt(deviationY / N);
     
-        cout << " E (" << Ex << "," << Ey    << ")" << endl;
+        // cout << " E (" << Ex << "," << Ey    << ")" << endl;
         
         deviationX = sqrt(deviationX);
         deviationY = sqrt(deviationY);
 
-        cout << " deviations (" << deviationX << "," << deviationY    << ")" << endl;
-        float correlation = (Ex * Ey) / (deviationX * deviationY);
-        cout << "correlation " << correlation << endl;
+        // cout << " deviations (" << deviationX << "," << deviationY    << ")" << endl;
+        // float correlation = (Ex * Ey) / (deviationX * deviationY);
+        // cout << "correlation " << correlation << endl;
 
 
         // #ifndef NDEBUG
