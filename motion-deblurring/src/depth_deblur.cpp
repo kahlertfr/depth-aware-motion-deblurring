@@ -22,7 +22,7 @@ namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat* imageLeft, Mat* imageRight, const int width)
                             : psfWidth(width)
-                            , layers((psfWidth % 2 == 0) ? psfWidth : psfWidth - 1)
+                            , layers((width % 2 == 0) ? width : width - 1)
                             , images({imageLeft, imageRight})
     {
 
