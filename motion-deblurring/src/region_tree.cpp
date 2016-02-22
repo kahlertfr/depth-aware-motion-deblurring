@@ -10,7 +10,7 @@ using namespace cv;
 using namespace std;
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
     RegionTree::RegionTree(){}
 

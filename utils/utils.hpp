@@ -21,6 +21,12 @@
 
 namespace deblur {
 
+    /**
+     * Enumeration for conviniend call of two views
+     */
+    enum view { LEFT, RIGHT };
+    
+
     inline float norm(float a, float b) {
         return sqrt(a * a + b * b);
     }

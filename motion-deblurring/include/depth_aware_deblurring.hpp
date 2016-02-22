@@ -32,7 +32,7 @@
 #include <opencv2/opencv.hpp> // cv::Mat
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
     /**
      * Starts depth-aware motion deblurring algorithm with given blurred images (matrices)
@@ -42,7 +42,7 @@ namespace DepthAwareDeblurring {
      * @param psfWidth          approximate PSF width
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
      */
-    void runAlgorithm(const cv::Mat &blurredLeft, const cv::Mat &blurredRight, const int psfWidth=24,
+    void depthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight, const int psfWidth=24,
                       const int maxTopLevelNodes=3);
 
     /**
@@ -54,7 +54,7 @@ namespace DepthAwareDeblurring {
      * @param psfWidth          approximate PSF width
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
      */
-    void runAlgorithm(const std::string filenameLeft, const std::string filenameRight, const int psfWidth=24,
+    void depthDeblur(const std::string filenameLeft, const std::string filenameRight, const int psfWidth=24,
                       const int maxTopLevelNodes=3);
 
 }

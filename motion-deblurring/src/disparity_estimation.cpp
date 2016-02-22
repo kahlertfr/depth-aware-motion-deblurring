@@ -9,7 +9,84 @@ using namespace cv;
 using namespace std;
 
 
-namespace DisparityEstimation {
+namespace deblur {
+
+        void quantizedDisparityEstimation(const Mat& blurredLeft, const Mat& blurredRight,
+                                          int l, Mat& disparityMap, bool inverse) {
+
+        assert(blurredLeft.type() == CV_8U && "gray values needed");
+
+        // down sample images to roughly reduce blur for disparity estimation
+        Mat blurredLeftSmall, blurredRightSmall;
+
+        // because we checked that both images are of the same size
+        // the new size is the same for both too
+        // (down sampling ratio is 2)
+        Size downsampledSize = Size(blurredLeftSmall.cols / 2, blurredLeftSmall.rows / 2);
+
+        // down sample with Gaussian pyramid
+        pyrDown(blurredLeft, blurredLeftSmall, downsampledSize);
+        pyrDown(blurredRight, blurredRightSmall, downsampledSize);
+
+        // disparity map with occlusions as black regions
+        // 
+        // here a different algorithm as the paper approach is used
+        // because it is more convenient to use a OpenCV implementation.
+        // TODO: functions pointer
+        Mat disparityMapSmall;
+
+        // if the disparity is caculated from right to left flip the images
+        // because otherwise SGBM will not work
+        if (inverse) {
+            Mat blurredLeftFlipped, blurredRightFlipped;
+            flip(blurredLeftSmall, blurredLeftFlipped, 1);
+            flip(blurredRightSmall, blurredRightFlipped, 1);
+            blurredLeftFlipped.copyTo(blurredLeftSmall);
+            blurredRightFlipped.copyTo(blurredRightSmall);
+        }
+
+        semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
+
+        // flip back the disparity map
+        if (inverse) {
+            Mat disparityFlipped;
+            flip(disparityMapSmall, disparityFlipped, 1);
+            disparityFlipped.copyTo(disparityMapSmall);
+        }
+
+        // #ifndef NDEBUG
+        //     string prefix = (inverse) ? "_inverse" : "";
+        //     // imshow("original disparity map " + prefix, disparityMapSmall);
+        //     imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
+        // #endif
+
+        // fill occlusion regions (= value < 10)
+        fillOcclusionRegions(disparityMapSmall, 10);
+
+        // #ifndef NDEBUG
+        //     // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
+        //     imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
+        // #endif
+
+        // quantize the image
+        Mat quantizedDisparity;
+        quantizeImage(disparityMapSmall, l, quantizedDisparity);
+
+        // #ifndef NDEBUG
+        //     // convert quantized image to be displayable
+        //     Mat disparityViewable;
+        //     double min; double max;
+        //     minMaxLoc(quantizedDisparity, &min, &max);
+        //     quantizedDisparity.convertTo(disparityViewable, CV_8U, 255.0/(max-min));
+
+        //     imshow("quantized disparity map " + prefix, disparityViewable);
+        //     imwrite("dmap_final" + prefix + ".jpg", disparityViewable);
+        // #endif
+
+        // up sample disparity map to original resolution
+        pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
+    }
+
 
     /**
      * Fills pixel in a given range with a given uchar.
@@ -28,7 +105,7 @@ namespace DisparityEstimation {
     }
 
 
-    void fillOcclusionRegions(Mat &disparityMap, const int threshold) {
+    void fillOcclusionRegions(Mat& disparityMap, const int threshold) {
         assert(disparityMap.type() == CV_8U && "gray values needed");
 
         uchar minDisparity = 255;
@@ -65,7 +142,7 @@ namespace DisparityEstimation {
     }
 
 
-    void semiGlobalBlockMatching(const Mat &left, const Mat &right, Mat &disparityMap) {
+    void semiGlobalBlockMatching(const Mat& left, const Mat& right, Mat& disparityMap) {
         // set up stereo block match algorithm
         // (found nice parameter values for a good result on many images)
         int minDis = -64;             // minimum disparity

@@ -5,12 +5,11 @@
 
 using namespace cv;
 using namespace std;
-using namespace deblur;
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
-    void deconvolve(Mat src, Mat& dst, Mat& kernel, float weight){
+    void deconvolveFFT(Mat src, Mat& dst, Mat& kernel, float weight){
         assert(src.type() == CV_8U && "works on gray value images");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
@@ -108,10 +107,10 @@ namespace DepthAwareDeblurring {
         Mat q3(deconv, Rect(x - hs1, y - hs2, hs1, hs2));  // Bottom-Right
 
         Mat deconvSwap;
-        cv::hconcat(q3, q2, deconvSwap);
+        hconcat(q3, q2, deconvSwap);
         Mat tmp;
-        cv::hconcat(q1, q0, tmp);
-        cv::vconcat(deconvSwap, tmp, deconvSwap);
+        hconcat(q1, q0, tmp);
+        vconcat(deconvSwap, tmp, deconvSwap);
         deconvSwap.copyTo(deconv);
 
 
@@ -124,4 +123,31 @@ namespace DepthAwareDeblurring {
         convertFloatToUchar(deconv, dst);
     }
 
+
+    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel) {
+        assert(src.type() == CV_8U && "works on gray value images");
+        assert(kernel.type() == CV_32F && "works with energy preserving kernel");
+
+        // half filter size
+        // FIXME: kernel size has to be odd
+        int hfsX = kernel.cols / 2;
+        int hfsY = kernel.rows / 2;
+
+        // new image dimensions = old + filter size
+        int m = 2 * hfsX + src.cols;
+        int n = 2 * hfsY + src.rows;
+
+        // create mask with m columns and n rows with ones except for a boundary
+        // of the half filter size in all directions
+        // 
+        // mask with ones of image size
+        Mat tmpMask = Mat::ones(src.size(), CV_32FC2);
+
+        // add boundary with zeros
+        Mat mask;
+        copyMakeBorder(tmpMask, mask, 0, n, 0, m,
+                       BORDER_CONSTANT, Scalar::all(0));
+
+        showFloat("mask", mask);
+    }
 }

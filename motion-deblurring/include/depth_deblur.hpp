@@ -4,29 +4,45 @@
  *
  * Description:
  * ------------
- * Computes PSFs for a stereo image with a given disparity map.
- * It uses a region tree for this.
+ * One pass of the depth-aware deblurring algorithm.
+ * 
+ * Computes PSFs for a stereo image with disparity maps, a region tree
+ * and deblurres the input images afterwards.
  * 
  ******************************************************************************
  */
 
-#ifndef ITERATIVE_PSF_H
-#define ITERATIVE_PSF_H
+#ifndef DEPTH_DEBLUR_H
+#define DEPTH_DEBLUR_H
 
 #include <opencv2/opencv.hpp>
 
 #include "region_tree.hpp"
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
-    class IterativePSF {
+    class DepthDeblur {
 
       public:
 
-        IterativePSF(const cv::Mat& disparityMapM, const cv::Mat& disparityMapR,
-                     const int layers, cv::Mat* imageLeft, cv::Mat* imageRight,
-                     const int maxTopLevelNodes, const int width);
+        DepthDeblur(cv::Mat* imageLeft, cv::Mat* imageRight, const int width);
+
+        /**
+         * Disparity estimation of two blurred images
+         * where occluded regions are filled and where the disparity map is 
+         * quantized to l regions.
+         * 
+         * @param inverse      determine if the disparity is calculated from right to left
+         */
+        void disparityEstimation();
+
+        /**
+         * Creates a region tree from disparity maps
+         * 
+         * @param maxTopLevelNodes maximal number of nodes at the top level
+         */
+        void regionTreeReconstruction(const int maxTopLevelNodes);
 
         /**
          * Estimates the PSFs of the top-level regions.
@@ -47,10 +63,26 @@ namespace DepthAwareDeblurring {
 
 
       private:
+
+        /**
+         * both views
+         */
+        const std::array<cv::Mat*, 2> images;
+
+        /**
+         * number of disparity layers
+         */
+        const int layers;
+
         /**
          * Approximate psf kernel width
          */
         int psfWidth;
+
+        /**
+         * quantized disparity maps for left-right and right-left disparity
+         */
+        std::array<cv::Mat, 2> disparityMaps;
 
         /**
          * region tree build form disparity map that stores PSFs for 

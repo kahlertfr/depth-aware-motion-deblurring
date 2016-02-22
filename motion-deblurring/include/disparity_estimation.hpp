@@ -15,7 +15,21 @@
 #include <opencv2/opencv.hpp>
 
 
-namespace DisparityEstimation {
+namespace deblur {
+
+    /**
+     * Disparity estimation of two blurred images
+     * where occluded regions are filled and where the disparity map is 
+     * quantized to l regions.
+     * 
+     * @param blurredLeft  left image
+     * @param blurredRight right image
+     * @param l            number of layers
+     * @param disparityMap resulting disparity map
+     * @param inverse      determine if the disparity is calculated from right to left
+     */
+    void quantizedDisparityEstimation(const cv::Mat& blurredLeft, const cv::Mat& blurredRight,
+                                      int l, cv::Mat& disparityMap, bool inverse = false);
 
     /**
      * Fills occlusion regions (where the value is smaller than a given threshold) 
@@ -25,7 +39,7 @@ namespace DisparityEstimation {
      * @param disparityMap disparity map where occlusions will be filled
      * @param threshold    threshold for detecting occluded regions
      */
-    void fillOcclusionRegions(cv::Mat &disparityMap, const int threshold = 0);
+    void fillOcclusionRegions(cv::Mat& disparityMap, const int threshold = 0);
 
     /**
      * Uses OpenCVs semi global block matching algorithm to obtain
@@ -35,7 +49,7 @@ namespace DisparityEstimation {
      * @param right        right image
      * @param disparityMap disparity with occlusions
      */
-    void semiGlobalBlockMatching(const cv::Mat &left, const cv::Mat &right, cv::Mat &disparityMap);
+    void semiGlobalBlockMatching(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparityMap);
 
     /**
      * Quantizes a given picture with kmeans algorithm and sorts the

@@ -28,7 +28,7 @@ set(LIB_SOURCES src/depth_aware_deblurring.cpp
                 src/region_tree.cpp
                 src/edge_map.cpp
                 src/deconvolution.cpp
-                src/iterative_psf.cpp)
+                src/depth_deblur.cpp)
 add_library(libmdeblur SHARED ${LIB_SOURCES} $<TARGET_OBJECTS:utils>)
 set_target_properties(libmdeblur PROPERTIES
                                  OUTPUT_NAME "mdeblur")

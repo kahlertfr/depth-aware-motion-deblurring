@@ -4,35 +4,47 @@
 #include <cmath>                        // log
 
 #include "utils.hpp"
+#include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
 #include "region_tree.hpp"
 #include "edge_map.hpp"
 #include "two_phase_psf_estimation.hpp"
 #include "deconvolution.hpp"
 #include "coherence_filter.hpp"
 
-#include "iterative_psf.hpp"
+#include "depth_deblur.hpp"
 
 
 using namespace cv;
 using namespace std;
-using namespace deblur;
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
-    IterativePSF::IterativePSF(const Mat& disparityMapM, const Mat& disparityMapR,
-                               const int layers, Mat* imageLeft, Mat* imageRight,
-                               const int maxTopLevelNodes, const int width)
-                               : psfWidth(width)
+    DepthDeblur::DepthDeblur(Mat* imageLeft, Mat* imageRight, const int width)
+                            : psfWidth(width)
+                            , layers((psfWidth % 2 == 0) ? psfWidth : psfWidth - 1)
+                            , images({imageLeft, imageRight})
     {
-        // create a region tree
-        regionTree.create(disparityMapM, disparityMapR, layers,
-                          imageLeft, imageRight, maxTopLevelNodes);
+
     }
 
 
-    void IterativePSF::toplevelKernelEstimation(const string filePrefix) {
-        Mat blurred = *(regionTree.images[RegionTree::LEFT]);
+    void DepthDeblur::disparityEstimation() {
+        // quantized disparity maps for both directions (left-right and right-left)
+        quantizedDisparityEstimation(*images[LEFT], *images[RIGHT], layers, disparityMaps[LEFT]);
+        quantizedDisparityEstimation(*images[RIGHT], *images[LEFT], layers, disparityMaps[RIGHT], true);
+    }
+
+
+    void DepthDeblur::regionTreeReconstruction(const int maxTopLevelNodes) {
+        // create a region tree
+        regionTree.create(disparityMaps[LEFT], disparityMaps[RIGHT], layers,
+                          images[LEFT], images[RIGHT], maxTopLevelNodes);
+    }
+
+
+    void DepthDeblur::toplevelKernelEstimation(const string filePrefix) {
+        Mat blurred = *(regionTree.images[LEFT]);
 
         // go through each top-level node
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
@@ -40,7 +52,7 @@ namespace DepthAwareDeblurring {
 
             // get the mask of the top-level region
             Mat mask;
-            regionTree.getMask(id, mask, RegionTree::LEFT);
+            regionTree.getMask(id, mask, LEFT);
 
             // compute kernel
             TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, blurred, psfWidth, mask);
@@ -60,7 +72,7 @@ namespace DepthAwareDeblurring {
             // // 1. save the tappered region images for the exe of two-phase kernel estimation
             // // get an image of the top-level region
             // Mat region, mask;
-            // regionTree.getRegionImage(id, region, mask, RegionTree::LEFT);
+            // regionTree.getRegionImage(id, region, mask, LEFT);
             //
             // // edge tapering to remove high frequencies at the border of the region
             // Mat taperedRegion;
@@ -83,7 +95,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, 
+    void DepthDeblur::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, 
                                           const array<Mat,2>& salientEdgesLeft,
                                           const array<Mat,2>& salientEdgesRight,
                                           Mat& psf) {
@@ -192,7 +204,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::computeBlurredGradients() {
+    void DepthDeblur::computeBlurredGradients() {
         // compute simple gradients for blurred images
         std::array<cv::Mat,2> gradsR, gradsL;
 
@@ -203,15 +215,15 @@ namespace DepthAwareDeblurring {
         const int scale = 1;
 
         // gradients of left image
-        Sobel(*(regionTree.images[RegionTree::LEFT]), gradsL[0],
+        Sobel(*(regionTree.images[LEFT]), gradsL[0],
               ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
-        Sobel(*(regionTree.images[RegionTree::LEFT]), gradsL[1],
+        Sobel(*(regionTree.images[LEFT]), gradsL[1],
               ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
         // gradients of right image
-        Sobel(*(regionTree.images[RegionTree::RIGHT]), gradsR[0],
+        Sobel(*(regionTree.images[RIGHT]), gradsR[0],
               ddepth, 1, 0, ksize, scale, delta, BORDER_DEFAULT);
-        Sobel(*(regionTree.images[RegionTree::RIGHT]), gradsR[1],
+        Sobel(*(regionTree.images[RIGHT]), gradsR[1],
               ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
         // norm the gradients
@@ -222,7 +234,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::estimateChildPSF(int id) {
+    void DepthDeblur::estimateChildPSF(int id) {
         // get masks for regions of both views
         Mat maskM, maskR;
         regionTree.getMasks(id, maskM, maskR);
@@ -234,8 +246,8 @@ namespace DepthAwareDeblurring {
         // 
         // deblur the current views with psf from parent
         Mat deblurredLeft, deblurredRight;
-        deconvolve(*(regionTree.images[RegionTree::LEFT]), deblurredLeft, regionTree[parent].psf);
-        deconvolve(*(regionTree.images[RegionTree::RIGHT]), deblurredRight, regionTree[parent].psf);
+        deconvolveFFT(*(regionTree.images[LEFT]), deblurredLeft, regionTree[parent].psf);
+        deconvolveFFT(*(regionTree.images[RIGHT]), deblurredRight, regionTree[parent].psf);
 
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
@@ -253,7 +265,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    float IterativePSF::computeEntropy(Mat& kernel) {
+    float DepthDeblur::computeEntropy(Mat& kernel) {
         assert(kernel.type() == CV_32F && "works with float values");
 
         float entropy = 0.0;
@@ -276,7 +288,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::candidateSelection(vector<Mat>& candiates, int id, int sid) {
+    void DepthDeblur::candidateSelection(vector<Mat>& candiates, int id, int sid) {
         // own psf is added as candidate
         candiates.push_back(regionTree[id].psf);
 
@@ -297,19 +309,19 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::psfSelection(vector<Mat>& candiates, int id) {
+    void DepthDeblur::psfSelection(vector<Mat>& candiates, int id) {
         float minEnergy = 2;
         int winner = 0;
         
         for (int i = 0; i < candiates.size(); i++) {
             // get mask of this region
             Mat mask;
-            regionTree.getMask(id, mask, RegionTree::LEFT);
+            regionTree.getMask(id, mask, LEFT);
 
             // compute latent image
             Mat latent;
             // FIXME: latent image just of one view?
-            deconvolve(*(regionTree.images[RegionTree::LEFT]), latent, candiates[i]);
+            deconvolveFFT(*(regionTree.images[LEFT]), latent, candiates[i]);
 
             // slightly Gaussian smoothed
             // use the complete image to avoid unwanted effects at the borders
@@ -340,7 +352,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    float IterativePSF::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
+    float DepthDeblur::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
         assert(mask.type() == CV_8U && "mask is uchar image with zeros and ones");
 
         // compute gradients
@@ -462,7 +474,7 @@ namespace DepthAwareDeblurring {
     }
 
 
-    void IterativePSF::midLevelKernelEstimation() {
+    void DepthDeblur::midLevelKernelEstimation() {
         // we can compute the gradients for each blurred image ones
         computeBlurredGradients();
 

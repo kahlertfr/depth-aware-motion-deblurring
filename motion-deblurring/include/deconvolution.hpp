@@ -4,7 +4,10 @@
  *
  * Description:
  * ------------
- * Non-blind deconvolution in Fourier Domain.
+ * Non-blind deconvolution methods.
+ *
+ * This is a C++ transformation of the matlab code from "Deconvolution
+ * using natural image priors" from Levin et. al.
  * 
  ***********************************************************************
  */
@@ -15,17 +18,30 @@
 #include <opencv2/opencv.hpp>
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
     /**
-     * Non-blind deconvolution.
+     * Non-blind deconvolution in Fourier Domain using a 
+     * gaussian prior (which leads to convex optimization problem
+     * with a closed form solution)
      * 
      * @param src    blurred grayvalue image
      * @param dst    latent image
      * @param kernel energy preserving kernel
      * @param we     weight
      */
-    void deconvolve(cv::Mat src, cv::Mat& dst, cv::Mat& kernel, float we = 0.001);
+    void deconvolveFFT(cv::Mat src, cv::Mat& dst, cv::Mat& kernel, float we = 0.001);
+
+    /**
+     * Non-blind deconvolution in spatial domain using a
+     * spatial prior (which leads to a non-convex optimization problem that's
+     * why reweighted least squares (IRLS) is used)
+     * 
+     * @param src    blurred grayvalue image
+     * @param dst    latent image
+     * @param kernel energy preserving kernel
+     */
+    void deconvolveIRLS(cv::Mat src, cv::Mat& dst, cv::Mat& kernel);
 
 }
 
