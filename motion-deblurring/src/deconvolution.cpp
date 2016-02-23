@@ -291,7 +291,6 @@ namespace deblur {
         }
 
         x.copyTo(dst);
-        showFloat("x", x);
     }
 
 

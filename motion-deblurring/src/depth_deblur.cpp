@@ -538,10 +538,23 @@ namespace deblur {
     void DepthDeblur::deconvolve() {
         Mat deconv;
 
-        // just code for testing
-        //
-        // get node id
-        int id = regionTree.topLevelNodeIds[0];
-        deconvolveIRLS(*images[LEFT], deconv, regionTree[id].psf);
+        // // just code for testing
+        // //
+        // // get node id
+        // int id = regionTree.topLevelNodeIds[0];
+        // deconvolveIRLS(*images[LEFT], deconv, regionTree[id].psf);
+
+
+        // --------- for debugging
+        Mat src, kernel;
+        src = imread("I.png", CV_LOAD_IMAGE_GRAYSCALE);
+        kernel = imread("filt.png", CV_LOAD_IMAGE_GRAYSCALE);
+
+        kernel.convertTo(kernel, CV_32F);
+        kernel /= 255;
+
+        deconvolveIRLS(src, deconv, kernel);
+
+        //----------- end debugging
     }
 }
