@@ -26,14 +26,21 @@ namespace deblur {
         cv::Mat xx;
         cv::Mat yy;
         cv::Mat xy;
+
+        // flipped gradients
+        cv::Mat xf;
+        cv::Mat yf;
+        cv::Mat xxf;
+        cv::Mat yyf;
+        cv::Mat xyf;
     };
 
     struct weights {
-        float x;
-        float y;
-        float xx;
-        float yy;
-        float xy;
+        cv::Mat x;
+        cv::Mat y;
+        cv::Mat xx;
+        cv::Mat yy;
+        cv::Mat xy;
     };
 
     /**

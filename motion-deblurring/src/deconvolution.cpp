@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "utils.hpp"
 
 #include "deconvolution.hpp"
@@ -126,35 +128,90 @@ namespace deblur {
      * Sobel as gradients in a matrix.
      * 
      * @param df   gradients
-     * @param rows number of rows
-     * @param cols number of cols
      */
-    void sobelGradients(gradients& df, const int rows, const int cols) {
+    void sobelGradients(gradients& df) {
         // sobel gradients of first order for x and y direction
-        df.x = Mat::zeros(rows, cols, CV_32F);
+        df.x = Mat::zeros(1, 2, CV_32F);
         (df.x).at<float>(0,0) = -1;
         (df.x).at<float>(0,1) = 1;
 
-        df.y = Mat::zeros(rows, cols, CV_32F);
+        df.y = Mat::zeros(2, 1, CV_32F);
         (df.y).at<float>(0,0) = -1;
         (df.y).at<float>(1,0) = 1;
 
         // sobel gradients of second order for x and y direction
-        df.xx = Mat::zeros(rows, cols, CV_32F);
+        df.xx = Mat::zeros(1, 3, CV_32F);
         (df.xx).at<float>(0,0) = -1;
         (df.xx).at<float>(0,1) = 2;
         (df.xx).at<float>(0,2) = -1;
 
-        df.yy = Mat::zeros(rows, cols, CV_32F);
+        df.yy = Mat::zeros(3, 1, CV_32F);
         (df.yy).at<float>(0,0) = -1;
         (df.yy).at<float>(1,0) = 2;
         (df.yy).at<float>(2,0) = -1;
 
-        df.xy = Mat::zeros(rows, cols, CV_32F);
+        df.xy = Mat::zeros(2, 2, CV_32F);
         (df.xy).at<float>(0,0) = -1;
         (df.xy).at<float>(0,1) = 1;
         (df.xy).at<float>(1,0) = 1;
         (df.xy).at<float>(1,1) = -1;
+
+        // flip all gradients
+        flip(df.x, df.xf, -1);
+        flip(df.y, df.yf, -1);
+        flip(df.xx, df.xxf, -1);
+        flip(df.yy, df.yyf, -1);
+        flip(df.xy, df.xyf, -1);
+    }
+
+
+    void computeA(Mat& src, Mat& dst, Mat& kernel, Mat& fkernel, Mat& mask,
+                  const gradients& df, const weights& weights, const float we) {
+        // matlab: Ax = conv2(conv2(x, fliplr(flipud(filt1)), 'same') .* mask,  filt1, 'same');
+        Mat tmpAx;
+        filter2D(src, tmpAx, -1, fkernel);
+        tmpAx = tmpAx.mul(mask);
+        filter2D(tmpAx, dst, -1, kernel);
+
+        // add weighted gradients to Ax
+        Mat tmp, res;
+
+        // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
+        filter2D(src, tmp, -1, df.xf);
+        // FIXME: have to cut out correct image part
+        //        maybe use matrices as weights -> no need for cropping
+        tmp = tmp.mul(weights.x);
+        filter2D(tmp, res, -1, df.x);
+        res *= we;
+        dst += res;
+
+        // matlab: Ax = Ax + we * conv2(weight_y .* conv2(x, fliplr(flipud(dyf)), 'valid'), dyf);
+        filter2D(src, tmp, -1, df.yf);
+        tmp = tmp.mul(weights.y);
+        filter2D(tmp, res, -1, df.y);
+        res *= we;
+        dst += res;
+
+        // matlab: Ax = Ax + we * conv2(weight_xx .* conv2(x, fliplr(flipud(dxxf)), 'valid'), dxxf);
+        filter2D(src, tmp, -1, df.xxf);
+        tmp = tmp.mul(weights.xx);
+        filter2D(tmp, res, -1, df.xx);
+        res *= we;
+        dst += res;
+
+        // matlab: Ax = Ax + we * conv2(weight_yy .* conv2(x, fliplr(flipud(dyyf)), 'valid'), dyyf);
+        filter2D(src, tmp, -1, df.yyf);
+        tmp = tmp.mul(weights.yy);
+        filter2D(tmp, res, -1, df.yy);
+        res *= we;
+        dst += res;
+
+        // matlab: Ax = Ax + we * conv2(weight_xy .* conv2(x, fliplr(flipud(dxyf)), 'valid'), dxyf);
+        filter2D(src, tmp, -1, df.xyf);
+        tmp = tmp.mul(weights.xy);
+        filter2D(tmp, res, -1, df.xy);
+        res *= we;
+        dst += res;
     }
 
 
@@ -173,8 +230,68 @@ namespace deblur {
     void deconvL2w(Mat& src, Mat& dst, Mat& kernel, Mat& mask, const weights& weights,
                    const gradients& df, const float we = 0.001, const int maxIt = 200) {
 
-        Mat b ;
+        // half filter size
+        int hfsX = kernel.cols / 2;
+        int hfsY = kernel.rows / 2;
 
+        // padding around image such that the border will be replicated from the pixel
+        // values at the edges of the original image
+        Mat x;
+        copyMakeBorder(src, x, hfsY, hfsY, hfsX, hfsX, BORDER_REPLICATE, 0);
+
+        Mat zeroPaddedSrc;
+        copyMakeBorder(src, zeroPaddedSrc, hfsY, hfsY, hfsX, hfsX,
+                       BORDER_CONSTANT, Scalar::all(0));
+
+        // matlab: b = conv2(x .* mask, filt1, 'same');
+        Mat b;
+        filter2D(zeroPaddedSrc, b, -1, kernel);
+
+
+        // flip kernel
+        Mat fkernel;
+        flip(kernel, fkernel, -1);
+        
+        Mat Ax;
+        computeA(x, Ax, kernel, fkernel, mask, df, weights, we);
+
+        // matlab: r = b - Ax;
+        Mat r;
+        r = b - Ax;
+
+
+        Mat p;
+        r.copyTo(p);
+
+        float rhoPrev;
+
+        for (int i = 0; i < maxIt; i++) {
+            // matlab: rho = (r(:)'*r(:));
+            float rho = r.dot(r);
+
+
+            if (i > 0) {
+                float beta = rho / rhoPrev;
+                p *= beta;
+                p += r;
+            }
+
+            // Ap = conv2(conv2(p, fliplr(flipud(filt1)), 'same') .* mask,  filt1,'same');
+            // and so on
+            Mat Ap;
+            computeA(p, Ap, kernel, fkernel, mask, df, weights, we);
+
+            // matlab:  q = Ap; alpha = rho / (p(:)'*q(:) );
+            float alpha = rho / p.dot(Ap);
+
+            x = x + alpha * p;
+            r = r - alpha * p;
+
+            rhoPrev = rho;
+        }
+
+        x.copyTo(dst);
+        showFloat("x", x);
     }
 
 
@@ -214,18 +331,75 @@ namespace deblur {
 
 
         gradients df;
-        sobelGradients(df, n, m);
+        sobelGradients(df);
 
 
         // weights
         weights weights;
-        weights.x = 1;
-        weights.y = 1;
-        weights.xx = 1;
-        weights.yy = 1;
-        weights.xy = 1;
+        weights.x = Mat::ones(n,m, CV_32F);
+        weights.y = Mat::ones(n,m, CV_32F);
+        weights.xx = Mat::ones(n,m, CV_32F);
+        weights.yy = Mat::ones(n,m, CV_32F);
+        weights.xy = Mat::ones(n,m, CV_32F);
 
         Mat x;
-        deconvL2w(paddedSrc, x, kernel, mask, weights, df, we, maxIt);
+        deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
+
+        float w0 = 0.1;
+        float exp_a = 0.8;
+        float thr_e = 0.01;
+
+        for (int i = 0; i < 2; i++) {
+            Mat dx, dy, dxx, dyy, dxy;
+            filter2D(x, dx, -1, df.xf);
+            filter2D(x, dy, -1, df.yf);
+            filter2D(x, dxx, -1, df.xxf);
+            filter2D(x, dyy, -1, df.yyf);
+            filter2D(x, dxy, -1, df.xyf);
+
+            // set new weights
+            for (int row = 0; row < (weights.x).rows; row++) {
+                for (int col = 0; col < (weights.x).cols; col++) {
+                    float value;
+
+                    if (abs(dx.at<float>(row, col)) > thr_e)
+                        value = abs(dx.at<float>(row, col));
+                    else
+                        value = thr_e;
+                    weights.x.at<float>(row, col) = w0 * pow(value, exp_a - 2);
+
+                    if (abs(dy.at<float>(row, col)) > thr_e)
+                        value = abs(dy.at<float>(row, col));
+                    else
+                        value = thr_e;
+                    weights.y.at<float>(row, col) = w0 * pow(value, exp_a - 2);
+
+                    if (abs(dxx.at<float>(row, col)) > thr_e)
+                        value = abs(dxx.at<float>(row, col));
+                    else
+                        value = thr_e;
+                    weights.xx.at<float>(row, col) = 0.25 * pow(value, exp_a - 2);
+
+                    if (abs(dyy.at<float>(row, col)) > thr_e)
+                        value = abs(dyy.at<float>(row, col));
+                    else
+                        value = thr_e;
+                    weights.yy.at<float>(row, col) = 0.25 * pow(value, exp_a - 2);
+
+                    if (abs(dxy.at<float>(row, col)) > thr_e)
+                        value = abs(dxy.at<float>(row, col));
+                    else
+                        value = thr_e;
+                    weights.xy.at<float>(row, col) = 0.25 * pow(value, exp_a - 2);
+                }
+            }
+
+            deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
+        }
+
+        showFloat("result", x);
+
+        // crop result
+        // TODO
     }
 }
