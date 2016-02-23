@@ -9,14 +9,12 @@ using namespace std;
 
 namespace deblur {
 
-    void deconvolveFFT(Mat src, Mat& dst, Mat& kernel, float weight){
+    void deconvolveFFT(Mat src, Mat& dst, Mat& kernel, const float weight){
         assert(src.type() == CV_8U && "works on gray value images");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
-        // convert input images to floats
+        // convert input image to floats and normalize it to [0,1]
         src.convertTo(src, CV_32F);
-
-        // normalize blurred image to [0,1]
         src /= 255.0;
 
         // fill kernel with zeros to get to blurred image size
@@ -124,9 +122,70 @@ namespace deblur {
     }
 
 
-    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel) {
+    /**
+     * Sobel as gradients in a matrix.
+     * 
+     * @param df   gradients
+     * @param rows number of rows
+     * @param cols number of cols
+     */
+    void sobelGradients(gradients& df, const int rows, const int cols) {
+        // sobel gradients of first order for x and y direction
+        df.x = Mat::zeros(rows, cols, CV_32F);
+        (df.x).at<float>(0,0) = -1;
+        (df.x).at<float>(0,1) = 1;
+
+        df.y = Mat::zeros(rows, cols, CV_32F);
+        (df.y).at<float>(0,0) = -1;
+        (df.y).at<float>(1,0) = 1;
+
+        // sobel gradients of second order for x and y direction
+        df.xx = Mat::zeros(rows, cols, CV_32F);
+        (df.xx).at<float>(0,0) = -1;
+        (df.xx).at<float>(0,1) = 2;
+        (df.xx).at<float>(0,2) = -1;
+
+        df.yy = Mat::zeros(rows, cols, CV_32F);
+        (df.yy).at<float>(0,0) = -1;
+        (df.yy).at<float>(1,0) = 2;
+        (df.yy).at<float>(2,0) = -1;
+
+        df.xy = Mat::zeros(rows, cols, CV_32F);
+        (df.xy).at<float>(0,0) = -1;
+        (df.xy).at<float>(0,1) = 1;
+        (df.xy).at<float>(1,0) = 1;
+        (df.xy).at<float>(1,1) = -1;
+    }
+
+
+    /**
+     * Deconvolution used from deconvolveIRLS
+     * 
+     * @param src      blurred grayvalue image
+     * @param dst      latent image
+     * @param kernel   energy preserving kernel
+     * @param mask     mask
+     * @param we       weight
+     * @param df       gradients
+     * @param maxIt    number of iterations
+     * @param weights  weights of first and second order derivatives
+     */
+    void deconvL2w(Mat& src, Mat& dst, Mat& kernel, Mat& mask, const weights& weights,
+                   const gradients& df, const float we = 0.001, const int maxIt = 200) {
+
+        Mat b ;
+
+    }
+
+
+    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
+
         assert(src.type() == CV_8U && "works on gray value images");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
+
+        // convert input image to floats and normalize it to [0,1]
+        src.convertTo(src, CV_32F);
+        src /= 255.0;
 
         // half filter size
         // FIXME: kernel size has to be odd
@@ -141,13 +200,32 @@ namespace deblur {
         // of the half filter size in all directions
         // 
         // mask with ones of image size
-        Mat tmpMask = Mat::ones(src.size(), CV_32FC2);
+        Mat tmpMask = Mat::ones(src.size(), CV_32F);
 
-        // add boundary with zeros
+        // add border with zeros to the mask
         Mat mask;
-        copyMakeBorder(tmpMask, mask, 0, n, 0, m,
+        copyMakeBorder(tmpMask, mask, hfsY, hfsY, hfsX, hfsX,
                        BORDER_CONSTANT, Scalar::all(0));
 
-        showFloat("mask", mask);
+        // add border with zeros to the image
+        Mat paddedSrc;
+        copyMakeBorder(src, paddedSrc, hfsY, hfsY, hfsX, hfsX,
+                       BORDER_CONSTANT, Scalar::all(0));
+
+
+        gradients df;
+        sobelGradients(df, n, m);
+
+
+        // weights
+        weights weights;
+        weights.x = 1;
+        weights.y = 1;
+        weights.xx = 1;
+        weights.yy = 1;
+        weights.xy = 1;
+
+        Mat x;
+        deconvL2w(paddedSrc, x, kernel, mask, weights, df, we, maxIt);
     }
 }
