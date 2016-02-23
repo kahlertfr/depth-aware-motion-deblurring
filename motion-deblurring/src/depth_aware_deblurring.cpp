@@ -16,7 +16,7 @@ using namespace cv;
 namespace deblur {
 
     void depthDeblur(const Mat &blurredLeft, const Mat &blurredRight,
-                      const int psfWidth, const int maxTopLevelNodes) {
+                     const int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("Images aren't of same size!");
@@ -80,10 +80,10 @@ namespace deblur {
 
             cout << " Step 3.1: Iterative PSF estimation" << endl;
             cout << "   ... jointly compute PSF for middle & leaf level-regions of both views" << endl;
-            depthDeblur.midLevelKernelEstimation();
+            // depthDeblur.midLevelKernelEstimation();
 
             cout << " Step 4: Blur removal given PSF estimate" << endl;
-            // depthDeblur.deconvolve();
+            depthDeblur.deconvolve();
             
             // TODO: deconvolve images
             // TODO: set new left and right input image 
@@ -101,9 +101,9 @@ namespace deblur {
 
 
     void depthDeblur(const string filenameLeft, const string filenameRight,
-                      const int psfWidth, const int maxTopLevelNodes) {
-        cout << "loads images..." << endl;
+                     const int psfWidth, const int maxTopLevelNodes) {
 
+        // load images
         Mat blurredLeft, blurredRight;
         blurredLeft = imread(filenameLeft, 1);
         blurredRight = imread(filenameRight, 1);

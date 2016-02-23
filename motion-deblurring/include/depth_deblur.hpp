@@ -4,10 +4,12 @@
  *
  * Description:
  * ------------
- * One pass of the depth-aware deblurring algorithm.
- * 
- * Computes PSFs for a stereo image with disparity maps, a region tree
- * and deblurres the input images afterwards.
+ * One pass of the depth-aware deblurring algorithm:
+ *     1. disparity estimation
+ *     2. region tree reconstruction
+ *     3. PSF estimation for top level nodes
+ *     4. PSF estimation for mid and leaf level nodes
+ *     5. deconvolution of input images
  * 
  ******************************************************************************
  */
@@ -26,6 +28,13 @@ namespace deblur {
 
       public:
 
+        /**
+         * Constructor for depth-deblurring of stereo images
+         * 
+         * @param imageLeft  blurred left view
+         * @param imageRight blurred right view
+         * @param width      approximate PSF width
+         */
         DepthDeblur(cv::Mat* imageLeft, cv::Mat* imageRight, const int width);
 
         /**
@@ -33,14 +42,14 @@ namespace deblur {
          * where occluded regions are filled and where the disparity map is 
          * quantized to l regions.
          * 
-         * @param inverse      determine if the disparity is calculated from right to left
+         * @param inverse  determine if the disparity is calculated from right to left
          */
         void disparityEstimation();
 
         /**
          * Creates a region tree from disparity maps
          * 
-         * @param maxTopLevelNodes maximal number of nodes at the top level
+         * @param maxTopLevelNodes  maximal number of nodes at the top level
          */
         void regionTreeReconstruction(const int maxTopLevelNodes);
 
@@ -50,7 +59,7 @@ namespace deblur {
          * There is a possibility to load kernel-images because
          * the used algorithm doesn't work very well.
          * 
-         * @param filePrefix for loading kernel images
+         * @param filePrefix  for loading kernel images
          */
         void toplevelKernelEstimation(const std::string filePrefix);
 
@@ -60,6 +69,11 @@ namespace deblur {
          * 
          */
         void midLevelKernelEstimation();
+
+        /**
+         * Deconvolves the two views for each depth layer.
+         */
+        void deconvolve();
 
 
       private:
@@ -77,7 +91,7 @@ namespace deblur {
         /**
          * Approximate psf kernel width
          */
-        int psfWidth;
+        const int psfWidth;
 
         /**
          * quantized disparity maps for left-right and right-left disparity

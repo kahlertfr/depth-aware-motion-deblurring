@@ -340,7 +340,7 @@ namespace deblur {
             
             // compute correlation of the latent image and the shockfiltered image
             float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
-            cout << energy << endl;
+            // cout << energy << endl;
 
             if (energy < minEnergy) {
                 winner = i;
@@ -458,7 +458,7 @@ namespace deblur {
         deviationY = sqrt(deviationY);
 
         // cout << " deviations (" << deviationX << "," << deviationY    << ")" << endl;
-        // float correlation = (Ex * Ey) / (deviationX * deviationY);
+        float correlation = (Ex * Ey) / (deviationX * deviationY);
         // cout << "correlation " << correlation << endl;
 
 
@@ -532,5 +532,16 @@ namespace deblur {
                 psfSelection(candiates2, cid2);
             }
         }
+    }
+
+
+    void DepthDeblur::deconvolve() {
+        Mat deconv;
+
+        // just code for testing
+        //
+        // get node id
+        int id = regionTree.topLevelNodeIds[0];
+        deconvolveIRLS(*images[LEFT], deconv, regionTree[id].psf);
     }
 }
