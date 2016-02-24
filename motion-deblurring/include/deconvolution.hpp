@@ -20,14 +20,19 @@
 
 namespace deblur {
 
-    struct gradients {
+    /**
+     * storage for derivation filter in x and y direction
+     * for first and second order derivations
+     * plus the flipped filters
+     */
+    struct derivationFilter {
         cv::Mat x;
         cv::Mat y;
         cv::Mat xx;
         cv::Mat yy;
         cv::Mat xy;
 
-        // flipped gradients
+        // flipped derivations
         cv::Mat xf;
         cv::Mat yf;
         cv::Mat xxf;
@@ -35,6 +40,9 @@ namespace deblur {
         cv::Mat xyf;
     };
 
+    /**
+     * weights for derivation filter
+     */
     struct weights {
         cv::Mat x;
         cv::Mat y;
