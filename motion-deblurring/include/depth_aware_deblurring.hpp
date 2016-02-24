@@ -43,7 +43,7 @@ namespace deblur {
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
      */
     void depthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
-                     const int psfWidth = 24, const int maxTopLevelNodes = 3);
+                     int psfWidth = 24, const int maxTopLevelNodes = 3);
 
     /**
      * Loads images from given filenames and then starts the depth-aware motion 
@@ -55,7 +55,7 @@ namespace deblur {
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
      */
     void depthDeblur(const std::string filenameLeft, const std::string filenameRight,
-                     const int psfWidth = 24, const int maxTopLevelNodes = 3);
+                     int psfWidth = 24, const int maxTopLevelNodes = 3);
 
 }
 

@@ -84,11 +84,6 @@ namespace deblur {
         const std::array<cv::Mat*, 2> images;
 
         /**
-         * number of disparity layers
-         */
-        const int layers;
-
-        /**
          * Approximate psf kernel width
          */
         const int psfWidth;

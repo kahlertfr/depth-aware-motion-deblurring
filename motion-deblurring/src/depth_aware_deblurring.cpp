@@ -16,7 +16,7 @@ using namespace cv;
 namespace deblur {
 
     void depthDeblur(const Mat &blurredLeft, const Mat &blurredRight,
-                     const int psfWidth, const int maxTopLevelNodes) {
+                     int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("Images aren't of same size!");
@@ -25,6 +25,11 @@ namespace deblur {
         // approximate PSF width has to be greater than 0
         if (psfWidth < 1) {
             throw runtime_error("PSF width has to be greater zero!");
+        }
+
+        // make odd approximate psf width
+        if (psfWidth % 2 == 0) {
+            psfWidth++;
         }
 
         // compute gray value images

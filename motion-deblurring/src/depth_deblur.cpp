@@ -21,8 +21,7 @@ using namespace std;
 namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat* imageLeft, Mat* imageRight, const int width)
-                            : psfWidth(width)
-                            , layers((width % 2 == 0) ? width : width - 1)
+                            : psfWidth((width % 2 == 0) ? width : width - 1)
                             , images({imageLeft, imageRight})
     {
 
@@ -31,14 +30,14 @@ namespace deblur {
 
     void DepthDeblur::disparityEstimation() {
         // quantized disparity maps for both directions (left-right and right-left)
-        quantizedDisparityEstimation(*images[LEFT], *images[RIGHT], layers, disparityMaps[LEFT]);
-        quantizedDisparityEstimation(*images[RIGHT], *images[LEFT], layers, disparityMaps[RIGHT], true);
+        quantizedDisparityEstimation(*images[LEFT], *images[RIGHT], psfWidth, disparityMaps[LEFT]);
+        quantizedDisparityEstimation(*images[RIGHT], *images[LEFT], psfWidth, disparityMaps[RIGHT], true);
     }
 
 
     void DepthDeblur::regionTreeReconstruction(const int maxTopLevelNodes) {
         // create a region tree
-        regionTree.create(disparityMaps[LEFT], disparityMaps[RIGHT], layers,
+        regionTree.create(disparityMaps[LEFT], disparityMaps[RIGHT], psfWidth,
                           images[LEFT], images[RIGHT], maxTopLevelNodes);
     }
 
@@ -552,6 +551,13 @@ namespace deblur {
 
         kernel.convertTo(kernel, CV_32F);
         kernel /= 255;
+
+        double energy = sum(kernel)[0];
+        cout << energy << endl;
+        if (energy > 1){
+            // sum of all kernel entries = 1
+            kernel /= energy;
+        }
 
         deconvolveIRLS(src, deconv, kernel);
 
