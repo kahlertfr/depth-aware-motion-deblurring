@@ -166,6 +166,71 @@ namespace deblur {
     }
 
 
+    void conv2add(Mat& src, Mat& dst, const Mat& kernel, const Mat& fkernel, const Mat& weight,
+                  const float we) {
+        Mat tmp, res;
+
+        // cout << "src " << src.size() << endl;
+
+        // padd image with zeros
+        int hfsX = kernel.cols / 2;
+        int hfsY = kernel.rows / 2;
+
+        // cout << "hfs x y: " << hfsX << " " << hfsY << endl;
+
+        Mat zeroPadded;
+        copyMakeBorder(src, zeroPadded, hfsY, hfsY, hfsX, hfsX,
+                       BORDER_CONSTANT, Scalar::all(0));
+
+        // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
+        filter2D(zeroPadded, tmp, -1, fkernel);
+
+        // crop image - Rect(x,y,w,h)
+        // crop result of the convolution in such a way that it contains just the parts
+        // that are computed with an zero padded edge
+        Mat cropped = tmp(Rect(hfsX, hfsY, src.cols - hfsX, src.rows - hfsY));
+        // cout << "cropped " << cropped.size() << " weight: " << weight.size() <<  endl;
+
+        // FIXME: have to cut out correct image part
+        //        maybe use matrices as weights -> no need for cropping
+        
+
+        // tmp = tmp.mul(weight);
+        // filter2D(tmp, res, -1, kernel);
+        // filter2D(zeroPadded, res, -1, kernel);
+        
+        cropped = cropped.mul(weight);
+
+        copyMakeBorder(cropped, zeroPadded, hfsY, hfsY, hfsX, hfsX,
+                       BORDER_CONSTANT, Scalar::all(0));
+        filter2D(zeroPadded, tmp, -1, kernel);
+
+        // crop the result of the convolution in such a way that it matches with 
+        // "full" of matlab (just remove padding)
+        res = tmp(Rect(hfsX, hfsY, src.cols, src.rows));
+        // cout << "cropped " << res.size() << " weight: " << weight.size() <<  endl;
+
+
+        // cout << res.size() << endl;
+        res *= we;
+        dst += res;
+    }
+
+    void conv2addOld(Mat& src, Mat& dst, const Mat& kernel, const Mat& fkernel, const Mat& weight,
+                  const float we) {
+        Mat tmp, res;
+
+        // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
+        filter2D(src, tmp, -1, fkernel);
+
+        tmp = tmp.mul(weight);
+        filter2D(tmp, res, -1, kernel);
+
+        res *= we;
+        dst += res;
+    }
+
+
     /**
      * Convolves the matrix A with a kernel and adds weighted convolutions 
      * with derivation filters.
@@ -189,48 +254,19 @@ namespace deblur {
 
         double min, max;
         minMaxLoc(dst, &min, &max);
-        cout << "Ax: " << min << " " << max << dst.size() << endl;
+        // cout << "Ax: " << min << " " << max << dst.size() << endl;
 
         // add weighted gradients to Ax
-        Mat tmp, res;
-
-        // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
-        filter2D(src, tmp, -1, df.xf);
-        // FIXME: have to cut out correct image part
-        //        maybe use matrices as weights -> no need for cropping
-        tmp = tmp.mul(weights.x);
-        filter2D(tmp, res, -1, df.x);
-        cout << res.size() << endl;
-        res *= we;
-        dst += res;
-
-        // matlab: Ax = Ax + we * conv2(weight_y .* conv2(x, fliplr(flipud(dyf)), 'valid'), dyf);
-        filter2D(src, tmp, -1, df.yf);
-        tmp = tmp.mul(weights.y);
-        filter2D(tmp, res, -1, df.y);
-        res *= we;
-        dst += res;
-
-        // matlab: Ax = Ax + we * conv2(weight_xx .* conv2(x, fliplr(flipud(dxxf)), 'valid'), dxxf);
-        filter2D(src, tmp, -1, df.xxf);
-        tmp = tmp.mul(weights.xx);
-        filter2D(tmp, res, -1, df.xx);
-        res *= we;
-        dst += res;
-
-        // matlab: Ax = Ax + we * conv2(weight_yy .* conv2(x, fliplr(flipud(dyyf)), 'valid'), dyyf);
-        filter2D(src, tmp, -1, df.yyf);
-        tmp = tmp.mul(weights.yy);
-        filter2D(tmp, res, -1, df.yy);
-        res *= we;
-        dst += res;
-
-        // matlab: Ax = Ax + we * conv2(weight_xy .* conv2(x, fliplr(flipud(dxyf)), 'valid'), dxyf);
-        filter2D(src, tmp, -1, df.xyf);
-        tmp = tmp.mul(weights.xy);
-        filter2D(tmp, res, -1, df.xy);
-        res *= we;
-        dst += res;
+        conv2addOld(src, dst, df.x, df.xf, weights.x, we);
+        conv2addOld(src, dst, df.y, df.yf, weights.y, we);
+        conv2addOld(src, dst, df.xx, df.xxf, weights.xx, we);
+        conv2addOld(src, dst, df.yy, df.yyf, weights.yy, we);
+        conv2addOld(src, dst, df.xy, df.xyf, weights.xy, we);
+        // conv2add(src, dst, df.x, df.xf, weights.x, we);
+        // conv2add(src, dst, df.y, df.yf, weights.y, we);
+        // conv2add(src, dst, df.xx, df.xxf, weights.xx, we);
+        // conv2add(src, dst, df.yy, df.yyf, weights.yy, we);
+        // conv2add(src, dst, df.xy, df.xyf, weights.xy, we);
     }
 
 
@@ -265,11 +301,11 @@ namespace deblur {
 
         double min; double max;
         minMaxLoc(src, &min, &max);
-        // cout << "src: " << min << " " << max << endl;
+        cout << "src: " << min << " " << max << endl;
         minMaxLoc(kernel, &min, &max);
-        // cout << "kernel: " << min << " " << max << endl;
+        cout << "kernel: " << min << " " << max << endl;
         minMaxLoc(b, &min, &max);
-        // cout << endl << "b: " << min << " " << max << endl;
+        cout << endl << "b: " << min << " " << max << endl;
 
         // flip kernel
         Mat fkernel;
@@ -286,58 +322,59 @@ namespace deblur {
         minMaxLoc(Ax, &min, &max);
         cout << "Ax: " << min << " " << max << endl;
 
-        // // matlab: r = b - Ax;
-        // Mat r;
-        // r = b - Ax;
+        // matlab: r = b - Ax;
+        Mat r;
+        r = b - Ax;
 
-        // minMaxLoc(r, &min, &max);
-        // // cout << min << " " << max << endl;
-        // showFloat("r", r, true);
+        minMaxLoc(r, &min, &max);
+        cout << "r: " << min << " " << max << endl;
+        showFloat("r", r, true);
         
-        // Mat p;
-        // r.copyTo(p);
+        Mat p;
+        r.copyTo(p);
 
-        // float rhoPrev;
+        float rhoPrev;
 
         // for (int i = 0; i < maxIt; i++) {
-        //     // matlab: rho = (r(:)'*r(:));
-        //     float rho = r.dot(r);
-        //     // cout << "rho: " << rho << endl;
+        for (int i = 0; i < 1; i++) {
+            // matlab: rho = (r(:)'*r(:));
+            float rho = r.dot(r);
+            cout << "rho: " << rho << endl;
 
 
-        //     if (i > 0) {
-        //         float beta = rho / rhoPrev;
-        //         p *= beta;
-        //         p += r;
-        //     }
+            // if (i > 0) {
+            //     float beta = rho / rhoPrev;
+            //     p *= beta;
+            //     p += r;
+            // }
 
-        //     // Ap = conv2(conv2(p, fliplr(flipud(filt1)), 'same') .* mask,  filt1,'same');
-        //     // and so on
-        //     Mat Ap;
-        //     computeA(p, Ap, kernel, fkernel, mask, df, weights, we);
+            // Ap = conv2(conv2(p, fliplr(flipud(filt1)), 'same') .* mask,  filt1,'same');
+            // and so on
+            Mat Ap;
+            computeA(p, Ap, kernel, fkernel, mask, df, weights, we);
 
-        //     showFloat("Ap", Ap, true);
-        //     minMaxLoc(Ap, &min, &max);
-        //     // cout << "Ap: " << min << " " << max << endl;
+            showFloat("Ap", Ap, true);
+            minMaxLoc(Ap, &min, &max);
+            cout << "Ap: " << min << " " << max << endl;
 
-        //     // matlab:  q = Ap; alpha = rho / (p(:)'*q(:) );
-        //     float alpha = rho / p.dot(Ap);
+            // matlab:  q = Ap; alpha = rho / (p(:)'*q(:) );
+            float alpha = rho / p.dot(Ap);
 
-        //     // cout << "alpha: " << alpha << endl;
+            cout << "alpha: " << alpha << endl;
 
-        //     x = x + (alpha * p);
-        //     minMaxLoc(x, &min, &max);
-        //     // cout << "x: " << min << " " << max << endl;
-        //     showFloat("x-new", x, true);
-        //     r = r - (alpha * Ap);
+            x = x + (alpha * p);
+            minMaxLoc(x, &min, &max);
+            cout << "x: " << min << " " << max << endl;
+            showFloat("x-new", x, true);
+            r = r - (alpha * Ap);
 
-        //     showFloat("r2", r, true);
-        //     minMaxLoc(r, &min, &max);
-        //     // cout << "r2: " << min << " " << max << endl;
+            showFloat("r2", r, true);
+            minMaxLoc(r, &min, &max);
+            cout << "r2: " << min << " " << max << endl;
             
 
-        //     rhoPrev = rho;
-        // }
+            rhoPrev = rho;
+        }
 
         x.copyTo(dst);
     }
@@ -388,11 +425,16 @@ namespace deblur {
         // weights for the derivation filter
         // FIXME: different sizes in levin
         weights weights;
-        weights.x = Mat::ones(n,m, CV_32F);
-        weights.y = Mat::ones(n,m, CV_32F);
-        weights.xx = Mat::ones(n,m, CV_32F);
-        weights.yy = Mat::ones(n,m, CV_32F);
-        weights.xy = Mat::ones(n,m, CV_32F);
+        weights.x = Mat::ones(n, m , CV_32F);
+        weights.y = Mat::ones(n , m, CV_32F);
+        weights.xx = Mat::ones(n, m , CV_32F);
+        weights.yy = Mat::ones(n , m, CV_32F);
+        weights.xy = Mat::ones(n, m, CV_32F);
+        // weights.x = Mat::ones(n, m - 1, CV_32F);
+        // weights.y = Mat::ones(n - 1, m, CV_32F);
+        // weights.xx = Mat::ones(n, m - 1, CV_32F);
+        // weights.yy = Mat::ones(n - 1, m, CV_32F);
+        // weights.xy = Mat::ones(n - 1, m - 1, CV_32F);
 
         // first deconvolution of the src image
         Mat x;
