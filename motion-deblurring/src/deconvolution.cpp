@@ -166,65 +166,190 @@ namespace deblur {
     }
 
 
-    void conv2add(Mat& src, Mat& dst, const Mat& kernel, const Mat& fkernel, const Mat& weight,
-                  const float we) {
-        Mat tmp, res;
+    enum ConvShape {
+        FULL,
+        SAME,
+        VALID,
+    };
 
-        // cout << "src " << src.size() << endl;
-
-        // padd image with zeros
-        int hfsX = kernel.cols / 2;
-        int hfsY = kernel.rows / 2;
-
-        // cout << "hfs x y: " << hfsX << " " << hfsY << endl;
+    /**
+     * Works like matlab conv2
+     *
+     * The shape parameter controls the result matrix size:
+     * 
+     *  - FULL  Returns the full two-dimensional convolution
+     *  - SAME  Returns the central part of the convolution of the same size as A
+     *  - VALID Returns only those parts of the convolution that are computed without
+     *          the zero-padded edges
+     */
+    void conv2(const Mat& src, Mat& dst, const Mat& kernel, ConvShape shape = FULL) {
+        int padSizeX = kernel.cols - 1;
+        int padSizeY = kernel.rows - 1;
 
         Mat zeroPadded;
-        copyMakeBorder(src, zeroPadded, hfsY, hfsY, hfsX, hfsX,
+        copyMakeBorder(src, zeroPadded, padSizeY, padSizeY, padSizeX, padSizeX,
                        BORDER_CONSTANT, Scalar::all(0));
 
-        // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
-        filter2D(zeroPadded, tmp, -1, fkernel);
-
-        // crop image - Rect(x,y,w,h)
-        // crop result of the convolution in such a way that it contains just the parts
-        // that are computed with an zero padded edge
-        Mat cropped = tmp(Rect(hfsX, hfsY, src.cols - hfsX, src.rows - hfsY));
-        // cout << "cropped " << cropped.size() << " weight: " << weight.size() <<  endl;
-
-        // FIXME: have to cut out correct image part
-        //        maybe use matrices as weights -> no need for cropping
+        // cout << endl << "zeroPadded:" << endl;
+        // for (int row = 0; row < zeroPadded.rows; row++) {
+        //     for (int col = 0; col < zeroPadded.cols; col++) {
+        //         cout << " " << zeroPadded.at<float>(row, col);
+        //     }
+        //     cout << endl;
+        // }
         
+        Point anchor(0, 0);
 
-        // tmp = tmp.mul(weight);
-        // filter2D(tmp, res, -1, kernel);
-        // filter2D(zeroPadded, res, -1, kernel);
+        // openCV is doing a correlation in their filter2D function ...
+        Mat fkernel;
+        flip(kernel, fkernel, -1);
+
+        Mat tmp;
+        filter2D(zeroPadded, tmp, -1, fkernel, anchor);
+
+        // cout << endl << "tmp:" << endl;
+        // for (int row = 0; row < tmp.rows; row++) {
+        //     for (int col = 0; col < tmp.cols; col++) {
+        //         cout << " " << tmp.at<float>(row, col);
+        //     }
+        //     cout << endl;
+        // }
+
+        // src =
+        //     1 2 3 4
+        //     1 2 3 4
+        //     1 2 3 4
+        // 
+        // zeroPadded =
+        //     0 0 1 2 3 4 0 0
+        //     0 0 1 2 3 4 0 0
+        //     0 0 1 2 3 4 0 0
+        // 
+        // kernel =
+        //     0.5 0 0.5
+        // 
+        // tmp =
+        //     0.5 1 2 3 1.5 2 0 2
+        //     0.5 1 2 3 1.5 2 0 2
+        //     0.5 1 2 3 1.5 2 0 2
+        //     |<----------->|      full
+        //         |<---->|         same
+        //           |-|            valid
+        // 
+        // the last column is complete rubbish, because openCV's
+        // filter2D uses reflected borders (101) by default.
         
-        cropped = cropped.mul(weight);
+        // crop padding
+        Mat cropped;
 
-        copyMakeBorder(cropped, zeroPadded, hfsY, hfsY, hfsX, hfsX,
-                       BORDER_CONSTANT, Scalar::all(0));
-        filter2D(zeroPadded, tmp, -1, kernel);
+        // variables cannot be declared in case statements
+        int width  = -1;
+        int height = -1;
 
-        // crop the result of the convolution in such a way that it matches with 
-        // "full" of matlab (just remove padding)
-        res = tmp(Rect(hfsX, hfsY, src.cols, src.rows));
-        // cout << "cropped " << res.size() << " weight: " << weight.size() <<  endl;
+        switch(shape) {
+            case FULL:
+                cropped = tmp(Rect(0, 0,
+                                   tmp.cols - padSizeX,
+                                   tmp.rows - padSizeY));
+                break;
 
+            case SAME:
+                cropped = tmp(Rect((tmp.cols - padSizeX - src.cols + 1) / 2,  // +1 for ceil
+                                   (tmp.rows - padSizeY - src.rows + 1) / 2,  // +1 for ceil
+                                   src.cols,
+                                   src.rows));
+                break;
 
-        // cout << res.size() << endl;
-        res *= we;
-        dst += res;
+            case VALID:
+                width  = src.cols - kernel.cols + 1;
+                height = src.rows - kernel.rows + 1;
+                cropped = tmp(Rect((tmp.cols - padSizeX - width) / 2,
+                                   (tmp.rows - padSizeY - height) / 2,
+                                   width,
+                                   height));
+                break;
+
+            default:
+                throw runtime_error("Invalid shape");
+                break;
+        }
+
+        cropped.copyTo(dst);
     }
 
-    void conv2addOld(Mat& src, Mat& dst, const Mat& kernel, const Mat& fkernel, const Mat& weight,
+
+    void test() {
+        Mat I = (Mat_<float>(3,4) << 1,2,3,4,1,2,3,4,1,2,3,4);
+        cout << endl << "I: " << endl;
+        for (int row = 0; row < I.rows; row++) {
+            for (int col = 0; col < I.cols; col++) {
+                cout << " " << I.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        Mat k = (Mat_<float>(1,3) << 0.3, 0, 0.7);
+        // Mat k = (Mat_<float>(1,4) << 0.5, 0, 0, 0.5);
+        cout << endl << "k: " << endl;
+        for (int row = 0; row < k.rows; row++) {
+            for (int col = 0; col < k.cols; col++) {
+                cout << " " << k.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        Mat normal;
+        filter2D(I, normal, -1, k);
+        cout << endl << "normal (reflected border): " << endl;
+        for (int row = 0; row < normal.rows; row++) {
+            for (int col = 0; col < normal.cols; col++) {
+                cout << " " << normal.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        Mat full, same, valid;
+
+        conv2(I, full, k, FULL);
+        cout << endl << "full: " << endl;
+        for (int row = 0; row < full.rows; row++) {
+            for (int col = 0; col < full.cols; col++) {
+                cout << " " << full.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        conv2(I, same, k, SAME);
+        cout << endl << "same: " << endl;
+        for (int row = 0; row < same.rows; row++) {
+            for (int col = 0; col < same.cols; col++) {
+                cout << " " << same.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        conv2(I, valid, k, VALID);
+        cout << endl << "valid: " << endl;
+        for (int row = 0; row < valid.rows; row++) {
+            for (int col = 0; col < valid.cols; col++) {
+                cout << " " << valid.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+    }
+
+
+    void conv2add(const Mat& src, Mat& dst, const Mat& kernel, const Mat& fkernel, const Mat& weight,
                   const float we) {
         Mat tmp, res;
 
         // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
-        filter2D(src, tmp, -1, fkernel);
+        conv2(src, tmp, fkernel, VALID);
+        cout << "sizes: tmp valid - " << tmp.size()  << " weight - " << weight.size() << endl;    
 
         tmp = tmp.mul(weight);
-        filter2D(tmp, res, -1, kernel);
+        conv2(tmp, res, kernel, FULL);
 
         res *= we;
         dst += res;
@@ -244,29 +369,28 @@ namespace deblur {
      * @param weights weights for derivation filters
      * @param we      weight
      */
-    void computeA(Mat& src, Mat& dst, Mat& kernel, Mat& fkernel, Mat& mask,
+    void computeA(const Mat& src, Mat& dst, Mat& kernel, Mat& fkernel, Mat& mask,
                   const derivationFilter& df, const weights& weights, const float we) {
         // matlab: Ax = conv2(conv2(x, fliplr(flipud(filt1)), 'same') .* mask,  filt1, 'same');
+        cout << "sizes: src - " << src.size() << " mask - " << mask.size() << endl; 
         Mat tmpAx;
-        filter2D(src, tmpAx, -1, fkernel);
+        conv2(src, tmpAx, fkernel, SAME);
+        cout << "sizes: same - " << tmpAx.size() << endl; 
         tmpAx = tmpAx.mul(mask);     
-        filter2D(tmpAx, dst, -1, kernel);
+        conv2(tmpAx, dst, kernel, SAME);
+
+        cout << "sizes: Ax first - " << tmpAx.size() << endl; 
 
         double min, max;
         minMaxLoc(dst, &min, &max);
         // cout << "Ax: " << min << " " << max << dst.size() << endl;
 
         // add weighted gradients to Ax
-        conv2addOld(src, dst, df.x, df.xf, weights.x, we);
-        conv2addOld(src, dst, df.y, df.yf, weights.y, we);
-        conv2addOld(src, dst, df.xx, df.xxf, weights.xx, we);
-        conv2addOld(src, dst, df.yy, df.yyf, weights.yy, we);
-        conv2addOld(src, dst, df.xy, df.xyf, weights.xy, we);
-        // conv2add(src, dst, df.x, df.xf, weights.x, we);
-        // conv2add(src, dst, df.y, df.yf, weights.y, we);
-        // conv2add(src, dst, df.xx, df.xxf, weights.xx, we);
-        // conv2add(src, dst, df.yy, df.yyf, weights.yy, we);
-        // conv2add(src, dst, df.xy, df.xyf, weights.xy, we);
+        conv2add(src, dst, df.x, df.xf, weights.x, we);
+        conv2add(src, dst, df.y, df.yf, weights.y, we);
+        conv2add(src, dst, df.xx, df.xxf, weights.xx, we);
+        conv2add(src, dst, df.yy, df.yyf, weights.yy, we);
+        conv2add(src, dst, df.xy, df.xyf, weights.xy, we);
     }
 
 
@@ -282,7 +406,7 @@ namespace deblur {
      * @param maxIt    number of iterations
      * @param weights  weights of first and second order derivatives
      */
-    void deconvL2w(Mat& src, Mat& dst, Mat& kernel, Mat& mask, const weights& weights,
+    void deconvL2w(const Mat& src, Mat& dst, Mat& kernel, Mat& mask, const weights& weights,
                    const derivationFilter& df, const float we = 0.001, const int maxIt = 200) {
 
         // half filter size
@@ -295,7 +419,7 @@ namespace deblur {
 
         // matlab: b = conv2(x .* mask, filt1, 'same');
         Mat b;
-        filter2D(zeroPaddedSrc, b, -1, kernel);
+        conv2(zeroPaddedSrc, b, kernel, SAME);
         showFloat("b", b, true);
 
 
@@ -305,7 +429,7 @@ namespace deblur {
         minMaxLoc(kernel, &min, &max);
         cout << "kernel: " << min << " " << max << endl;
         minMaxLoc(b, &min, &max);
-        cout << endl << "b: " << min << " " << max << endl;
+        cout << endl << "b: " << min << " " << max << " " << b.size() << endl;
 
         // flip kernel
         Mat fkernel;
@@ -320,7 +444,7 @@ namespace deblur {
         showFloat("Ax", Ax, true);
 
         minMaxLoc(Ax, &min, &max);
-        cout << "Ax: " << min << " " << max << endl;
+        cout << "Ax: " << min << " " << max << " " << Ax.size() << endl;
 
         // matlab: r = b - Ax;
         Mat r;
@@ -335,8 +459,7 @@ namespace deblur {
 
         float rhoPrev;
 
-        // for (int i = 0; i < maxIt; i++) {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < maxIt; i++) {
             // matlab: rho = (r(:)'*r(:));
             float rho = r.dot(r);
             cout << "rho: " << rho << endl;
@@ -382,6 +505,9 @@ namespace deblur {
 
     void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
 
+        // test();
+        // return;
+
         assert(src.type() == CV_8U && "works on gray value images");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
@@ -423,18 +549,13 @@ namespace deblur {
 
 
         // weights for the derivation filter
-        // FIXME: different sizes in levin
         weights weights;
-        weights.x = Mat::ones(n, m , CV_32F);
-        weights.y = Mat::ones(n , m, CV_32F);
-        weights.xx = Mat::ones(n, m , CV_32F);
-        weights.yy = Mat::ones(n , m, CV_32F);
-        weights.xy = Mat::ones(n, m, CV_32F);
-        // weights.x = Mat::ones(n, m - 1, CV_32F);
-        // weights.y = Mat::ones(n - 1, m, CV_32F);
-        // weights.xx = Mat::ones(n, m - 1, CV_32F);
-        // weights.yy = Mat::ones(n - 1, m, CV_32F);
-        // weights.xy = Mat::ones(n - 1, m - 1, CV_32F);
+        // FIXME: different weights as paper
+        weights.x = Mat::ones(n, m - 1, CV_32F);
+        weights.y = Mat::ones(n - 1, m, CV_32F);
+        weights.xx = Mat::ones(n, m - 2, CV_32F);
+        weights.yy = Mat::ones(n - 2, m, CV_32F);
+        weights.xy = Mat::ones(n - 1, m - 1, CV_32F);
 
         // first deconvolution of the src image
         Mat x;
