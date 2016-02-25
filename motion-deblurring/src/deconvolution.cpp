@@ -342,17 +342,16 @@ namespace deblur {
 
     void conv2add(const Mat& src, Mat& dst, const Mat& kernel, const Mat& fkernel, const Mat& weight,
                   const float we) {
-        Mat tmp, res;
+        Mat tmp;
 
         // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
         conv2(src, tmp, fkernel, VALID);
-        cout << "sizes: tmp valid - " << tmp.size()  << " weight - " << weight.size() << endl;    
+        // cout << "sizes: tmp valid - " << tmp.size()  << " weight - " << weight.size() << endl;    
 
         tmp = tmp.mul(weight);
-        conv2(tmp, res, kernel, FULL);
+        conv2(tmp, tmp, kernel, FULL);
 
-        res *= we;
-        dst += res;
+        dst += tmp * we;
     }
 
 
@@ -372,14 +371,14 @@ namespace deblur {
     void computeA(const Mat& src, Mat& dst, Mat& kernel, Mat& fkernel, Mat& mask,
                   const derivationFilter& df, const weights& weights, const float we) {
         // matlab: Ax = conv2(conv2(x, fliplr(flipud(filt1)), 'same') .* mask,  filt1, 'same');
-        cout << "sizes: src - " << src.size() << " mask - " << mask.size() << endl; 
+        // cout << "sizes: src - " << src.size() << " mask - " << mask.size() << endl; 
         Mat tmpAx;
         conv2(src, tmpAx, fkernel, SAME);
-        cout << "sizes: same - " << tmpAx.size() << endl; 
+        // cout << "sizes: same - " << tmpAx.size() << endl; 
         tmpAx = tmpAx.mul(mask);     
         conv2(tmpAx, dst, kernel, SAME);
 
-        cout << "sizes: Ax first - " << tmpAx.size() << endl; 
+        // cout << "sizes: Ax first - " << tmpAx.size() << endl; 
 
         double min, max;
         minMaxLoc(dst, &min, &max);
@@ -420,16 +419,16 @@ namespace deblur {
         // matlab: b = conv2(x .* mask, filt1, 'same');
         Mat b;
         conv2(zeroPaddedSrc, b, kernel, SAME);
-        showFloat("b", b, true);
+        // showFloat("b", b, true);
 
 
         double min; double max;
         minMaxLoc(src, &min, &max);
-        cout << "src: " << min << " " << max << endl;
+        // cout << "src: " << min << " " << max << endl;
         minMaxLoc(kernel, &min, &max);
-        cout << "kernel: " << min << " " << max << endl;
+        // cout << "kernel: " << min << " " << max << endl;
         minMaxLoc(b, &min, &max);
-        cout << endl << "b: " << min << " " << max << " " << b.size() << endl;
+        // cout << endl << "b: " << min << " " << max << " " << b.size() << endl;
 
         // flip kernel
         Mat fkernel;
@@ -441,18 +440,18 @@ namespace deblur {
         copyMakeBorder(src, x, hfsY, hfsY, hfsX, hfsX, BORDER_REPLICATE, 0);
         computeA(x, Ax, kernel, fkernel, mask, df, weights, we);
 
-        showFloat("Ax", Ax, true);
+        // showFloat("Ax", Ax, true);
 
         minMaxLoc(Ax, &min, &max);
-        cout << "Ax: " << min << " " << max << " " << Ax.size() << endl;
+        // cout << "Ax: " << min << " " << max << " " << Ax.size() << endl;
 
         // matlab: r = b - Ax;
         Mat r;
         r = b - Ax;
 
         minMaxLoc(r, &min, &max);
-        cout << "r: " << min << " " << max << endl;
-        showFloat("r", r, true);
+        // cout << "r: " << min << " " << max << endl;
+        // showFloat("r", r, true);
         
         Mat p;
         r.copyTo(p);
@@ -462,44 +461,64 @@ namespace deblur {
         for (int i = 0; i < maxIt; i++) {
             // matlab: rho = (r(:)'*r(:));
             float rho = r.dot(r);
-            cout << "rho: " << rho << endl;
+            // cout << "rho: " << rho << endl;
 
-
-            // if (i > 0) {
-            //     float beta = rho / rhoPrev;
-            //     p *= beta;
-            //     p += r;
-            // }
+            if (i > 0) {
+                float beta = rho / rhoPrev;
+                p *= beta;
+                p += r;
+            }
 
             // Ap = conv2(conv2(p, fliplr(flipud(filt1)), 'same') .* mask,  filt1,'same');
             // and so on
             Mat Ap;
             computeA(p, Ap, kernel, fkernel, mask, df, weights, we);
 
-            showFloat("Ap", Ap, true);
+            // showFloat("Ap", Ap, true);
             minMaxLoc(Ap, &min, &max);
-            cout << "Ap: " << min << " " << max << endl;
+            // cout << "Ap: " << min << " " << max << endl;
 
             // matlab:  q = Ap; alpha = rho / (p(:)'*q(:) );
             float alpha = rho / p.dot(Ap);
 
-            cout << "alpha: " << alpha << endl;
+            // cout << "alpha: " << alpha << endl;
 
             x = x + (alpha * p);
             minMaxLoc(x, &min, &max);
-            cout << "x: " << min << " " << max << endl;
-            showFloat("x-new", x, true);
+            // cout << "x: " << min << " " << max << endl;
+            // showFloat("x-new", x, true);
             r = r - (alpha * Ap);
 
-            showFloat("r2", r, true);
+            // showFloat("r2", r, true);
             minMaxLoc(r, &min, &max);
-            cout << "r2: " << min << " " << max << endl;
+            // cout << "r2: " << min << " " << max << endl;
             
 
             rhoPrev = rho;
         }
 
         x.copyTo(dst);
+    }
+
+
+    void updateWeight(Mat& weight, const Mat& gradient) {
+        // some parameters (see levin paper for details)
+        float w0 = 0.1;
+        float exp_a = 0.8;
+        float thr_e = 0.01;
+
+        for (int row = 0; row < weight.rows; row++) {
+            for (int col = 0; col < weight.cols; col++) {
+                float value;
+
+                if (abs(gradient.at<float>(row, col)) > thr_e) {
+                    value = abs(gradient.at<float>(row, col));
+                } else {
+                    value = thr_e;
+                }
+                weight.at<float>(row, col) = w0 * pow(value, exp_a - 2);
+            }
+        }
     }
 
 
@@ -561,64 +580,33 @@ namespace deblur {
         Mat x;
         deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
 
-        showFloat("intermediate result x", x, true);
+        // showFloat("intermediate result x", x, true);
 
-        // // some parameters (see levin paper for details)
-        // float w0 = 0.1;
-        // float exp_a = 0.8;
-        // float thr_e = 0.01;
+        for (int i = 0; i < 2; i++) {
+            Mat dx, dy, dxx, dyy, dxy;
+            conv2(x, dx, df.xf, VALID);
+            conv2(x, dy, df.yf, VALID);
+            conv2(x, dxx, df.xxf, VALID);
+            conv2(x, dyy, df.yyf, VALID);
+            conv2(x, dxy, df.xyf, VALID);
 
-        // for (int i = 0; i < 2; i++) {
-        //     Mat dx, dy, dxx, dyy, dxy;
-        //     filter2D(x, dx, -1, df.xf);
-        //     filter2D(x, dy, -1, df.yf);
-        //     filter2D(x, dxx, -1, df.xxf);
-        //     filter2D(x, dyy, -1, df.yyf);
-        //     filter2D(x, dxy, -1, df.xyf);
+            updateWeight(weights.x,  dx);
+            updateWeight(weights.y,  dy);
+            updateWeight(weights.xx, dxx);
+            updateWeight(weights.yy, dyy);
+            updateWeight(weights.xy, dxy);
 
-        //     // set new weights
-        //     for (int row = 0; row < (weights.x).rows; row++) {
-        //         for (int col = 0; col < (weights.x).cols; col++) {
-        //             float value;
+            deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
+        }
 
-        //             if (abs(dx.at<float>(row, col)) > thr_e)
-        //                 value = abs(dx.at<float>(row, col));
-        //             else
-        //                 value = thr_e;
-        //             weights.x.at<float>(row, col) = w0 * pow(value, exp_a - 2);
+        // crop result and convert to uchar
+        x(Rect(
+            hfsX,
+            hfsY,
+            src.cols,
+            src.rows
+        )).copyTo(dst);
 
-        //             if (abs(dy.at<float>(row, col)) > thr_e)
-        //                 value = abs(dy.at<float>(row, col));
-        //             else
-        //                 value = thr_e;
-        //             weights.y.at<float>(row, col) = w0 * pow(value, exp_a - 2);
-
-        //             if (abs(dxx.at<float>(row, col)) > thr_e)
-        //                 value = abs(dxx.at<float>(row, col));
-        //             else
-        //                 value = thr_e;
-        //             weights.xx.at<float>(row, col) = 0.25 * pow(value, exp_a - 2);
-
-        //             if (abs(dyy.at<float>(row, col)) > thr_e)
-        //                 value = abs(dyy.at<float>(row, col));
-        //             else
-        //                 value = thr_e;
-        //             weights.yy.at<float>(row, col) = 0.25 * pow(value, exp_a - 2);
-
-        //             if (abs(dxy.at<float>(row, col)) > thr_e)
-        //                 value = abs(dxy.at<float>(row, col));
-        //             else
-        //                 value = thr_e;
-        //             weights.xy.at<float>(row, col) = 0.25 * pow(value, exp_a - 2);
-        //         }
-        //     }
-
-        //     deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
-        // }
-
-        // showFloat("result", x);
-
-        // // crop result and convert to uchar
-        // // TODO
+        // showFloat("deblurred", dst, true);
     }
 }
