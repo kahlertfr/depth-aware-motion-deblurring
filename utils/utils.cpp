@@ -69,7 +69,7 @@ namespace deblur {
             // handling that floats could be negative
             copy -= min;
 
-            // convert and show
+            // convert
             minMaxLoc(copy, &min, &max);
             if (max < 1) {
                 copy.convertTo(dst, CV_8U, 255.0);

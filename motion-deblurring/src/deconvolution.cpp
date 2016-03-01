@@ -278,6 +278,10 @@ namespace deblur {
     }
 
 
+    /**
+     * Just for debugging.
+     *
+     */
     void test() {
         Mat I = (Mat_<float>(3,4) << 1,2,3,4,1,2,3,4,1,2,3,4);
         cout << endl << "I: " << endl;
