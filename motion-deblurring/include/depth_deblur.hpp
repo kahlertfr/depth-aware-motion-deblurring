@@ -35,7 +35,7 @@ namespace deblur {
          * @param imageRight blurred right view
          * @param width      approximate PSF width
          */
-        DepthDeblur(cv::Mat* imageLeft, cv::Mat* imageRight, const int width);
+        DepthDeblur(cv::Mat& imageLeft, cv::Mat& imageRight, const int width);
 
         /**
          * Disparity estimation of two blurred images
@@ -72,8 +72,12 @@ namespace deblur {
 
         /**
          * Deconvolves the two views for each depth layer.
+         * 
+         * @param dst   deconvolved image
+         * @param view  determine which view is deconvolved
+         * @param color use color image
          */
-        void deconvolve();
+        void deconvolve(cv::Mat& dst, view view, bool color = false);
 
 
       private:
@@ -81,7 +85,12 @@ namespace deblur {
         /**
          * both views
          */
-        const std::array<cv::Mat*, 2> images;
+        const std::array<cv::Mat, 2> images;
+
+        /**
+         * both gray views
+         */
+        std::array<cv::Mat, 2> grayImages;
 
         /**
          * Approximate psf kernel width

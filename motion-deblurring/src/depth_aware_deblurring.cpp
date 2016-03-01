@@ -15,7 +15,8 @@ using namespace cv;
 
 namespace deblur {
 
-    void depthDeblur(const Mat &blurredLeft, const Mat &blurredRight,
+    void depthDeblur(const Mat& blurredLeft, const Mat& blurredRight,
+                     Mat& deblurredLeft, Mat& deblurredRight,
                      int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
@@ -27,27 +28,6 @@ namespace deblur {
             throw runtime_error("PSF width has to be greater zero!");
         }
 
-        // make odd approximate psf width
-        if (psfWidth % 2 == 0) {
-            psfWidth++;
-        }
-
-        // compute gray value images
-        Mat grayLeft, grayRight;
-        if (blurredLeft.type() == CV_8UC3) {
-            cvtColor(blurredLeft, grayLeft, CV_BGR2GRAY);
-        }
-        else {
-            grayLeft = blurredLeft;
-        }
-
-        if (blurredRight.type() == CV_8UC3) {
-            cvtColor(blurredRight, grayRight, CV_BGR2GRAY);
-        }
-        else {
-            grayRight = blurredRight;
-        }
-
 
         #ifdef IMWRITE
             imwrite("input-left.png", blurredLeft);
@@ -57,15 +37,15 @@ namespace deblur {
 
         // input images at each iteration step
         Mat left, right;
-        grayLeft.copyTo(left);
-        grayRight.copyTo(right);
+        blurredLeft.copyTo(left);
+        blurredRight.copyTo(right);
 
         // two passes through algorithm
         for (int i = 0; i < 2; i++) {
             cout << i + 1 << ". Pass Estimation" << endl;
 
             // this class holds everything needed for one step of the depth-aware deblurring
-            DepthDeblur depthDeblur(&left, &right, psfWidth);
+            DepthDeblur depthDeblur(left, right, psfWidth);
 
             // initial disparity estimation of blurred images
             // here: left image is matching image and right image is reference image
@@ -88,10 +68,20 @@ namespace deblur {
 
 
             cout << " Step 4: Blur removal given PSF estimate" << endl;
-            depthDeblur.deconvolve();
-            
-            // TODO: deconvolve images
-            // TODO: set new left and right input image 
+            // set new left and right view for next pass
+            if (i==1) {
+                Mat deconvLeft, deconvRight;
+                depthDeblur.deconvolve(deconvLeft, LEFT);
+                depthDeblur.deconvolve(deconvRight, RIGHT);
+                
+                deconvLeft.copyTo(left);
+                deconvRight.copyTo(right);
+            } else {
+                // deblur color images
+                depthDeblur.deconvolve(deblurredLeft, LEFT, true);
+                depthDeblur.deconvolve(deblurredRight, RIGHT, true);
+            }
+
             // TODO: update parameters
             i++; // for debugging without second pass
         }
@@ -101,7 +91,8 @@ namespace deblur {
 
 
     void depthDeblur(const string filenameLeft, const string filenameRight,
-                     const int psfWidth, const int maxTopLevelNodes) {
+                     const int psfWidth, const int maxTopLevelNodes,
+                     const string filenameResultLeft, const string filenameResultRight) {
 
         // load images
         Mat blurredLeft, blurredRight;
@@ -112,6 +103,10 @@ namespace deblur {
             throw runtime_error("Can not load images!");
         }
 
-        depthDeblur(blurredLeft, blurredRight, psfWidth, maxTopLevelNodes);
+        Mat left, right;
+        depthDeblur(blurredLeft, blurredRight, left, right, psfWidth, maxTopLevelNodes);
+
+        imwrite(filenameResultLeft, left);
+        imwrite(filenameResultRight, right);
     }
 }
