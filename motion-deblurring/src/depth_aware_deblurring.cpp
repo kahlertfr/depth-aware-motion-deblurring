@@ -68,7 +68,7 @@ namespace deblur {
 
 
             cout << " Step 4: Blur removal given PSF estimate" << endl;
-            // set new left and right view for next pass
+            // set new left and right view for second pass
             if ((i + 1) < 2) {
                 Mat deconvLeft, deconvRight;
                 depthDeblur.deconvolve(deconvLeft, LEFT);
@@ -77,7 +77,7 @@ namespace deblur {
                 deconvLeft.copyTo(left);
                 deconvRight.copyTo(right);
             } else {
-                // deblur color images
+                // deblur final color images
                 depthDeblur.deconvolve(deblurredLeft, LEFT, true);
                 depthDeblur.deconvolve(deblurredRight, RIGHT, true);
             }

@@ -189,14 +189,6 @@ namespace deblur {
         Mat zeroPadded;
         copyMakeBorder(src, zeroPadded, padSizeY, padSizeY, padSizeX, padSizeX,
                        BORDER_CONSTANT, Scalar::all(0));
-
-        // cout << endl << "zeroPadded:" << endl;
-        // for (int row = 0; row < zeroPadded.rows; row++) {
-        //     for (int col = 0; col < zeroPadded.cols; col++) {
-        //         cout << " " << zeroPadded.at<float>(row, col);
-        //     }
-        //     cout << endl;
-        // }
         
         Point anchor(0, 0);
 
@@ -206,14 +198,6 @@ namespace deblur {
 
         Mat tmp;
         filter2D(zeroPadded, tmp, -1, fkernel, anchor);
-
-        // cout << endl << "tmp:" << endl;
-        // for (int row = 0; row < tmp.rows; row++) {
-        //     for (int col = 0; col < tmp.cols; col++) {
-        //         cout << " " << tmp.at<float>(row, col);
-        //     }
-        //     cout << endl;
-        // }
 
         // src =
         //     1 2 3 4
@@ -350,8 +334,6 @@ namespace deblur {
 
         // matlab: Ax = Ax + we * conv2(weight_x .* conv2(x, fliplr(flipud(dxf)), 'valid'), dxf);
         conv2(src, tmp, fkernel, VALID);
-        // cout << "sizes: tmp valid - " << tmp.size()  << " weight - " << weight.size() << endl;    
-
         tmp = tmp.mul(weight);
         conv2(tmp, tmp, kernel, FULL);
 
@@ -375,18 +357,10 @@ namespace deblur {
     void computeA(const Mat& src, Mat& dst, Mat& kernel, Mat& fkernel, Mat& mask,
                   const derivationFilter& df, const weights& weights, const float we) {
         // matlab: Ax = conv2(conv2(x, fliplr(flipud(filt1)), 'same') .* mask,  filt1, 'same');
-        // cout << "sizes: src - " << src.size() << " mask - " << mask.size() << endl; 
         Mat tmpAx;
         conv2(src, tmpAx, fkernel, SAME);
-        // cout << "sizes: same - " << tmpAx.size() << endl; 
         tmpAx = tmpAx.mul(mask);     
         conv2(tmpAx, dst, kernel, SAME);
-
-        // cout << "sizes: Ax first - " << tmpAx.size() << endl; 
-
-        double min, max;
-        minMaxLoc(dst, &min, &max);
-        // cout << "Ax: " << min << " " << max << dst.size() << endl;
 
         // add weighted gradients to Ax
         conv2add(src, dst, df.x, df.xf, weights.x, we);
@@ -423,16 +397,6 @@ namespace deblur {
         // matlab: b = conv2(x .* mask, filt1, 'same');
         Mat b;
         conv2(zeroPaddedSrc, b, kernel, SAME);
-        // showFloat("b", b, true);
-
-
-        double min; double max;
-        minMaxLoc(src, &min, &max);
-        // cout << "src: " << min << " " << max << endl;
-        minMaxLoc(kernel, &min, &max);
-        // cout << "kernel: " << min << " " << max << endl;
-        minMaxLoc(b, &min, &max);
-        // cout << endl << "b: " << min << " " << max << " " << b.size() << endl;
 
         // flip kernel
         Mat fkernel;
@@ -444,18 +408,9 @@ namespace deblur {
         copyMakeBorder(src, x, hfsY, hfsY, hfsX, hfsX, BORDER_REPLICATE, 0);
         computeA(x, Ax, kernel, fkernel, mask, df, weights, we);
 
-        // showFloat("Ax", Ax, true);
-
-        minMaxLoc(Ax, &min, &max);
-        // cout << "Ax: " << min << " " << max << " " << Ax.size() << endl;
-
         // matlab: r = b - Ax;
         Mat r;
         r = b - Ax;
-
-        minMaxLoc(r, &min, &max);
-        // cout << "r: " << min << " " << max << endl;
-        // showFloat("r", r, true);
         
         Mat p;
         r.copyTo(p);
@@ -465,7 +420,6 @@ namespace deblur {
         for (int i = 0; i < maxIt; i++) {
             // matlab: rho = (r(:)'*r(:));
             float rho = r.dot(r);
-            // cout << "rho: " << rho << endl;
 
             if (i > 0) {
                 float beta = rho / rhoPrev;
@@ -478,26 +432,12 @@ namespace deblur {
             Mat Ap;
             computeA(p, Ap, kernel, fkernel, mask, df, weights, we);
 
-            // showFloat("Ap", Ap, true);
-            minMaxLoc(Ap, &min, &max);
-            // cout << "Ap: " << min << " " << max << endl;
-
             // matlab:  q = Ap; alpha = rho / (p(:)'*q(:) );
             float alpha = rho / p.dot(Ap);
 
-            // cout << "alpha: " << alpha << endl;
-
             x = x + (alpha * p);
-            minMaxLoc(x, &min, &max);
-            // cout << "x: " << min << " " << max << endl;
-            // showFloat("x-new", x, true);
             r = r - (alpha * Ap);
-
-            // showFloat("r2", r, true);
-            minMaxLoc(r, &min, &max);
-            // cout << "r2: " << min << " " << max << endl;
             
-
             rhoPrev = rho;
         }
 
@@ -559,11 +499,6 @@ namespace deblur {
         Mat mask;
         copyMakeBorder(tmpMask, mask, hfsY, hfsY, hfsX, hfsX,
                        BORDER_CONSTANT, Scalar::all(0));
-
-        // // add border with zeros to the image
-        // Mat paddedSrc;
-        // copyMakeBorder(src, paddedSrc, hfsY, hfsY, hfsX, hfsX,
-        //                BORDER_CONSTANT, Scalar::all(0));
 
 
         // get first and second order derivations in x and y direction as sobel filter
