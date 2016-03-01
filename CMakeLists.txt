@@ -7,6 +7,9 @@ if (CMAKE_COMPILER_IS_GNUCC)
   set(CMAKE_CXX_FLAGS "-std=c++0x")
 endif()
 
+# some options
+option(IMWRITE "write intermediate images" OFF)
+
 # were does the binaries and libs are delivered?
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

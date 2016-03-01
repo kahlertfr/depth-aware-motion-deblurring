@@ -21,8 +21,9 @@ using namespace std;
 namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat* imageLeft, Mat* imageRight, const int width)
-                            : psfWidth((width % 2 == 0) ? width : width - 1)
+                            : psfWidth((width % 2 == 0) ? width - 1 : width)    // odd psf-width needed
                             , images({imageLeft, imageRight})
+                            , current(0)
     {
 
     }
@@ -56,12 +57,19 @@ namespace deblur {
             // compute kernel
             TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, blurred, psfWidth, mask);
 
-            #ifndef NDEBUG
+            #ifdef IMWRITE
+                // top-level region
+                Mat region;
+                regionTree.images[LEFT]->copyTo(region, mask);
+                string filename = "top-" + to_string(id) + ".png";
+                imwrite(filename, region);
+
+                // kernel
                 Mat tmp;
                 regionTree[id].psf.copyTo(tmp);
-                // tmp *= 255;
+                tmp *= 1000;
                 convertFloatToUchar(tmp, tmp);
-                string filename = "kernel-" + to_string(i) + ".png";
+                filename = "top-" + to_string(id) + "-kernel.png";
                 imwrite(filename, tmp);
             #endif
 
@@ -95,9 +103,9 @@ namespace deblur {
 
 
     void DepthDeblur::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, 
-                                          const array<Mat,2>& salientEdgesLeft,
-                                          const array<Mat,2>& salientEdgesRight,
-                                          Mat& psf) {
+                                         const array<Mat,2>& salientEdgesLeft,
+                                         const array<Mat,2>& salientEdgesRight,
+                                         Mat& psf) {
 
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
         // where i ∈ {r, m}, and S_i is the region for reference and matching view 
@@ -339,7 +347,6 @@ namespace deblur {
             
             // compute correlation of the latent image and the shockfiltered image
             float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
-            // cout << energy << endl;
 
             if (energy < minEnergy) {
                 winner = i;
@@ -515,6 +522,21 @@ namespace deblur {
                 estimateChildPSF(cid1);
                 estimateChildPSF(cid2);
 
+                #ifdef IMWRITE
+                    Mat tmp;
+                    regionTree[cid1].psf.copyTo(tmp);
+                    tmp *= 1000;
+                    convertFloatToUchar(tmp, tmp);
+                    string filename = "mid-kernel-init-" + to_string(cid1) + ".png";
+                    imwrite(filename, tmp);
+
+                    regionTree[cid2].psf.copyTo(tmp);
+                    tmp *= 1000;
+                    convertFloatToUchar(tmp, tmp);
+                    filename = "mid-kernel-init-" + to_string(cid2) + ".png";
+                    imwrite(filename, tmp);
+                #endif
+
                 // to eliminate errors
                 //
                 // calucate entropy of the found psf
@@ -537,30 +559,48 @@ namespace deblur {
     void DepthDeblur::deconvolve() {
         Mat deconv;
 
-        // // just code for testing
-        // //
-        // // get node id
-        // int id = regionTree.topLevelNodeIds[0];
-        // deconvolveIRLS(*images[LEFT], deconv, regionTree[id].psf);
+        // FIXME: for color images
 
+        // make a deconvolution for each disparity layer
+        for (int i = 0; i < psfWidth; i++) {
+            // FIXME: for both views
+            // get region of the disparity level
+            Mat region, mask;
+            regionTree.getRegionImage(i, region, mask, LEFT);
 
-        // --------- for debugging
-        Mat src, kernel;
-        src = imread("I.png", CV_LOAD_IMAGE_GRAYSCALE);
-        kernel = imread("filt.png", CV_LOAD_IMAGE_GRAYSCALE);
+            Mat tmpDeconv;
+            deconvolveIRLS(*images[LEFT], tmpDeconv, regionTree[i].psf);
 
-        kernel.convertTo(kernel, CV_32F);
-        kernel /= 255;
+            tmpDeconv.copyTo(deconv, mask);
 
-        double energy = sum(kernel)[0];
-        cout << energy << endl;
-        if (energy > 1){
-            // sum of all kernel entries = 1
-            kernel /= energy;
+            #ifdef IMWRITE
+                string filename = "tmp-deconv-" + to_string(LEFT) + "-" + to_string(i) + ".png";
+                imwrite(filename, deconv);
+            #endif        
         }
 
-        deconvolveIRLS(src, deconv, kernel);
+        #ifdef IMWRITE
+            string filename = "deconv-" + to_string(LEFT) + ".png";
+            imwrite(filename, deconv);
+        #endif
 
-        //----------- end debugging
+        // // --------- for debugging
+        // Mat src, kernel;
+        // src = imread("I.png", CV_LOAD_IMAGE_GRAYSCALE);
+        // kernel = imread("filt.png", CV_LOAD_IMAGE_GRAYSCALE);
+
+        // kernel.convertTo(kernel, CV_32F);
+        // kernel /= 255;
+
+        // double energy = sum(kernel)[0];
+        // cout << energy << endl;
+        // if (energy > 1){
+        //     // sum of all kernel entries = 1
+        //     kernel /= energy;
+        // }
+
+        // deconvolveIRLS(src, deconv, kernel);
+
+        // //----------- end debugging
     }
 }

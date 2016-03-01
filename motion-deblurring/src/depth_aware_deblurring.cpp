@@ -49,9 +49,9 @@ namespace deblur {
         }
 
 
-        #ifndef NDEBUG
-            imshow("blurred left image", blurredLeft);
-            imshow("blurred right image", blurredRight);
+        #ifdef IMWRITE
+            imwrite("input-left.png", blurredLeft);
+            imwrite("input-right.png", blurredRight);
         #endif
 
 
@@ -67,25 +67,25 @@ namespace deblur {
             // this class holds everything needed for one step of the depth-aware deblurring
             DepthDeblur depthDeblur(&left, &right, psfWidth);
 
-            // // initial disparity estimation of blurred images
-            // // here: left image is matching image and right image is reference image
-            // //       I_m(x) = I_r(x + d_m(x))
-            // cout << " Step 1: disparity estimation" << endl;
-            // depthDeblur.disparityEstimation();
+            // initial disparity estimation of blurred images
+            // here: left image is matching image and right image is reference image
+            //       I_m(x) = I_r(x + d_m(x))
+            cout << " Step 1: disparity estimation" << endl;
+            depthDeblur.disparityEstimation();
             
 
-            // cout << " Step 2: region tree reconstruction" << endl;
-            // depthDeblur.regionTreeReconstruction(maxTopLevelNodes);
+            cout << " Step 2: region tree reconstruction" << endl;
+            depthDeblur.regionTreeReconstruction(maxTopLevelNodes);
 
 
-            // // compute PSFs for toplevels of the region trees
-            // cout << " Step 3: PSF estimation for top-level regions in trees" << endl;
-            // depthDeblur.toplevelKernelEstimation("left");
+            cout << " Step 3: PSF estimation for top-level regions in trees" << endl;
+            depthDeblur.toplevelKernelEstimation("left");
 
 
-            // cout << " Step 3.1: Iterative PSF estimation" << endl;
-            // cout << "   ... jointly compute PSF for middle & leaf level-regions of both views" << endl;
-            // depthDeblur.midLevelKernelEstimation();
+            cout << " Step 3.1: Iterative PSF estimation" << endl;
+            cout << "   ... jointly compute PSF for middle & leaf level-regions of both views" << endl;
+            depthDeblur.midLevelKernelEstimation();
+
 
             cout << " Step 4: Blur removal given PSF estimate" << endl;
             depthDeblur.deconvolve();
@@ -97,11 +97,6 @@ namespace deblur {
         }
         
         cout << "finished Algorithm" << endl;
-
-        #ifndef NDEBUG
-            // Wait for a key stroke
-            waitKey(0);
-        #endif
     }
 
 

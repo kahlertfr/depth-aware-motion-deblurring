@@ -11,7 +11,7 @@ using namespace std;
 
 namespace deblur {
 
-        void quantizedDisparityEstimation(const Mat& blurredLeft, const Mat& blurredRight,
+    void quantizedDisparityEstimation(const Mat& blurredLeft, const Mat& blurredRight,
                                           int l, Mat& disparityMap, bool inverse) {
 
         assert(blurredLeft.type() == CV_8U && "gray values needed");
@@ -54,34 +54,24 @@ namespace deblur {
             disparityFlipped.copyTo(disparityMapSmall);
         }
 
-        // #ifndef NDEBUG
-        //     string prefix = (inverse) ? "_inverse" : "";
-        //     // imshow("original disparity map " + prefix, disparityMapSmall);
-        //     imwrite("dmap_small" + prefix + ".jpg", disparityMapSmall);
-        // #endif
-
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(disparityMapSmall, 10);
-
-        // #ifndef NDEBUG
-        //     // imshow("disparity map with filled occlusion " + prefix, disparityMapSmall);
-        //     imwrite("dmap_small_filled" + prefix + ".jpg", disparityMapSmall);
-        // #endif
 
         // quantize the image
         Mat quantizedDisparity;
         quantizeImage(disparityMapSmall, l, quantizedDisparity);
 
-        // #ifndef NDEBUG
-        //     // convert quantized image to be displayable
-        //     Mat disparityViewable;
-        //     double min; double max;
-        //     minMaxLoc(quantizedDisparity, &min, &max);
-        //     quantizedDisparity.convertTo(disparityViewable, CV_8U, 255.0/(max-min));
+        #ifdef IMWRITE
+            // convert quantized image to be displayable
+            Mat disparityViewable;
+            double min; double max;
+            minMaxLoc(quantizedDisparity, &min, &max);
+            quantizedDisparity.convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
-        //     imshow("quantized disparity map " + prefix, disparityViewable);
-        //     imwrite("dmap_final" + prefix + ".jpg", disparityViewable);
-        // #endif
+            // imshow("quantized disparity map " + prefix, disparityViewable);
+            string filename = "dmap-" + to_string(inverse) + ".png";
+            imwrite(filename, disparityViewable);
+        #endif
 
         // up sample disparity map to original resolution
         pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
