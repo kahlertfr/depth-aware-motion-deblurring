@@ -527,10 +527,10 @@ namespace deblur {
 
 
     void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
+        // FIXME: implementation for color images
 
         // test();
         // return;
-
         assert(src.type() == CV_8U && "works on gray value images");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
