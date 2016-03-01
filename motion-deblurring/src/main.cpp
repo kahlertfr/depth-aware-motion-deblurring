@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
     cout << endl;
 
     try {
-        DepthAwareDeblurring::runAlgorithm(imageLeft, imageRight, psfWidth, maxTopLevelNodes);
+        deblur::depthDeblur(imageLeft, imageRight, psfWidth, maxTopLevelNodes);
     }
     catch(const exception& e) {
         cerr << "ERROR: " << e.what() << endl;

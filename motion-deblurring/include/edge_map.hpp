@@ -17,7 +17,7 @@
 #include <opencv2/opencv.hpp>
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
     /**
      * Creates a more robust gradient. First, the image will be filtered

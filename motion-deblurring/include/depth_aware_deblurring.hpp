@@ -32,30 +32,37 @@
 #include <opencv2/opencv.hpp> // cv::Mat
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
     /**
      * Starts depth-aware motion deblurring algorithm with given blurred images (matrices)
      * 
      * @param blurredLeft       OpenCV matrix of blurred left image
      * @param blurredRight      OpenCV matrix of blurred right image
+     * @param deblurredLeft     result left
+     * @param deblurredRight    result right
      * @param psfWidth          approximate PSF width
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
      */
-    void runAlgorithm(const cv::Mat &blurredLeft, const cv::Mat &blurredRight, const int psfWidth=24,
-                      const int maxTopLevelNodes=3);
+    void depthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
+                     cv::Mat& deblurredLeft, cv::Mat& deblurredRight,
+                     int psfWidth = 24, const int maxTopLevelNodes = 3);
 
     /**
      * Loads images from given filenames and then starts the depth-aware motion 
      * deblurring algorithm
      * 
-     * @param filenameLeft      relative or absolute path to blurred left image
-     * @param filenameRight     relative or absolute path to blurred right image
-     * @param psfWidth          approximate PSF width
-     * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
+     * @param filenameLeft        relative or absolute path to blurred left image
+     * @param filenameRight       relative or absolute path to blurred right image
+     * @param psfWidth            approximate PSF width
+     * @param maxTopLevelNodes    maximum of top level nodes in region tree construction
+     * @param filenameDeblurLeft  filename for result left
+     * @param filenameDeblurRight filename for result right
      */
-    void runAlgorithm(const std::string filenameLeft, const std::string filenameRight, const int psfWidth=24,
-                      const int maxTopLevelNodes=3);
+    void depthDeblur(const std::string filenameLeft, const std::string filenameRight,
+                     int psfWidth = 24, const int maxTopLevelNodes = 3,
+                     const std::string filenameDeblurLeft = "deblur-left.png",
+                     const std::string filenameDeblurRight = "deblur-right.png");
 
 }
 

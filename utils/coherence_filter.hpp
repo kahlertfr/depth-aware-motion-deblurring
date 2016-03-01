@@ -10,7 +10,7 @@
  *  http://www.mia.uni-saarland.de/Publications/weickert-dagm03.pdf
  *
  * Example:
- *    Mat dst = CoherenceFilter(I,11,11,0.5,4);
+ *   Mat dst = CoherenceFilter(I,11,11,0.5,4);
  *   imshow("shock filter",dst);
  * 
  ***********************************************************************

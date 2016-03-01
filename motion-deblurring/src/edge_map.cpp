@@ -4,10 +4,9 @@
 
 using namespace cv;
 using namespace std;
-using namespace deblur;
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
     void gradientMaps(const Mat& image, array<Mat, 2>& gradients) {
         assert(image.type() == CV_8U && "Input image must be grayscaled");

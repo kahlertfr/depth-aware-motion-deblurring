@@ -43,6 +43,12 @@ set(LIB_SOURCES src/two_phase_psf_estimation.cpp
 add_library(lib2psfest SHARED ${LIB_SOURCES} $<TARGET_OBJECTS:utils>)
 set_target_properties(lib2psfest PROPERTIES
                                  OUTPUT_NAME "2psfest")
+
+if(IMWRITE)
+  set_target_properties(lib2psfest PROPERTIES
+                                   COMPILE_FLAGS "-DIMWRITE")
+endif()
+
 target_link_libraries(lib2psfest ${OpenCV_LIBS})
 
 # The main.cc is just the command line interface for the library. Using this

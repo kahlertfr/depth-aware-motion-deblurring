@@ -35,7 +35,9 @@
 
 #include <opencv2/opencv.hpp>
 
-namespace DepthAwareDeblurring {
+#include "utils.hpp"
+
+namespace deblur {
 
     /**
      * A Node stores both children and parent because of walking
@@ -54,11 +56,6 @@ namespace DepthAwareDeblurring {
 
       public:
         RegionTree();
-
-        /**
-         * Enumeration for conviniend call of region tree methods
-         */
-        enum view { LEFT, RIGHT };
 
         /**
          * Store the top level nodes to walk through the tree in a top to bottom manner
@@ -102,8 +99,8 @@ namespace DepthAwareDeblurring {
          * @param maskR   mask of right region
          */
         inline void getMasks(const int nodeId, cv::Mat& maskL, cv::Mat& maskR) const {
-            getMask(nodeId, maskL, LEFT);
-            getMask(nodeId, maskR, RIGHT);
+            getMask(nodeId, maskL, deblur::LEFT);
+            getMask(nodeId, maskR, deblur::RIGHT);
         };
 
         /**
@@ -113,7 +110,7 @@ namespace DepthAwareDeblurring {
          * @param maskL   mask of left region
          * @param view    LEFT or RIGHT view
          */
-        void getMask(const int nodeId, cv::Mat& mask, const view view) const;
+        void getMask(const int nodeId, cv::Mat& mask, const deblur::view view) const;
 
         /**
          * Creates an image where everything is black but the region of the image
@@ -124,7 +121,7 @@ namespace DepthAwareDeblurring {
          * @param mask         mask of this region
          */
         void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask,
-                            const view view) const;
+                            const deblur::view view) const;
 
         /**
          * fill the black regions with the neighboring pixel colors (half way the left one

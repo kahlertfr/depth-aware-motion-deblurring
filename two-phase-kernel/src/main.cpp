@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
         // load mask
         if (maskName != "none") {
             mask = imread(maskName, CV_LOAD_IMAGE_GRAYSCALE);
-            mask /= 255;
+            // mask /= 255;
             TwoPhaseKernelEstimation::estimateKernel(psf, image, psfWidth, mask);
         } else {
             TwoPhaseKernelEstimation::estimateKernel(psf, image, psfWidth);

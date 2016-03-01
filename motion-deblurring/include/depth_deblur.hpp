@@ -4,29 +4,54 @@
  *
  * Description:
  * ------------
- * Computes PSFs for a stereo image with a given disparity map.
- * It uses a region tree for this.
+ * One pass of the depth-aware deblurring algorithm:
+ *     1. disparity estimation
+ *     2. region tree reconstruction
+ *     3. PSF estimation for top level nodes
+ *     4. PSF estimation for mid and leaf level nodes
+ *     5. deconvolution of input images
  * 
  ******************************************************************************
  */
 
-#ifndef ITERATIVE_PSF_H
-#define ITERATIVE_PSF_H
+#ifndef DEPTH_DEBLUR_H
+#define DEPTH_DEBLUR_H
 
 #include <opencv2/opencv.hpp>
 
 #include "region_tree.hpp"
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
-    class IterativePSF {
+    class DepthDeblur {
 
       public:
 
-        IterativePSF(const cv::Mat& disparityMapM, const cv::Mat& disparityMapR,
-                     const int layers, cv::Mat* imageLeft, cv::Mat* imageRight,
-                     const int maxTopLevelNodes, const int width);
+        /**
+         * Constructor for depth-deblurring of stereo images
+         * 
+         * @param imageLeft  blurred left view
+         * @param imageRight blurred right view
+         * @param width      approximate PSF width
+         */
+        DepthDeblur(cv::Mat& imageLeft, cv::Mat& imageRight, const int width);
+
+        /**
+         * Disparity estimation of two blurred images
+         * where occluded regions are filled and where the disparity map is 
+         * quantized to l regions.
+         * 
+         * @param inverse  determine if the disparity is calculated from right to left
+         */
+        void disparityEstimation();
+
+        /**
+         * Creates a region tree from disparity maps
+         * 
+         * @param maxTopLevelNodes  maximal number of nodes at the top level
+         */
+        void regionTreeReconstruction(const int maxTopLevelNodes);
 
         /**
          * Estimates the PSFs of the top-level regions.
@@ -34,7 +59,7 @@ namespace DepthAwareDeblurring {
          * There is a possibility to load kernel-images because
          * the used algorithm doesn't work very well.
          * 
-         * @param filePrefix for loading kernel images
+         * @param filePrefix  for loading kernel images
          */
         void toplevelKernelEstimation(const std::string filePrefix);
 
@@ -45,12 +70,46 @@ namespace DepthAwareDeblurring {
          */
         void midLevelKernelEstimation();
 
+        /**
+         * Deconvolves the two views for each depth layer.
+         * 
+         * @param dst   deconvolved image
+         * @param view  determine which view is deconvolved
+         * @param color use color image
+         */
+        void deconvolve(cv::Mat& dst, view view, bool color = false);
+
 
       private:
+
+        /**
+         * both views
+         */
+        const std::array<cv::Mat, 2> images;
+
+        /**
+         * both gray views
+         */
+        std::array<cv::Mat, 2> grayImages;
+
         /**
          * Approximate psf kernel width
+         *
+         * this is an odd number.
          */
-        int psfWidth;
+        const int psfWidth;
+
+        /**
+         * number of disparity layers and region tree leaf nodes
+         *
+         * this is an even number.
+         */
+        const int layers;
+
+        /**
+         * quantized disparity maps for left-right and right-left disparity
+         */
+        std::array<cv::Mat, 2> disparityMaps;
 
         /**
          * region tree build form disparity map that stores PSFs for 
@@ -67,6 +126,8 @@ namespace DepthAwareDeblurring {
          * Gradients of right image in x and y direction
          */
         std::array<cv::Mat,2> gradsRight;
+
+        int current;
 
         /**
          * Estimates the PSF of a region jointly on the reference and matching view.

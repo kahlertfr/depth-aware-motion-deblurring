@@ -10,7 +10,7 @@ using namespace cv;
 using namespace std;
 
 
-namespace DepthAwareDeblurring {
+namespace deblur {
 
     RegionTree::RegionTree(){}
 
@@ -106,28 +106,29 @@ namespace DepthAwareDeblurring {
             endId = tree.size();
         };
 
-        // #ifndef NDEBUG
-        //     // print tree
-        //     for(int i = 0; i < tree.size(); i++) {
-        //         node n = tree[i];
-        //         cout << "    n" << i << ": ";
-        //         for (int b = 0; b < n.layers.size(); b++) {
-        //             cout << n.layers[b] << " ";
-        //         }
 
-        //         if (n.parent != -1)
-        //             cout << " p(n" << n.parent << ")";
-        //         if (n.children.first != -1)
-        //             cout << " c(n" << n.children.first << ", n" << n.children.second << ")";
-        //         cout << endl;
-        //     }
+        #ifdef IMWRITE
+            // print tree
+            for(int i = 0; i < tree.size(); i++) {
+                node n = tree[i];
+                cout << "    n" << i << ": ";
+                for (int b = 0; b < n.layers.size(); b++) {
+                    cout << n.layers[b] << " ";
+                }
 
-        //     cout << "    top level nodes: ";
-        //     for(int i = 0; i < topLevelNodeIds.size(); i++) {
-        //         cout << topLevelNodeIds[i] << " ";
-        //     }
-        //     cout << endl;
-        // #endif
+                if (n.parent != -1)
+                    cout << " p(n" << n.parent << ")";
+                if (n.children.first != -1)
+                    cout << " c(n" << n.children.first << ", n" << n.children.second << ")";
+                cout << endl;
+            }
+
+            cout << "    top level nodes: ";
+            for(int i = 0; i < topLevelNodeIds.size(); i++) {
+                cout << topLevelNodeIds[i] << " ";
+            }
+            cout << endl;
+        #endif
     }
 
 

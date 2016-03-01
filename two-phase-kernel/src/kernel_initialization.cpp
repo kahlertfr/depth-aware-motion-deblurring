@@ -383,7 +383,7 @@ namespace TwoPhaseKernelEstimation {
         }
 
         // init kernel but in the iterations the tmp-kernel is used
-        kernel = Mat::zeros(width, width, CV_8U);
+        kernel = Mat::zeros(width, width, CV_32F);
         Mat tmpKernel;
 
         assert(pyramid.size() == 1 && "Implement multiple pyramid levels");
@@ -460,9 +460,11 @@ namespace TwoPhaseKernelEstimation {
                 //        with more iterations it becomes worse
                 coarseImageEstimation(pyramid[l], kernel, selectedEdges, latentImage);
 
-                // #ifndef NDEBUG
-                //     string name = "tmp-latent" + i;
+                // #ifdef IMWRITE
+                //     string name = "two-phase-latent-" + to_string(i);
                 //     imshow(name, latentImage);
+                //     waitKey();
+
                 //     string filename = name + ".png";
                 //     imwrite(filename, latentImage);
                 // #endif
@@ -477,8 +479,9 @@ namespace TwoPhaseKernelEstimation {
             }
         }
 
-        // #ifndef NDEBUG
+        // #ifdef IMWRITE
         //     imshow("kernel", kernel);
+        //     waitKey();
         // #endif
     }
 }

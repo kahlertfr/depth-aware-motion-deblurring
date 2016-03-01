@@ -57,7 +57,11 @@ namespace deblur {
 
         // if the matrix is in the range [0, 1] just scale with 255
         if (min >= 0 && max < 1) {
-            src.convertTo(dst, CV_8U, 255.0/(max-min));
+            if (max < 1) {
+                src.convertTo(dst, CV_8U, 255.0);
+            } else {
+                src.convertTo(dst, CV_8U, 255.0/(max-min));
+            }
         } else {
             Mat copy;
             src.copyTo(copy);
@@ -65,8 +69,13 @@ namespace deblur {
             // handling that floats could be negative
             copy -= min;
 
-            // convert and show
-            copy.convertTo(dst, CV_8U, 255.0/(max-min));
+            // convert
+            minMaxLoc(copy, &min, &max);
+            if (max < 1) {
+                copy.convertTo(dst, CV_8U, 255.0);
+            } else {
+                copy.convertTo(dst, CV_8U, 255.0/(max-min));
+            }
         }
     }
 
