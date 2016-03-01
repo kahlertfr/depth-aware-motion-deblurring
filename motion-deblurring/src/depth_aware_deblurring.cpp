@@ -85,6 +85,10 @@ namespace deblur {
             // TODO: update parameters
             i++; // for debugging without second pass
         }
+
+        // for debugging
+        blurredLeft.copyTo(deblurredLeft);
+        blurredRight.copyTo(deblurredRight);
         
         cout << "finished Algorithm" << endl;
     }
