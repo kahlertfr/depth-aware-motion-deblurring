@@ -466,16 +466,17 @@ namespace deblur {
     }
 
 
-    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
-        // FIXME: implementation for color images
-
-        // test();
-        // return;
+    /**
+     * The spatial deconvolution algorithm for one channel.
+     * 
+     * @param src    blurred grayvalue image
+     * @param dst    latent image
+     * @param kernel energy preserving kernel
+     * @param we     weight
+     * @param maxIt  number of iterations
+     */
+    void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
         assert(src.type() == CV_8U && "works on gray value images");
-        assert(kernel.type() == CV_32F && "works with energy preserving kernel");
-
-        assert(kernel.rows % 2 == 1 && "odd kernel expected");
-        assert(kernel.cols % 2 == 1 && "odd kernel expected");
 
         // convert input image to floats and normalize it to [0,1]
         src.convertTo(src, CV_32F);
@@ -547,5 +548,34 @@ namespace deblur {
         )).copyTo(dst);
 
         // showFloat("deblurred", dst, true);
+    }
+
+
+    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
+        assert(kernel.type() == CV_32F && "works with energy preserving kernel");
+
+        assert(kernel.rows % 2 == 1 && "odd kernel expected");
+        assert(kernel.cols % 2 == 1 && "odd kernel expected");
+
+
+        if (src.type() == CV_8UC3) {
+            // deconvolve each channel of a color image
+            vector<Mat> channels(3), tmp(3);
+            split(src, channels);
+
+
+            for (int i = 0; i < channels.size(); i++) {
+                deconvolveChannelIRLS(channels[i], tmp[i], kernel, we, maxIt);
+            }
+
+            merge(tmp, dst);
+
+        } else if (src.type() == CV_8U) {
+            // deconvolve gray value image
+            deconvolveChannelIRLS(src, dst, kernel, we, maxIt);
+
+        } else {
+            throw runtime_error("Cannot convolve this image type");
+        } 
     }
 }
