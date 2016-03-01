@@ -583,19 +583,23 @@ namespace deblur {
 
 
     void DepthDeblur::deconvolve(Mat& dst, view view, bool color) {
-        // FIXME: for color images
-        
-        dst = Mat::zeros(grayImages[view].size(), CV_8U);
+        // dst = Mat::zeros(src.size(), src.type());
 
         // make a deconvolution for each disparity layer
         for (int i = 0; i < psfWidth; i++) {
             // FIXME: for both views
-            // get region of the disparity level
-            Mat region, mask;
-            regionTree.getRegionImage(i, region, mask, view);
+            
+            // get mask of the disparity level
+            Mat mask;
+            regionTree.getMask(i, mask, view);
 
             Mat tmpDeconv;
-            deconvolveIRLS(grayImages[view], tmpDeconv, regionTree[i].psf);
+
+            if (color) {
+                deconvolveIRLS(images[view], tmpDeconv, regionTree[i].psf);
+            } else {
+                deconvolveIRLS(grayImages[view], tmpDeconv, regionTree[i].psf);
+            }
 
             tmpDeconv.copyTo(dst, mask);
 
