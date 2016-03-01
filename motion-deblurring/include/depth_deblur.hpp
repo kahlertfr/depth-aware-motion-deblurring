@@ -85,8 +85,17 @@ namespace deblur {
 
         /**
          * Approximate psf kernel width
+         *
+         * this is an odd number.
          */
         const int psfWidth;
+
+        /**
+         * number of disparity layers and region tree leaf nodes
+         *
+         * this is an even number.
+         */
+        const int layers;
 
         /**
          * quantized disparity maps for left-right and right-left disparity
@@ -108,6 +117,8 @@ namespace deblur {
          * Gradients of right image in x and y direction
          */
         std::array<cv::Mat,2> gradsRight;
+
+        int current;
 
         /**
          * Estimates the PSF of a region jointly on the reference and matching view.

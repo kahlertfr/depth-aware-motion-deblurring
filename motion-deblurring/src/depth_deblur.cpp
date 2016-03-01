@@ -22,6 +22,7 @@ namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat* imageLeft, Mat* imageRight, const int width)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)    // odd psf-width needed
+                            , layers((width % 2 == 0) ? width : width - 1)      // even layer number needed
                             , images({imageLeft, imageRight})
                             , current(0)
     {
@@ -31,14 +32,14 @@ namespace deblur {
 
     void DepthDeblur::disparityEstimation() {
         // quantized disparity maps for both directions (left-right and right-left)
-        quantizedDisparityEstimation(*images[LEFT], *images[RIGHT], psfWidth, disparityMaps[LEFT]);
-        quantizedDisparityEstimation(*images[RIGHT], *images[LEFT], psfWidth, disparityMaps[RIGHT], true);
+        quantizedDisparityEstimation(*images[LEFT], *images[RIGHT], layers, disparityMaps[LEFT]);
+        quantizedDisparityEstimation(*images[RIGHT], *images[LEFT], layers, disparityMaps[RIGHT], true);
     }
 
 
     void DepthDeblur::regionTreeReconstruction(const int maxTopLevelNodes) {
         // create a region tree
-        regionTree.create(disparityMaps[LEFT], disparityMaps[RIGHT], psfWidth,
+        regionTree.create(disparityMaps[LEFT], disparityMaps[RIGHT], layers,
                           images[LEFT], images[RIGHT], maxTopLevelNodes);
     }
 
