@@ -29,7 +29,7 @@ namespace TwoPhaseKernelEstimation {
             blurred.copyTo(blurredGray);
 
         // TODO: change number of pyrLevel and iterations
-        initKernel(kernel, blurredGray, width, mask, 1, 1);
+        initKernel(kernel, blurredGray, width, mask, 2, 2);
 
         kernel.copyTo(psf);
     }

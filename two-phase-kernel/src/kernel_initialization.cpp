@@ -5,6 +5,7 @@
 
 #include "utils.hpp"
 #include "coherence_filter.hpp"
+#include "deconvolution.hpp"
 
 #include "kernel_initialization.hpp"
 
@@ -372,24 +373,33 @@ namespace TwoPhaseKernelEstimation {
         // #endif
 
         // build an image pyramid with gray value images
-        vector<Mat> pyramid;
+        vector<Mat> pyramid, masks;
         pyramid.push_back(blurredGray);
+        masks.push_back(mask);
 
         for (int i = 0; i < (pyrLevel - 1); i++) {
-            Mat downImage;
+            Mat downImage, downMask;
             pyrDown(pyramid[i], downImage, Size(pyramid[i].cols/2, pyramid[i].rows/2));
+            pyrDown(masks[i], downMask, Size(masks[i].cols/2, masks[i].rows/2));
 
-            pyramid.push_back(pyramid[i]);
+            pyramid.push_back(downImage);
+            masks.push_back(downMask);
         }
 
         // init kernel but in the iterations the tmp-kernel is used
         kernel = Mat::zeros(width, width, CV_32F);
         Mat tmpKernel;
 
-        assert(pyramid.size() == 1 && "Implement multiple pyramid levels");
-
         // go through image pyramid from small to large
         for (int l = pyramid.size() - 1; l >= 0; l--) {
+            #ifdef IMWRITE
+                imshow("pyr Image", pyramid[l]);
+                double min; double max;
+                minMaxLoc(pyramid[l], &min, &max);
+                cout << "pyr: " << min << " " << max << endl;
+                waitKey();
+            #endif
+
             // compute image gradient for x and y direction
             // 
             // gaussian blur (in-place operation is supported)
@@ -407,14 +417,13 @@ namespace TwoPhaseKernelEstimation {
             Sobel(pyramid[l], tmpGradients[1], ddepth, 0, 1, ksize, scale, delta, BORDER_DEFAULT);
 
             // cut off gradients outside the mask
-            // FIXME: Scale mask to the current pyramid level!
-            tmpGradients[0].copyTo(gradients[0], mask);
-            tmpGradients[1].copyTo(gradients[1], mask);
+            tmpGradients[0].copyTo(gradients[0], masks[l]);
+            tmpGradients[1].copyTo(gradients[1], masks[l]);
 
             // normalize gradients into range [-1,1]
             normalizeOne(gradients);
 
-            //  #ifndef NDEBUG
+            // #ifdef IMWRITE
             //     showFloat("x gradient", gradients[0]);
             //     showFloat("y gradient", gradients[1]);
             // #endif
@@ -422,9 +431,9 @@ namespace TwoPhaseKernelEstimation {
 
             // compute gradient confidence for al pixels
             Mat gradientConfidence;
-            computeGradientConfidence(gradientConfidence, gradients, width, mask);
+            computeGradientConfidence(gradientConfidence, gradients, width, masks[l]);
 
-            // #ifndef NDEBUG
+            // #ifdef IMWRITE
             //     showFloat("confidence", gradientConfidence);
             // #endif
 
@@ -433,32 +442,46 @@ namespace TwoPhaseKernelEstimation {
             Mat currentImage;
             pyramid[l].copyTo(currentImage);
 
-            assert(iterations == 1 && "Implement multiple iterations");
+            // assert(iterations == 1 && "Implement multiple iterations");
 
             for (int i = 0; i < iterations; i++) {
+                #ifdef IMWRITE
+                    imshow("current Image", currentImage);
+                    minMaxLoc(currentImage, &min, &max);
+                    cout << "current: " << min << " " << max << endl;
+                    waitKey();
+                #endif
+
                 // select edges for kernel estimation (normalized gradients [-1,1])
                 array<Mat,2> selectedEdges;
                 selectEdges(currentImage, gradientConfidence, thresholdR, thresholdS, selectedEdges);
 
-                // #ifndef NDEBUG
-                //     showFloat("x gradient selection", selectedEdges[0]);
-                //     showFloat("y gradient selection", selectedEdges[1]);
-                // #endif
+                #ifdef IMWRITE
+                    showFloat("x gradient selection", selectedEdges[0]);
+                    showFloat("y gradient selection", selectedEdges[1]);
+                    minMaxLoc(selectedEdges[0], &min, &max);
+                    cout << "x gradients: " << min << " " << max << endl;
+                    waitKey();
+                #endif
 
 
                 // estimate kernel with gaussian prior
                 fastKernelEstimation(selectedEdges, gradients, kernel, 0.0);
 
-                // #ifndef NDEBUG                  
-                //     showFloat("tmp-kernel", kernel, true);
-                // #endif
+                #ifdef IMWRITE
+                    showFloat("tmp-kernel", kernel, true);
+                    minMaxLoc(kernel, &min, &max);
+                    cout << "kernel: " << min << " " << max << endl;
+                    waitKey();
+                #endif
 
 
                 // coarse image estimation with a spatial prior
                 Mat latentImage;
                 // FIXME: it looks like there are some edges of the gradients in the latent image.
                 //        with more iterations it becomes worse
-                coarseImageEstimation(pyramid[l], kernel, selectedEdges, latentImage);
+                // coarseImageEstimation(pyramid[l], kernel, selectedEdges, latentImage);
+                deconvolveIRLS(pyramid[l], latentImage, kernel);
 
                 // #ifdef IMWRITE
                 //     string name = "two-phase-latent-" + to_string(i);
@@ -476,6 +499,13 @@ namespace TwoPhaseKernelEstimation {
                 // decrease thresholds τ_r and τ_s will to include more and more edges
                 thresholdR = thresholdR / 1.1;
                 thresholdS = thresholdS / 1.1;
+            }
+
+            // set next pyramid image to the upscaled latent image
+            if (l > 0) {
+                Mat upImage;
+                pyrUp(currentImage, upImage, Size(pyramid[l - 1].cols, pyramid[l - 1].rows));
+                pyramid[l - 1] = upImage;
             }
         }
 

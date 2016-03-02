@@ -478,6 +478,10 @@ namespace deblur {
     void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
         assert(src.type() == CV_8U && "works on gray value images");
 
+        // save min and max values of src to restore the image with correct range
+        double min; double max;
+        minMaxLoc(src, &min, &max);
+
         // convert input image to floats and normalize it to [0,1]
         src.convertTo(src, CV_32F);
         src /= 255.0;
@@ -540,14 +544,15 @@ namespace deblur {
         }
 
         // crop result and convert to uchar
+        Mat cropped;
         x(Rect(
             hfsX,
             hfsY,
             src.cols,
             src.rows
-        )).copyTo(dst);
+        )).copyTo(cropped);
 
-        // showFloat("deblurred", dst, true);
+        convertFloatToUchar(cropped, dst);
     }
 
 
