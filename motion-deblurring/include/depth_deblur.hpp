@@ -197,6 +197,8 @@ namespace deblur {
          * where E is the expectation operator
          *       σ is signal standard deviation
          *       μ is signal standard mean
+         *
+         * The images are equal if the value is nearly 1.
          * 
          * @param  image1 first image
          * @param  image2 second image

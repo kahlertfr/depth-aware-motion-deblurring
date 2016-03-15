@@ -103,7 +103,7 @@ namespace deblur {
             // // get an image of the top-level region
             // Mat region, mask;
             // regionTree.getRegionImage(id, region, mask, LEFT);
-            //
+            
             // // edge tapering to remove high frequencies at the border of the region
             // Mat taperedRegion;
             // regionTree.edgeTaper(taperedRegion, region, mask, grayImages[LEFT]);
@@ -285,22 +285,24 @@ namespace deblur {
         Mat deblurredLeft, deblurredRight;
         deconvolveFFT(grayImages[LEFT], deblurredLeft, regionTree[parent].psf);
         deconvolveFFT(grayImages[RIGHT], deblurredRight, regionTree[parent].psf);
+        // FIXME: strong ringing artifacts in deconvoled image
 
-        #ifdef IMWRITE
-            imshow("devonv left", deblurredLeft);
-            waitKey();
-        #endif
+        // #ifdef IMWRITE
+        //     imshow("devonv left", deblurredLeft);
+        //     waitKey();
+        // #endif
 
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
+        // FIXME: not just inside mask??
         computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
         computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
 
-        #ifdef IMWRITE
-            showGradients("salient edges left x", salientEdgesLeft[0]);
-            showGradients("salient edges right x", salientEdgesRight[0]);
-            waitKey();
-        #endif
+        // #ifdef IMWRITE
+        //     showGradients("salient edges left x", salientEdgesLeft[0]);
+        //     showGradients("salient edges right x", salientEdgesRight[0]);
+        //     waitKey();
+        // #endif
 
         // estimate psf for the first child node
         jointPSFEstimation(maskM, maskR, salientEdgesLeft, salientEdgesRight, regionTree[id].psf);
@@ -358,7 +360,7 @@ namespace deblur {
         // this means: entropy - mean < threshold
         float mean = (regionTree[id].entropy + regionTree[sid].entropy) / 2.0;
 
-        // emperically choosen threshold
+        // empirically choosen threshold
         float threshold = 0.2 * mean;
 
         if (regionTree[sid].entropy - mean < threshold) {
@@ -389,15 +391,13 @@ namespace deblur {
             // shock filtered
             Mat shockFiltered;
             coherenceFilter(smoothed, shockFiltered);
-
-            // #ifndef NDEBUG
-            //     imshow("latent region", latentShock);
-            //     waitKey();
-            // #endif
-            
             
             // compute correlation of the latent image and the shockfiltered image
             float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
+
+            #ifdef IMWRITE
+                cout << "    energy for " << i << ": " << energy << endl;
+            #endif
 
             if (energy < minEnergy) {
                 winner = i;
@@ -411,6 +411,12 @@ namespace deblur {
 
     float DepthDeblur::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
         assert(mask.type() == CV_8U && "mask is uchar image with zeros and ones");
+
+        // #ifdef IMWRITE
+        //     imshow("image1", image1);
+        //     imshow("image2", image2);
+        //     waitKey();
+        // #endif
 
         // compute gradients
         // parameter for sobel filtering to obtain gradients
@@ -459,7 +465,7 @@ namespace deblur {
                     // expected values                
                     meanX += X.at<float>(row, col);
                     meanY += Y.at<float>(row, col);
-                    N += 1;
+                    N++;
                 }
             }
         }
@@ -467,14 +473,13 @@ namespace deblur {
         meanX /= N;
         meanY /= N;
         
-        // cout << "means: " << meanX << " " << meanY << endl;
-
         // expected value can be computed using the mean:
         // E(X - μx) = 1/N * sum_x(x - μx) ... denoted as Ex
-        float Ex = 0;
-        float Ey = 0;
 
-        // deviation = sqrt(1/N * sum_x(x - μx)²)
+        // FIXME: does the paper use the corr2 function of matlab? I think so
+        float E = 0;
+
+        // deviation = sqrt(1/N * sum_x(x - μx)²) -> do not use 1/N 
         float deviationX = 0;
         float deviationY = 0;
 
@@ -489,9 +494,8 @@ namespace deblur {
                     float valueX = X.at<float>(row, col) - meanX;
                     float valueY = Y.at<float>(row, col) - meanY;
 
-                    // expected values                
-                    Ex += valueX;
-                    Ey += valueY;
+                    // expected values (the way matlab calculates it)              
+                    E += valueX * valueY;
 
                     // deviation
                     deviationX += (valueX * valueX);
@@ -499,33 +503,11 @@ namespace deblur {
                 }
             }
         }
-
-        // // FIXME: does the paper use the corr2 function of matlab?
-        // // I think so
-        // 
-        // // divide through number of pixel       
-        // Ex /= N;
-        // Ey /= N;
-        // deviationX = sqrt(deviationX / N);
-        // deviationY = sqrt(deviationY / N);
-    
-        // cout << " E (" << Ex << "," << Ey    << ")" << endl;
-        
+           
         deviationX = sqrt(deviationX);
         deviationY = sqrt(deviationY);
 
-        // cout << " deviations (" << deviationX << "," << deviationY    << ")" << endl;
-        float correlation = (Ex * Ey) / (deviationX * deviationY);
-        // cout << "correlation " << correlation << endl;
-
-
-        // #ifndef NDEBUG
-        //     // showGradients("gradients x", tmpGrads[0]);
-        //     // showGradients("gradients y", tmpGrads[1]);
-        //     showGradients("combined gradients X", X);
-        //     showGradients("combined gradients Y", Y);
-        //     waitKey();
-        // #endif
+        float correlation = E / (deviationX * deviationY);
 
         return correlation;
     }
@@ -583,14 +565,16 @@ namespace deblur {
                 regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
                 regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
-                // // candiate selection
-                // vector<Mat> candiates1, candiates2;
-                // candidateSelection(candiates1, cid1, cid2);
-                // candidateSelection(candiates2, cid2, cid1);
+                cout << "  entropies: " << regionTree[cid1].entropy << " " << regionTree[cid2].entropy << endl;
 
-                // // final psf selection
-                // psfSelection(candiates1, cid1);
-                // psfSelection(candiates2, cid2);
+                // candiate selection
+                vector<Mat> candiates1, candiates2;
+                candidateSelection(candiates1, cid1, cid2);
+                candidateSelection(candiates2, cid2, cid1);
+
+                // final psf selection
+                psfSelection(candiates1, cid1);
+                psfSelection(candiates2, cid2);
             }
         }
     }
