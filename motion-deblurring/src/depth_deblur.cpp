@@ -55,48 +55,46 @@ namespace deblur {
     }
 
 
-    void DepthDeblur::toplevelKernelEstimation(const string filePrefix) {
+    void DepthDeblur::toplevelKernelEstimation() {
         // go through each top-level node
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
             int id = regionTree.topLevelNodeIds[i];
 
-            // get the mask of the top-level region
-            // Mat mask;
-            // regionTree.getMask(id, mask, LEFT);
+            // // get the mask of the top-level region
+            // Mat region, mask;
+            // regionTree.getRegionImage(id, region, mask, LEFT);
 
-            Mat region, mask;
-            regionTree.getRegionImage(id, region, mask, LEFT);
+            // // edge tapering to remove high frequencies at the border of the region
+            // Mat taperedRegion;
+            // regionTree.edgeTaper(taperedRegion, region, mask, grayImages[LEFT]);
 
-            // edge tapering to remove high frequencies at the border of the region
-            Mat taperedRegion;
-            regionTree.edgeTaper(taperedRegion, region, mask, grayImages[LEFT]);
+            // // compute kernel
+            // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, grayImages[LEFT], psfWidth, mask);
+            // // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, taperedRegion, psfWidth);
 
-            // compute kernel
-            TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, grayImages[LEFT], psfWidth, mask);
-            // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, taperedRegion, psfWidth);
+            // #ifdef IMWRITE
+            //     // top-level region
+            //     string filename = "top-" + to_string(id) + "-mask.png";
+            //     imwrite(filename, mask);
 
-            #ifdef IMWRITE
-                // top-level region
-                string filename = "top-" + to_string(id) + "-mask.png";
-                imwrite(filename, mask);
+            //     // tapered image
+            //     filename = "top-" + to_string(id) + "-tapered.png";
+            //     imwrite(filename, taperedRegion);
 
-                // tapered image
-                filename = "top-" + to_string(id) + "-tapered.png";
-                imwrite(filename, taperedRegion);
+            //     // top-level region
+            //     grayImages[LEFT].copyTo(region, mask);
+            //     filename = "top-" + to_string(id) + ".png";
+            //     imwrite(filename, region);
 
-                // top-level region
-                grayImages[LEFT].copyTo(region, mask);
-                filename = "top-" + to_string(id) + ".png";
-                imwrite(filename, region);
+            //     // kernel
+            //     Mat tmp;
+            //     regionTree[id].psf.copyTo(tmp);
+            //     tmp *= 1000;
+            //     convertFloatToUchar(tmp, tmp);
+            //     filename = "top-" + to_string(id) + "-kernel.png";
+            //     imwrite(filename, tmp);
+            // #endif
 
-                // kernel
-                Mat tmp;
-                regionTree[id].psf.copyTo(tmp);
-                tmp *= 1000;
-                convertFloatToUchar(tmp, tmp);
-                filename = "top-" + to_string(id) + "-kernel.png";
-                imwrite(filename, tmp);
-            #endif
 
             // // WORKAROUND because of deferred two-phase kernel estimation
             // // use the next two steps after each other
@@ -114,15 +112,22 @@ namespace deblur {
             // string name = "tapered" + to_string(i) + ".jpg";
             // imwrite(name, taperedRegion);
             
-            // // 2. load kernel images generated with the exe for toplevels
-            // // load the kernel images which should be named left/right-kerneli.png
-            // // they should be located in the folder where this algorithm is started
-            // string filename = filePrefix + "-kernel" + to_string(i) + ".png";
-            // regionTree[id].psf = imread(filename, 1);
-            //
-            // if (!regionTree[id].psf.data) {
-            //     throw runtime_error("Can not load kernel!");
-            // }
+            // 2. load kernel images generated with the exe for toplevels
+            // load the kernel images which should be named left/right-kerneli.png
+            // they should be located in the folder where this algorithm is started
+            string filename = "kernel" + to_string(i) + ".png";
+            Mat kernelImage = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+
+            if (!kernelImage.data) {
+                throw runtime_error("Can not load kernel!");
+            }
+            
+            // convert kernel-image to energy preserving float kernel
+            kernelImage.convertTo(kernelImage, CV_32F);
+            kernelImage /= sum(kernelImage)[0];
+
+            // save the psf
+            kernelImage.copyTo(regionTree[id].psf);
         }
     }
 

@@ -59,9 +59,8 @@ namespace deblur {
          * There is a possibility to load kernel-images because
          * the used algorithm doesn't work very well.
          * 
-         * @param filePrefix  for loading kernel images
          */
-        void toplevelKernelEstimation(const std::string filePrefix);
+        void toplevelKernelEstimation();
 
         /**
          * Estimates the kernel of all middle and leaf level nodes.
