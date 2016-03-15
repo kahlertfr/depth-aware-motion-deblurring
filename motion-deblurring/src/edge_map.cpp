@@ -56,7 +56,7 @@ namespace deblur {
         gradients[0].copyTo(masked[0], mask);
         gradients[1].copyTo(masked[1], mask);
 
-        // #ifndef NDEBUG
+        // #ifdef IMWRITE
         //     Mat ucharGrads;
         //     convertFloatToUchar(masked[0], ucharGrads);
         //     imshow("input x gradients", ucharGrads);
@@ -120,11 +120,16 @@ namespace deblur {
         Mat thresholdMask;
         inRange(discreteMag, threshold, 255, thresholdMask);
 
-        // copy the gradients within the mask
-        gradients[0].copyTo(thresholded[0], thresholdMask);
-        gradients[1].copyTo(thresholded[1], thresholdMask);
+        // cut of region of the original mask from the threshold mask
+        Mat finalMask;
+        thresholdMask.copyTo(finalMask, mask);
 
-        // #ifndef NDEBUG
+        // copy the gradients within the thresholded mask
+        gradients[0].copyTo(thresholded[0], finalMask);
+        gradients[1].copyTo(thresholded[1], finalMask);
+
+
+        // #ifdef IMWRITE
         //     // display salient edges
         //     Mat _display;
         //     convertFloatToUchar(thresholded[0], _display);
