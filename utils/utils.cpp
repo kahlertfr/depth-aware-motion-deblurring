@@ -55,22 +55,23 @@ namespace deblur {
         double min; double max;
         minMaxLoc(src, &min, &max);
 
-        // if the matrix is in the range [0, 1] just scale with 255
+        // check if negativ values has to be handeled
         if (min >= 0 && max < 1) {
-            if (max < 1) {
-                src.convertTo(dst, CV_8U, 255.0);
-            } else {
-                src.convertTo(dst, CV_8U, 255.0/(max-min));
-            }
+            // if the matrix is in the range [0, 1] just scale with 255
+            src.convertTo(dst, CV_8U, 255.0);
         } else {
+            // don't work on the original src
             Mat copy;
             src.copyTo(copy);
 
             // handling that floats could be negative
             copy -= min;
 
+            // new mininum and maximum
+            min -= min;
+            max -= min;
+            
             // convert
-            minMaxLoc(copy, &min, &max);
             if (max < 1) {
                 copy.convertTo(dst, CV_8U, 255.0);
             } else {
