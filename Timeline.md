@@ -77,12 +77,10 @@ cannot finsih this project in time -> new date for hand-in: 21.04.16 (?)
 - Week 22 (28.03.): two-phase kernel estimation (phase one)
 - Week 23 (04.04.): two-phase kernel estimation (phase two)
 - Week 24 (11.04.): eval
-- Week 24 (18.04.): writing study thesis
+- Week 25 (18.04.): writing study thesis
 
 
 
 ### Afterwards: preparation of presentation
 
 - make nice presentation
-
-Afterwards: two-phase kernel estimation fix
