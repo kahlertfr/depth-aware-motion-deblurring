@@ -371,6 +371,11 @@ namespace TwoPhaseKernelEstimation {
         // #ifndef NDEBUG
         //     imshow("blurred", blurredGray);
         // #endif
+        
+        // save min and maximum value of the original image to be able to restore
+        // the latent image with the correct brightness
+        double grayMin; double grayMax;
+        minMaxLoc(blurredGray, &grayMin, &grayMax);
 
         // build an image pyramid with gray value images
         vector<Mat> pyramid, masks;
@@ -471,7 +476,7 @@ namespace TwoPhaseKernelEstimation {
                 #ifdef IMWRITE
                     showFloat("tmp-kernel", kernel, true);
                     minMaxLoc(kernel, &min, &max);
-                    cout << "kernel: " << min << " " << max << endl;
+                    cout << "kernel: " << min << " " << max << " sum: " << sum(kernel)[0] << endl;
                     waitKey();
                 #endif
 
@@ -481,16 +486,18 @@ namespace TwoPhaseKernelEstimation {
                 // FIXME: it looks like there are some edges of the gradients in the latent image.
                 //        with more iterations it becomes worse
                 // coarseImageEstimation(pyramid[l], kernel, selectedEdges, latentImage);
+                
+                // use oother spatial deconv method for now
                 deconvolveIRLS(pyramid[l], latentImage, kernel);
 
-                // #ifdef IMWRITE
-                //     string name = "two-phase-latent-" + to_string(i);
-                //     imshow(name, latentImage);
-                //     waitKey();
+                #ifdef IMWRITE
+                    string name = "two-phase-latent-" + to_string(i);
+                    imshow(name, latentImage);
+                    waitKey();
 
-                //     string filename = name + ".png";
-                //     imwrite(filename, latentImage);
-                // #endif
+                    string filename = name + ".png";
+                    imwrite(filename, latentImage);
+                #endif
 
 
                 // set current image to coarse latent image
