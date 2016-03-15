@@ -51,7 +51,7 @@ End: 21.03.2016
 
 ## open tasks so far
 
-cannot finsih this project in time -> new date for hand-in: 21.04.16 (?)
+cannot finsih this project in time
 
 ### issues
 
@@ -74,13 +74,12 @@ cannot finsih this project in time -> new date for hand-in: 21.04.16 (?)
 
 - Week 20 (14.03.): mid-level psf estimation (initial est.)
 - Week 21 (21.03.): mid-level psf estimation (psf selection)
-- Week 22 (28.03.): two-phase kernel estimation (phase one)
-- Week 23 (04.04.): two-phase kernel estimation (phase two)
-- Week 24 (11.04.): eval
-- Week 25 (18.04.): writing study thesis
+- Week 22 (28.03.): eval
+- Week 23 (04.04.): writing study thesis
 
 
 
-### Afterwards: preparation of presentation
+### Afterwards:
 
 - make nice presentation
+- two-phase kernel estimation (phase one)
