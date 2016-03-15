@@ -43,7 +43,7 @@ namespace deblur {
             // which doesn't have any child nodes
             node n;
             n.layers = {l};
-            n.children = {-1,-1};
+            n.children = {-1, -1};
             tree.push_back(n);
         }
 
@@ -54,7 +54,7 @@ namespace deblur {
         int startId = 0;
         int endId = layers;
 
-        while (true) {
+        while (true) {           
             // reached level with top level nodes
             // the number of the nodes of the previous level in the binary tree
             // can be caculated by: layers / (2^level)
@@ -64,8 +64,10 @@ namespace deblur {
                     topLevelNodeIds.push_back(i);
                     tree[i].parent = -1;
                 }
+
                 break;
-            } 
+            }
+
 
             // go through all nodes of the previous level
             for (int i = startId; i < endId; i++) {
@@ -73,6 +75,7 @@ namespace deblur {
                 if (i + 1 >= endId) {
                     // found a top level node
                     topLevelNodeIds.push_back(i);
+                    tree[i].parent = -1;
                 } else {
                     // get two child nodes
                     node child1 = tree[i];
