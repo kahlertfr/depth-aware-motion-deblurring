@@ -286,16 +286,21 @@ namespace deblur {
         deconvolveFFT(grayImages[LEFT], deblurredLeft, regionTree[parent].psf);
         deconvolveFFT(grayImages[RIGHT], deblurredRight, regionTree[parent].psf);
 
+        #ifdef IMWRITE
+            imshow("devonv left", deblurredLeft);
+            waitKey();
+        #endif
+
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
         computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
         computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
 
-        // #ifndef NDEBUG
-        //     showFloat("salient edges left x", salientEdgesLeft[0]);
-        //     showFloat("salient edges right x", salientEdgesRight[0]);
-        //     waitKey();
-        // #endif
+        #ifdef IMWRITE
+            showGradients("salient edges left x", salientEdgesLeft[0]);
+            showGradients("salient edges right x", salientEdgesRight[0]);
+            waitKey();
+        #endif
 
         // estimate psf for the first child node
         jointPSFEstimation(maskM, maskR, salientEdgesLeft, salientEdgesRight, regionTree[id].psf);
@@ -515,10 +520,10 @@ namespace deblur {
 
 
         // #ifndef NDEBUG
-        //     // showFloat("gradients x", tmpGrads[0]);
-        //     // showFloat("gradients y", tmpGrads[1]);
-        //     showFloat("combined gradients X", X);
-        //     showFloat("combined gradients Y", Y);
+        //     // showGradients("gradients x", tmpGrads[0]);
+        //     // showGradients("gradients y", tmpGrads[1]);
+        //     showGradients("combined gradients X", X);
+        //     showGradients("combined gradients Y", Y);
         //     waitKey();
         // #endif
 
@@ -527,7 +532,7 @@ namespace deblur {
 
 
     void DepthDeblur::midLevelKernelEstimation() {
-        // we can compute the gradients for each blurred image ones
+        // we can compute the gradients for each blurred image only ones
         computeBlurredGradients();
 
         // go through all nodes of the region tree in a top-down manner
@@ -552,16 +557,20 @@ namespace deblur {
             int id = remainingNodes.front();
             remainingNodes.pop();
 
+            cout << "  at node: " << id;
+
             // get IDs of the child nodes
             int cid1 = regionTree[id].children.first;
             int cid2 = regionTree[id].children.second;
 
+            cout << " with " << cid1 << " " << cid2 << endl;
+
             // do PSF computation for a middle node with its children
             // (leaf nodes doesn't have any children)
             if (cid1 != -1 && cid2 != -1) {
-                // add children ids to the back of the queue
-                remainingNodes.push(regionTree[id].children.first);
-                remainingNodes.push(regionTree[id].children.second);
+                // // add children ids to the back of the queue
+                // remainingNodes.push(regionTree[id].children.first);
+                // remainingNodes.push(regionTree[id].children.second);
 
                 // PSF estimation for each children
                 // (salient edge map computation and joint psf estimation)
@@ -574,14 +583,14 @@ namespace deblur {
                 regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
                 regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
-                // candiate selection
-                vector<Mat> candiates1, candiates2;
-                candidateSelection(candiates1, cid1, cid2);
-                candidateSelection(candiates2, cid2, cid1);
+                // // candiate selection
+                // vector<Mat> candiates1, candiates2;
+                // candidateSelection(candiates1, cid1, cid2);
+                // candidateSelection(candiates2, cid2, cid1);
 
-                // final psf selection
-                psfSelection(candiates1, cid1);
-                psfSelection(candiates2, cid2);
+                // // final psf selection
+                // psfSelection(candiates1, cid1);
+                // psfSelection(candiates2, cid2);
             }
         }
     }

@@ -68,6 +68,15 @@ namespace deblur {
     void showFloat(const std::string name, const cv::Mat& src, const bool write = false);
 
     /**
+     * Displays a float matrix as for gradients in range [-1, 1]
+     * where the zero becomes 128 as grayvalue.
+     * 
+     * @param name window name
+     * @param src  float matrix
+     */
+    void showGradients(const std::string name, const cv::Mat& src, const bool write = false);
+
+    /**
      * Rearrange quadrants of an image so that the origin is at the image center.
      * This is useful for fourier images. 
      */

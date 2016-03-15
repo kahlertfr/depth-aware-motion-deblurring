@@ -109,8 +109,8 @@ namespace TwoPhaseKernelEstimation {
         normalizeOne(gradients);
 
         // #ifndef NDEBUG
-        //     showFloat("x gradient shock", gradients[0]);
-        //     showFloat("y gradient shock", gradients[1]);
+        //     showGradients("x gradient shock", gradients[0]);
+        //     showGradients("y gradient shock", gradients[1]);
         // #endif
 
         // save gradients of the final selected edges
@@ -429,8 +429,8 @@ namespace TwoPhaseKernelEstimation {
             normalizeOne(gradients);
 
             // #ifdef IMWRITE
-            //     showFloat("x gradient", gradients[0]);
-            //     showFloat("y gradient", gradients[1]);
+            //     showGradients("x gradient", gradients[0]);
+            //     showGradients("y gradient", gradients[1]);
             // #endif
             
 
@@ -462,8 +462,8 @@ namespace TwoPhaseKernelEstimation {
                 selectEdges(currentImage, gradientConfidence, thresholdR, thresholdS, selectedEdges);
 
                 #ifdef IMWRITE
-                    showFloat("x gradient selection", selectedEdges[0]);
-                    showFloat("y gradient selection", selectedEdges[1]);
+                    showGradients("x gradient selection", selectedEdges[0]);
+                    showGradients("y gradient selection", selectedEdges[1]);
                     minMaxLoc(selectedEdges[0], &min, &max);
                     cout << "x gradients: " << min << " " << max << endl;
                     waitKey();

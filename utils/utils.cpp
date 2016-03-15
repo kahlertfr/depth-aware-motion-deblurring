@@ -68,13 +68,13 @@ namespace deblur {
             copy -= min;
 
             // new mininum and maximum
-            min -= min;
-            max -= min;
-            
+            minMaxLoc(copy, &min, &max);
+
             // convert
             if (max < 1) {
                 copy.convertTo(dst, CV_8U, 255.0);
             } else {
+                // FIXME: what if max - min == 0 ?
                 copy.convertTo(dst, CV_8U, 255.0/(max-min));
             }
         }
@@ -86,6 +86,36 @@ namespace deblur {
 
         Mat srcUchar;
         convertFloatToUchar(src, srcUchar);
+        imshow(name, srcUchar);
+
+        if (write){
+            string filename = name + ".png";
+            imwrite(filename, srcUchar);
+        }
+    }
+
+
+    void showGradients(const string name, const Mat& src, const bool write){
+        assert(src.type() == CV_32F && "works for single channel ");
+
+        Mat srcUchar;
+        // find min and max value
+        double min; double max;
+        minMaxLoc(src, &min, &max);
+
+        // don't work on the original src
+        Mat copy;
+        src.copyTo(copy);
+
+        // handling that floats could be negative
+        copy -= min;
+
+        // new mininum and maximum
+        minMaxLoc(copy, &min, &max);
+
+        // convert
+        copy.convertTo(srcUchar, CV_8U, 255.0/(max-min));
+
         imshow(name, srcUchar);
 
         if (write){
