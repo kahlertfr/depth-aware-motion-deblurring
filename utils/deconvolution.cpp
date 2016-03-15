@@ -445,7 +445,7 @@ namespace deblur {
     }
 
 
-    void updateWeight(Mat& weight, const Mat& gradient) {
+    void updateWeight(Mat& weight, const Mat& gradient, const float factor = 1) {
         // some parameters (see levin paper for details)
         float w0 = 0.1;
         float exp_a = 0.8;
@@ -460,7 +460,7 @@ namespace deblur {
                 } else {
                     value = thr_e;
                 }
-                weight.at<float>(row, col) = w0 * pow(value, exp_a - 2);
+                weight.at<float>(row, col) = factor * w0 * pow(value, exp_a - 2);
             }
         }
     }
@@ -486,6 +486,11 @@ namespace deblur {
         src.convertTo(src, CV_32F);
         src /= 255.0;
 
+        // double tmpmin; double tmpmax;
+        // minMaxLoc(src, &tmpmin, &tmpmax);
+        // cout << "src: " << tmpmin << " " << tmpmax << endl;
+        // minMaxLoc(kernel, &tmpmin, &tmpmax);
+        // cout << "kernel: " << tmpmin << " " << tmpmax << endl;
         // half filter size
         int hfsX = kernel.cols / 2;
         int hfsY = kernel.rows / 2;
@@ -513,7 +518,6 @@ namespace deblur {
 
         // weights for the derivation filter
         weights weights;
-        // FIXME: different weights as paper
         weights.x = Mat::ones(n, m - 1, CV_32F);
         weights.y = Mat::ones(n - 1, m, CV_32F);
         weights.xx = Mat::ones(n, m - 2, CV_32F);
@@ -525,8 +529,11 @@ namespace deblur {
         deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
 
         // showFloat("intermediate result x", x, true);
+        // double minX; double maxX;
+        // minMaxLoc(x, &minX, &maxX);
+        // cout << "x: " << minX << " " << maxX << endl;
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < maxIt; i++) {
             Mat dx, dy, dxx, dyy, dxy;
             conv2(x, dx, df.xf, VALID);
             conv2(x, dy, df.yf, VALID);
@@ -536,9 +543,9 @@ namespace deblur {
 
             updateWeight(weights.x,  dx);
             updateWeight(weights.y,  dy);
-            updateWeight(weights.xx, dxx);
-            updateWeight(weights.yy, dyy);
-            updateWeight(weights.xy, dxy);
+            updateWeight(weights.xx, dxx, 0.25);
+            updateWeight(weights.yy, dyy, 0.25);
+            updateWeight(weights.xy, dxy, 0.25);
 
             deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
         }
@@ -552,7 +559,16 @@ namespace deblur {
             src.rows
         )).copyTo(cropped);
 
-        convertFloatToUchar(cropped, dst);
+        // scale float image to [0,255] while preserving original brightness and contrast
+        // I' = I - min' * (|max - min|)/(|max' - min'|) + min
+        double minC; double maxC;
+        minMaxLoc(cropped, &minC, &maxC);
+        cropped -= minC;
+        cropped *= (abs(max -min) / abs(maxC - minC));
+        cropped += min;
+
+        // convert to uchar
+        cropped.convertTo(dst, CV_8U);
     }
 
 
