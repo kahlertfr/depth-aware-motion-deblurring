@@ -42,19 +42,47 @@ End: 21.03.2016
 - Week 17 (22.02.): blur removal and second-pass estimation
 
 
+### bug-fixing
+
+- Week 18 (29.02.): some fixes (tried)
+- Week 19 (07.03.): - (ill)
+
+
+
+## open tasks so far
+
+cannot finsih this project in time -> new date for hand-in: 21.04.16 (?)
+
+### issues
+
+- two-phase kernel estimation: error in kernel est. and no second phase -> we have no reliable top-level PSFs -> use work-around
+- mid-level psf estimation: initial psf est. for child and psf selection not checked
+- image restoration: brightness issues with spatial deconv
+
+
 ### evaluating
 
-- Week 18 (29.02.): run algorithm on different settings && write down results
+- run algorithm on different settings & write down results
 
 
 ### finish writing study thesis
 
-- Week 19 (07.03.):
-- Week 20 (14.03.): 
+- write out introduction, theory, description, eva and conclusion in full
 
 
-### preparation of presentation
+## extended weeks
 
-- afterwards: make nice presentation
+- Week 20 (14.03.): mid-level psf estimation (initial est.)
+- Week 21 (21.03.): mid-level psf estimation (psf selection)
+- Week 22 (28.03.): two-phase kernel estimation (phase one)
+- Week 23 (04.04.): two-phase kernel estimation (phase two)
+- Week 24 (11.04.): eval
+- Week 24 (18.04.): writing study thesis
+
+
+
+### Afterwards: preparation of presentation
+
+- make nice presentation
 
 Afterwards: two-phase kernel estimation fix
