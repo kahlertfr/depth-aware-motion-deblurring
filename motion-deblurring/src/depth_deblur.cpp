@@ -598,7 +598,7 @@ namespace deblur {
 
     void DepthDeblur::deconvolve(Mat& dst, view view, bool color) {
         // make a deconvolution for each disparity layer
-        for (int i = 0; i < psfWidth; i++) {         
+        for (int i = 0; i < layers; i++) {         
             // get mask of the disparity level
             Mat mask;
             regionTree.getMask(i, mask, view);

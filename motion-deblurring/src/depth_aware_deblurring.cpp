@@ -59,7 +59,7 @@ namespace deblur {
 
 
             cout << " Step 3: PSF estimation for top-level regions in trees" << endl;
-            depthDeblur.toplevelKernelEstimation("left");
+            depthDeblur.toplevelKernelEstimation();
 
 
             cout << " Step 3.1: Iterative PSF estimation" << endl;
@@ -83,10 +83,10 @@ namespace deblur {
             }
 
             // TODO: update parameters
-            i++; // for debugging without second pass
+            i++; // FIXME: for debugging without second pass
         }
 
-        // for debugging
+        // FIXME: for debugging
         blurredLeft.copyTo(deblurredLeft);
         blurredRight.copyTo(deblurredRight);
         
