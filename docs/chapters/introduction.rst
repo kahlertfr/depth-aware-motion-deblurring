@@ -1,6 +1,5 @@
-My little intro (see text of task description)...
+A lot of pictures are taken with a mobile phone or a hand-held camera where blur mostly occur due to the shaking of the camera during the exposure. Therefore blur is a widely spread problem. There exists several algorithms for removing such blur from single images or stereo image pairs. The later is interesting because of the additional depth information that can be computed and used for a better deblurring. Furthermore the necessary hardware to obtain stereo image pairs is more and more available – even in mobile phones.
 
-- :red:`relevance of motion deblurring`
-- :red:`challenge of depth varying scenes`
-- :red:`stereo possibility in smart phones`
-- :red:`briefly described algorithm from Xu and Jia`
+A very interesting iterative algorithm for motion deblurring with stereo images was developed by Xu and Jia. It uses a spatially-varying point spread functions (PSF) to deblur the image on each depth level.
+
+This study thesis provides a reference implementation of the depth-aware motion deblurring algorithm from Xu and Jia. After a theoretical introduction to deblurring I will describe how the algorithm works in detail and what the problems were during the implementation.
