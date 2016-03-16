@@ -21,8 +21,8 @@ using namespace std;
 namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat& imageLeft, Mat& imageRight, const int width)
-                            : psfWidth((width % 2 == 0) ? width - 1 : width)    // odd psf-width needed
-                            , layers((width % 2 == 0) ? width : width - 1)      // even layer number needed
+                            : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
+                            , layers((width < 25) ? ((width % 2 == 0) ? width - 1 : width) : 24)  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
                             , current(0)
     {
