@@ -137,6 +137,13 @@ namespace deblur {
                                          const array<Mat,2>& salientEdgesRight,
                                          Mat& psf) {
 
+        // get gradients of current region only
+        array<Mat,2> regionGradsLeft, regionGradsRight;
+        gradsLeft[0].copyTo(regionGradsLeft[0], maskLeft);
+        gradsLeft[1].copyTo(regionGradsLeft[1], maskLeft);
+        gradsRight[0].copyTo(regionGradsRight[0], maskRight);
+        gradsRight[1].copyTo(regionGradsRight[1], maskRight);
+
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
         // where i ∈ {r, m}, and S_i is the region for reference and matching view 
         // and k is the psf-kernel
@@ -161,15 +168,15 @@ namespace deblur {
         // the result are stored as 2 channel matrices: Re(FFT(I)), Im(FFT(I))
         Mat xSr, xSm, ySr, ySm;  // fourier transform of region gradients
         Mat xBr, xBm, yBr, yBm;  // fourier transform of blurred images
-        
+
         fft(salientEdgesLeft[0], xSm);
         fft(salientEdgesLeft[1], ySm);
         fft(salientEdgesRight[0], xSr);
         fft(salientEdgesRight[1], ySr);
-        fft(gradsLeft[0], xBm);
-        fft(gradsLeft[1], yBm);
-        fft(gradsRight[0], xBr);
-        fft(gradsRight[1], yBr);
+        fft(regionGradsLeft[0], xBm);
+        fft(regionGradsLeft[1], yBm);
+        fft(regionGradsRight[0], xBr);
+        fft(regionGradsRight[1], yBr);
 
 
         // delta function as one white pixel in black image
@@ -294,7 +301,6 @@ namespace deblur {
 
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
-        // FIXME: not just inside mask??
         computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
         computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
 
@@ -395,9 +401,9 @@ namespace deblur {
             // compute correlation of the latent image and the shockfiltered image
             float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
 
-            #ifdef IMWRITE
-                cout << "    energy for " << i << ": " << energy << endl;
-            #endif
+            // #ifdef IMWRITE
+            //     cout << "    energy for " << i << ": " << energy << endl;
+            // #endif
 
             if (energy < minEnergy) {
                 winner = i;
@@ -406,6 +412,16 @@ namespace deblur {
 
         // save the winner of the psf selection in the current node
         candiates[winner].copyTo(regionTree[id].psf);
+            
+        #ifdef IMWRITE
+            // kernels
+            Mat tmp;
+            regionTree[id].psf.copyTo(tmp);
+            tmp *= 1000;
+            convertFloatToUchar(tmp, tmp);
+            string filename = "mid-" + to_string(id) + "-kernel-selection.png";
+            imwrite(filename, tmp);
+        #endif
     }
 
 
@@ -539,20 +555,20 @@ namespace deblur {
             int id = remainingNodes.front();
             remainingNodes.pop();
 
-            cout << "  at node: " << id;
+            // cout << "  at node: " << id;
 
             // get IDs of the child nodes
             int cid1 = regionTree[id].children.first;
             int cid2 = regionTree[id].children.second;
 
-            cout << " with " << cid1 << " " << cid2 << endl;
+            // cout << " with " << cid1 << " " << cid2 << endl;
 
             // do PSF computation for a middle node with its children
             // (leaf nodes doesn't have any children)
             if (cid1 != -1 && cid2 != -1) {
-                // // add children ids to the back of the queue
-                // remainingNodes.push(regionTree[id].children.first);
-                // remainingNodes.push(regionTree[id].children.second);
+                // add children ids to the back of the queue
+                remainingNodes.push(regionTree[id].children.first);
+                remainingNodes.push(regionTree[id].children.second);
 
                 // PSF estimation for each children
                 // (salient edge map computation and joint psf estimation)
@@ -565,7 +581,7 @@ namespace deblur {
                 regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
                 regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
-                cout << "  entropies: " << regionTree[cid1].entropy << " " << regionTree[cid2].entropy << endl;
+                // cout << "  entropies: " << regionTree[cid1].entropy << " " << regionTree[cid2].entropy << endl;
 
                 // candiate selection
                 vector<Mat> candiates1, candiates2;
