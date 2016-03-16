@@ -533,7 +533,7 @@ namespace deblur {
         // minMaxLoc(x, &minX, &maxX);
         // cout << "x: " << minX << " " << maxX << endl;
 
-        for (int i = 0; i < maxIt; i++) {
+        for (int i = 0; i < 2; i++) {
             Mat dx, dy, dxx, dyy, dxy;
             conv2(x, dx, df.xf, VALID);
             conv2(x, dy, df.yf, VALID);
