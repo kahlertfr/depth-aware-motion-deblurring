@@ -4,6 +4,10 @@ import argparse
 from pathlib import Path
 from subprocess import check_call
 from docutils.core import publish_file
+from docutils.writers import latex2e
+from docutils.parsers.rst import directives
+from docutils.parsers.rst.directives.body import MathBlock
+from docutils.utils.math import pick_math_environment
 import sys
 from shutil import copy
 
@@ -17,8 +21,32 @@ parser = argparse.ArgumentParser()
 parser.add_argument('filename')
 
 
+class MathDirective(MathBlock):
+    option_spec = dict(MathBlock.option_spec,
+                       numbered=directives.flag)
+
+
+directives.register_directive('math', MathDirective)
+
+
+class LaTeXTranslator(latex2e.LaTeXTranslator):
+
+    def visit_math_block(self, node):
+        numbered = 'numbered' in node
+        math_env = pick_math_environment(node.astext(), numbered)
+        self.visit_math(node, math_env=math_env)
+
+
+class Writer(latex2e.Writer):
+
+    def __init__(self):
+        latex2e.Writer.__init__(self)
+        self.translator_class = LaTeXTranslator
+
+
 def rst2pdf(filename):
     """Creates a PDF from a file written in restructuredText by using"""
+
     filename = Path(filename)
 
     # Ensure that the requested file exists
@@ -35,7 +63,7 @@ def rst2pdf(filename):
     # Compile restructuredText to LaTex
     publish_file(source_path=str(filename),
                  destination_path=str(destination),
-                 writer_name='latex',
+                 writer=Writer(),
                  settings_overrides={
                      'template': 'template.tex'
                  })
