@@ -3,6 +3,8 @@
 # everything in build
 build/
 
+__pycache__/
+
 # cmake
 *CMakeCache.txt
 *CMakeFiles

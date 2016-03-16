@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileCreatedEvent, RegexMatchingEventHandler
+from rst2pdf import rst2pdf
 
 
 class Action(object):
@@ -54,34 +55,7 @@ class CompileHandler(RegexMatchingEventHandler):
 
     def compile(self):
         infile  = "theory.rst"
-        outfile = "build/theory.tex"
-
-        # Generate LaTex from restructuedText source file
-        subprocess.check_call("rst2latex.py %(infile)s > %(outfile)s" % dict(infile=infile,
-                                                                             outfile=outfile),
-                              shell=True)
-
-        # Run xelatex twice to use up-to-date references
-        for i in range(2):
-            proc = subprocess.Popen([
-                                        'xelatex',
-                                        '-output-directory=build/',
-                                        outfile,
-                                    ], 
-                                    stdin=subprocess.PIPE,
-                                    # Redirect output into nirvana
-                                    stdout=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL)
-            # Close stdin immediately to force xelatex not stuck on
-            # errors
-            proc.stdin.close()
-
-            # Wait until the child process terminates
-            proc.communicate()
-
-            if proc.returncode != 0:
-                raise subprocess.CalledProcessError(proc.returncode,
-                                                    ' '.join(proc.args))
+        rst2pdf("study-thesis.rst")
 
     def on_any_event(self, event):
         print(event)
@@ -89,7 +63,7 @@ class CompileHandler(RegexMatchingEventHandler):
         if isinstance(event, FileCreatedEvent):
             return
 
-        with Action("Compile"):
+        with Action("Compile", suppress=True):
             self.compile()
 
 
