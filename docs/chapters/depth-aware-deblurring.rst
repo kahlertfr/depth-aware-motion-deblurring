@@ -21,12 +21,12 @@ The depth-aware motion deblurring algorithm was developed by Xu and Jia :cite:`X
 
 
 Disparity Estimation
---------------------
+++++++++++++++++++++
 
 The main idea of the algorithm is the independent deblurring of each depth layer to get an accurate result for scenes with high depth differences. So the first step is the disparity estimation from both views.
 
 Disparity Map
-'''''''''''''
+-------------
 
 - :red:`Find disparity maps of a blurred stereo image pair: left to right and right to left`
 - :red:`down-sampling for blur reducing`
@@ -37,7 +37,7 @@ Disparity Map
 
 
 Occlusions
-''''''''''
+----------
 
 :red:`Cross-Checking to find occlusion regions.` In this implementation there is no cross checking
 because SGBM handles occluded regions already.
@@ -64,7 +64,7 @@ disparity can be occluded.
 
 
 Quantization
-''''''''''''
+------------
 
 :red:`PSF estimation is less extensive if the disparity layers are reduced.` quantize disparity 
 values to l regions, where l is set to approximate PSF width or height. :red:`how to approximate
@@ -82,7 +82,7 @@ the PSF width/height?`
 
 
 Region-Tree Construction
-------------------------
+++++++++++++++++++++++++
 
 This is needed for robust PSF estimation.
 
@@ -91,7 +91,7 @@ This is needed for robust PSF estimation.
 
 
 PSF Estimation for Top-Level Regions
-------------------------------------
+++++++++++++++++++++++++++++++++++++
 
 This follows the algorithm of :cite:`XU2010`.
 
@@ -102,9 +102,9 @@ This follows the algorithm of :cite:`XU2010`.
 
 
 PSF Propagation
----------------
++++++++++++++++
 
 
 Blur Removal
-------------
+++++++++++++
 
