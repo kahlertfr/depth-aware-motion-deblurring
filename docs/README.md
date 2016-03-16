@@ -25,23 +25,8 @@ pip install docutils watchdog
 
 For a fancy syntax highlighting in Sublime Text, you can install *RestructuredText Improved* via [Package Control][subl-control].
 
-A docutils.config has to be created to support subfigures.
-
 
 ### Generate PDF from restructured Text
-
-Use *watch* for automatically compiling the PDF every time the text file is saved:
-
-```bash
-# activate virutal environment
-workon study-thesis
-
-# start watch script
-cd docs
-./watch
-```
-
-For manually compiling use the following command:
 
 ```bash
 # activate virutal environment
@@ -52,8 +37,9 @@ cd docs
 ./compile.sh study-thesis
 ```
 
-The PDF file can be found in docs/build. For cleaning up everything use the *clear.sh*
+A template.tex is used for compiling the reST files because it allows defining the latex preamble the way it fits my needs.
 
+The PDF file can be found in docs/build. For cleaning up everything use the *clear.sh*
 
 
 ### Generate PDF from latex file

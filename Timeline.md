@@ -14,44 +14,72 @@ End: 21.03.2016
 ## Weeks
 ### literatur research
 
-- Week 1 (02.11.): overview
-- Week 2 (09.11.): details on interesting topics
+- Week 1 (02.11.): overview (done)
+- Week 2 (09.11.): details on interesting topics (done)
 
 ### study thesis
 
-- Week 3 (16.11.): begin writing study thesis (format template, structure)
+- Week 3 (16.11.): begin writing study thesis (format template, structure) (done)
 
 
 ### implementation (combined with study thesis writing)
 
-- Week 4 (23.11.):
-- Week 5 (30.11.):
+- Week 4 (23.11.): disparity estimation (done)
+- Week 5 (30.11.): disparity quantization (done)
 
-- Week 6 (07.12.):
-- Week 7 (14.12.):
-- Week 8 (21.12.):
-- Week 9 (28.12.):
+- Week 6 (07.12.): region-tree construction (done)
+- Week 7 (14.12.): -
+- Week 8 (21.12.): Holidays (done)
+- Week 9 (28.12.): Holidays (done)
 
-- Week 10 (04.01.):
-- Week 11 (11.01.):
-- Week 12 (18.01.):
-- Week 13 (25.01.):
+- Week 10 (04.01.): two-phase kernel estimation (tried)
+- Week 11 (11.01.): two-phase kernel estimation (tried)
+- Week 12 (18.01.): two-phase kernel estimation (deferred :( )
+- Week 13 (25.01.): top-level PSF computation (workaround)
+- Week 14 (01.02.): solve FFT-problems (tried)
+- Week 15 (08.02.): solve FFT-problems (done)
+- Week 16 (15.02.): iterative PSF computation (done)
+- Week 17 (22.02.): blur removal and second-pass estimation
+
+
+### bug-fixing
+
+- Week 18 (29.02.): some fixes (tried)
+- Week 19 (07.03.): - (ill)
+
+
+
+## open tasks so far
+
+cannot finsih this project in time
+
+### issues
+
+- two-phase kernel estimation: error in kernel est. and no second phase -> we have no reliable top-level PSFs -> use work-around
+- mid-level psf estimation: initial psf est. for child and psf selection not checked
+- image restoration: brightness issues with spatial deconv
 
 
 ### evaluating
 
-- Week 14 (01.02.): take pictures with stereo camera
-- Week 15 (08.02.): run algorithm on different setting
-- Week 16 (15.02.): write down results
+- run algorithm on different settings & write down results
 
 
-### finish writing study thesis ()
+### finish writing study thesis
 
-- Week 17 (22.02.):
-- Week 18 (29.02.):
-- Week 19 (07.03.):
+- write out introduction, theory, description, eva and conclusion in full
 
 
-### preparation of presentation
+## extended weeks
 
-- Week 20 (14.03.):
+- Week 20 (14.03.): mid-level psf estimation (initial est.)
+- Week 21 (21.03.): mid-level psf estimation (psf selection)
+- Week 22 (28.03.): eval
+- Week 23 (04.04.): writing study thesis
+
+
+
+### Afterwards:
+
+- make nice presentation
+- two-phase kernel estimation (phase one)

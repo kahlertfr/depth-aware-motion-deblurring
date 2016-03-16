@@ -7,12 +7,20 @@ if (CMAKE_COMPILER_IS_GNUCC)
   set(CMAKE_CXX_FLAGS "-std=c++0x")
 endif()
 
-find_package(OpenCV REQUIRED)
+# some options
+option(IMWRITE "write intermediate images" OFF)
 
 # were does the binaries and libs are delivered?
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# include src directory
-add_subdirectory(src/)
+include_directories(motion-deblurring/include
+                    two-phase-kernel/include
+                    external/
+                    utils/)
+
+add_subdirectory(motion-deblurring/)
+add_subdirectory(two-phase-kernel/)
+add_subdirectory(external/)
+add_subdirectory(utils/)
