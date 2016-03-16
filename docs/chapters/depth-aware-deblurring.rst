@@ -1,5 +1,4 @@
-The details of the algorithm from Xu and Jia :cite:`XU2012` and its implementation will be
-described here...
+The depth-aware motion deblurring algorithm was developed by Xu and Jia :cite:`XU2012`. This algorithm operates on a stereo image pair and processes the images with the steps described below. For improving the result the process is done a second time with the deblurred images from the first run as input for the second one.
 
 .. raw:: LaTex
 
@@ -20,9 +19,6 @@ described here...
 
 
 
-
-First-Pass Estimation
-+++++++++++++++++++++
 
 Disparity Estimation
 --------------------
@@ -110,13 +106,3 @@ PSF Propagation
 Blur Removal
 ------------
 
-
-Second-Pass Estimation
-++++++++++++++++++++++
-
-Disparity Update
-----------------
-
-
-PSF Estimation
---------------
