@@ -23,6 +23,8 @@ The depth-aware motion deblurring algorithm was developed by Xu and Jia :cite:`X
 Disparity Estimation
 --------------------
 
+The main idea of the algorithm is the independent deblurring of each depth layer to get an accurate result for scenes with high depth differences. So the first step is the disparity estimation from both views.
+
 Disparity Map
 '''''''''''''
 
