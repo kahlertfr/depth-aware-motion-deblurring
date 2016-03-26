@@ -73,8 +73,8 @@ namespace deblur {
             imwrite(filename, disparityViewable);
         #endif
 
-        // up sample disparity map to original resolution
-        pyrUp(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows));
+        // up sample disparity map to original resolution without interpolation
+        resize(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows), 0, 0, INTER_NEAREST);
     }
 
 
@@ -179,6 +179,11 @@ namespace deblur {
         // convert disparity map to values between 0 and 255
         // scale factor for conversion is: 255 / (max - min)
         disparityMap.convertTo(disparityMap, CV_8UC1, 255/(maxVal - minVal));
+
+        // median filter to erase small outliers
+        Mat median;
+        medianBlur(disparityMap, median, 9);
+        median.copyTo(disparityMap);
     }
 
 
