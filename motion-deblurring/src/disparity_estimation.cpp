@@ -57,6 +57,11 @@ namespace deblur {
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(disparityMapSmall, 10);
 
+        // median filter
+        Mat median;
+        medianBlur(disparityMapSmall, median, 9);
+        median.copyTo(disparityMapSmall);
+
         // quantize the image
         Mat quantizedDisparity;
         quantizeImage(disparityMapSmall, l, quantizedDisparity);
@@ -95,7 +100,7 @@ namespace deblur {
     }
 
 
-    void fillOcclusionRegions(Mat& disparityMap, const int threshold) {
+    void fillOcclusionRegions(Mat& disparityMap, const uchar threshold) {
         assert(disparityMap.type() == CV_8U && "gray values needed");
 
         uchar minDisparity = 255;
@@ -105,7 +110,7 @@ namespace deblur {
         for (int row = 0; row < disparityMap.rows; row++) {
             for (int col = 0; col < disparityMap.cols; col++) {
                 uchar value = disparityMap.at<uchar>(row, col);
-
+                    
                 // check if in occluded region
                 if (start != Point(-1, -1)) {
                     // found next disparity or reached end of the row
@@ -138,12 +143,12 @@ namespace deblur {
         int minDis = -64;             // minimum disparity
         int disRange = 16 * 10;       // range: Maximum disparity minus minimum disparity
         int blockSize = 9;            // Matched block size (have to be odd: 3-11)
-        int p1 = 900;                 // P1 disparity smoothness (default: 0)
+        int p1 = 600;                 // P1 disparity smoothness (default: 0)
                                       // penalty for disparity changes +/- 1
         int p2 = 3000;                // P2 disparity smoothness (default: 0)
                                       // penalty for disparity changes more than 1
         int disp12MaxDiff = 2;        // Maximum allowed difference in the left-right disparity check
-        int preFilterCap = 20;        // Truncation value for the prefiltered image pixels
+        int preFilterCap = 40;        // Truncation value for the prefiltered image pixels
         int uniquenessRatio = 1;      // Margin in percentage by which the best (minimum) computed cost
                                       // function value should “win” the second best value to consider 
                                       // the found match correct (5-15)
@@ -179,11 +184,6 @@ namespace deblur {
         // convert disparity map to values between 0 and 255
         // scale factor for conversion is: 255 / (max - min)
         disparityMap.convertTo(disparityMap, CV_8UC1, 255/(maxVal - minVal));
-
-        // median filter to erase small outliers
-        Mat median;
-        medianBlur(disparityMap, median, 9);
-        median.copyTo(disparityMap);
     }
 
 

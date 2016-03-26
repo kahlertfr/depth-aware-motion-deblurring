@@ -39,7 +39,7 @@ namespace deblur {
      * @param disparityMap disparity map where occlusions will be filled
      * @param threshold    threshold for detecting occluded regions
      */
-    void fillOcclusionRegions(cv::Mat& disparityMap, const int threshold = 0);
+    void fillOcclusionRegions(cv::Mat& disparityMap, const uchar threshold = 0);
 
     /**
      * Uses OpenCVs semi global block matching algorithm to obtain
