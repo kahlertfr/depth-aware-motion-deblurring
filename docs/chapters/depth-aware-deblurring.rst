@@ -92,7 +92,11 @@ the PSF width/height?`
 Region-Tree Construction
 ++++++++++++++++++++++++
 
-- :red:`see documentation of RegionTree class`
+The regions of the different depth layer can be very small and therefore robust PSF estimation is not possible. The solution from Xu and Jia is a hierarchical estimation scheme where similar depth layers are merged to form larger regions. The structure for this is called region-tree and in the implementation it is the *RegionTree* class.
+
+The region-tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and i = ⌊j/2⌋ * 2 which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached.
+
+The *RegionTree* class stores binary masks of all depth layers regions in the leaf nodes. The region of every other node can be computed by simply adding the masks of the regions that are contained in the current node.
 
 
 
