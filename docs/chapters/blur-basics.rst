@@ -36,16 +36,47 @@ Deconvolution can be done in different ways: in the frequency domain or spatial 
 Fourier Transformation
 ----------------------
 
-The convolution of in the spatial domain can be expressed as an point-wise multiplication in the frequency domain in the following way:
+The convolution theorem states that a convolution of in the spatial domain can be expressed as an point-wise multiplication in the frequency domain in the following way:
 
 .. math:: :numbered:
     
     I \otimes k  = iF(F(I) \times F(k))
 
 
-Where an image *I* should be convolved with a kernel *k*. To transform the image and the kernel into the frequency domain the Fourier Transformation *F* is needed. To point-wise multiply the transformed kernel with the transformed image the kernel has to be of the same size as the image. To transform the result back into the spatial domain the inverse Fourier Transformation *iF* is used.
+Where an image *I* should be convolved with a kernel *k*. The transformation of the image and the kernel into the frequency domain is done by using the Fourier Transformation *F*. The transformed kernel *F(k)* has to be of the same size as the image to be able to perform a point-wise multiplication. This could be done e.g. by copying the kernel into a black image with the size of the image *I* before the Fourier transformation. The position of the kernel in the black image doesn't matter because the Fourier transformation is shift-invariant. To transform the result back into the spatial domain the inverse Fourier Transformation *iF* is used.
 
-This can save a lot of time for the computation of the convolution. :cite:`SMITH2002` So it is worth it to have a look at the Fourier transformation.
+This can save a lot of time for the computation of the convolution. So it is worth it to have a short look at the Fourier transformation.
 
-:red:`add image for a function, the fourier sequence and the fourier transformation`
+.. raw:: LaTex
+
+    \begin{figure}[!htb]
+        \centering
+        \includegraphics[width=250pt]{../images/fourier.jpg}
+        \caption{Fourier Transformation (Wikipedia)}
+    \end{figure}
+
+A function *f(x)* (the red line in the figure) can be resolved as a linear combination of sines and cosines (the light blue functions in the figure) this is called a Fourier series. The following equation describes the Fourier series of a periodic function *f(x)* with period *N*:
+
+.. math:: :numbered:
+    
+    f(x)  = \frac {a_0} {2} * \sum_k a_k cos( \frac {2 \pi kx} {N}) + \sum_k b_k sin( \frac {2 \pi kx} {N})
+          = \sum_k c_k \rm{e}^{\rm{i} \frac {2 \pi kx} {N}}
+
+
+The component frequencies of these sines and cosines result in peaks in the frequency domain (the dark blue function in the figure).
+In terms of image processing a discrete signal is given (the image) so the equations below describe the 2D discrete Fourier transformation (DFT). :cite:`SMITH2002`
+
+.. math:: :numbered:
+    
+    F(k,l)  = \sum_x \sum_y I(x,y) * \rm{e}^{-\rm{i} 2 \pi (\frac {kx} {C} + \frac{ly} {R})}
+
+The technique for a fast computation of a discrete Fourier transformation is called Fast Fourier Transformation (FFT). The result of such a discrete Fourier transformation is shown in the next figure. 
+
+.. raw:: LaTex
+
+    \begin{figure}[!htb]
+        \centering
+        \includegraphics[width=170pt]{../images/cosines.jpg}
+        \caption{Result of Fourier transformations of horizontal and vertical cosines}
+    \end{figure}
 
