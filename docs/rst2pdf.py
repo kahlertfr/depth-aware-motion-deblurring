@@ -72,7 +72,12 @@ def rst2pdf(filename):
     copy(str(rootdir / 'references.bib'), str(builddir / 'references.bib'))
 
     # Compile LaTex to PDF
-    check_call(['latexmk', '-xelatex', destination.name], cwd=str(builddir))
+    # FIXME As long as latexmk is not installable on the working machine, we use
+    #       three xelatex calls for building outlines and bibtex
+    # check_call(['latexmk', '-xelatex', destination.name], cwd=str(builddir))
+    check_call(['xelatex', destination.name], cwd=str(builddir))
+    check_call(['xelatex', destination.name], cwd=str(builddir))
+    check_call(['xelatex', destination.name], cwd=str(builddir))
 
 
 if __name__ == '__main__':

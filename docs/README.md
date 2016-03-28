@@ -33,8 +33,12 @@ For a fancy syntax highlighting in Sublime Text, you can install *RestructuredTe
 workon study-thesis
 
 # compile study-thesis.rst
-cd docs
-./compile.sh study-thesis
+cd docs/
+./rst2pdf.py study-thesis.rst
+
+# If you want to recompile our the documentation each time a file
+# is modified, use the "watch" script
+./watch
 ```
 
 A template.tex is used for compiling the reST files because it allows defining the latex preamble the way it fits my needs.
