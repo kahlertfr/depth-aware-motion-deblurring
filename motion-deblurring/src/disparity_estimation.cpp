@@ -148,11 +148,11 @@ namespace deblur {
         int p2 = 3000;                // P2 disparity smoothness (default: 0)
                                       // penalty for disparity changes more than 1
         int disp12MaxDiff = 2;        // Maximum allowed difference in the left-right disparity check
-        int preFilterCap = 40;        // Truncation value for the prefiltered image pixels
+        int preFilterCap = 0;        // Truncation value for the prefiltered image pixels
         int uniquenessRatio = 1;      // Margin in percentage by which the best (minimum) computed cost
                                       // function value should “win” the second best value to consider 
                                       // the found match correct (5-15)
-        int speckleWindowSize = 150;  // Maximum size of smooth disparity regions (50-200)
+        int speckleWindowSize = 50;    // Maximum size of smooth disparity regions (50-200)
         int speckleRange = 1;         // Maximum disparity variation within each connected component (1-2)
         bool fullDP = true;           // Set it to true to run the full-scale two-pass dynamic programming algorithm
 
