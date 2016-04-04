@@ -39,6 +39,14 @@ namespace deblur {
             _masks[LEFT].push_back(maskLeft);
             _masks[RIGHT].push_back(maskRight);
 
+            // #ifdef IMWRITE
+            //     // save masks
+            //     string filename = "mask-left-" + to_string(l) + ".png";
+            //     imwrite(filename, maskLeft);
+            //     filename = "mask-right-" + to_string(l) + ".png";
+            //     imwrite(filename, maskRight);
+            // #endif
+
             // store leaf node in tree
             // which doesn't have any child nodes
             node n;
