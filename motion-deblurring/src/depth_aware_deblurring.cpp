@@ -58,29 +58,29 @@ namespace deblur {
             depthDeblur.regionTreeReconstruction(maxTopLevelNodes);
 
 
-            cout << " Step 3: PSF estimation for top-level regions in trees" << endl;
-            depthDeblur.toplevelKernelEstimation();
+            // cout << " Step 3: PSF estimation for top-level regions in trees" << endl;
+            // depthDeblur.toplevelKernelEstimation();
 
 
-            cout << " Step 3.1: Iterative PSF estimation" << endl;
-            cout << "   ... jointly compute PSF for middle & leaf level-regions of both views" << endl;
-            depthDeblur.midLevelKernelEstimation();
+            // cout << " Step 3.1: Iterative PSF estimation" << endl;
+            // cout << "   ... jointly compute PSF for middle & leaf level-regions of both views" << endl;
+            // depthDeblur.midLevelKernelEstimation();
 
 
-            cout << " Step 4: Blur removal given PSF estimate" << endl;
-            // set new left and right view for second pass
-            if ((i + 1) < 2) {
+            // cout << " Step 4: Blur removal given PSF estimate" << endl;
+            // // set new left and right view for second pass
+            // if ((i + 1) < 2) {
                 Mat deconvLeft, deconvRight;
                 depthDeblur.deconvolve(deconvLeft, LEFT);
-                depthDeblur.deconvolve(deconvRight, RIGHT);
+            //     depthDeblur.deconvolve(deconvRight, RIGHT);
                 
-                deconvLeft.copyTo(left);
-                deconvRight.copyTo(right);
-            } else {
-                // deblur final color images
-                depthDeblur.deconvolve(deblurredLeft, LEFT, true);
-                depthDeblur.deconvolve(deblurredRight, RIGHT, true);
-            }
+            //     deconvLeft.copyTo(left);
+            //     deconvRight.copyTo(right);
+            // } else {
+            //     // deblur final color images
+            //     depthDeblur.deconvolve(deblurredLeft, LEFT, true);
+            //     depthDeblur.deconvolve(deblurredRight, RIGHT, true);
+            // }
 
             // TODO: update parameters
             i++; // FIXME: for debugging without second pass

@@ -445,7 +445,7 @@ namespace deblur {
     }
 
 
-    void updateWeight(Mat& weight, const Mat& gradient, const float factor = 1) {
+    void updateWeight(Mat& weight, const Mat& gradient, const Mat& mask, const float factor = 1) {
         // some parameters (see levin paper for details)
         float w0 = 0.1;
         float exp_a = 0.8;
@@ -455,7 +455,7 @@ namespace deblur {
             for (int col = 0; col < weight.cols; col++) {
                 float value;
 
-                if (abs(gradient.at<float>(row, col)) > thr_e) {
+                if (abs(gradient.at<float>(row, col)) > thr_e && mask.at<float>(row, col) != 0) {
                     value = abs(gradient.at<float>(row, col));
                 } else {
                     value = thr_e;
@@ -475,7 +475,7 @@ namespace deblur {
      * @param we     weight
      * @param maxIt  number of iterations
      */
-    void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
+    void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask, const float we, const int maxIt) {
         assert(src.type() == CV_8U && "works on gray value images");
 
         // save min and max values of src to restore the image with correct range
@@ -501,15 +501,31 @@ namespace deblur {
 
         // create mask with m columns and n rows with ones except for a boundary
         // of the half filter size in all directions
-        // 
-        // mask with ones of image size
-        Mat tmpMask = Mat::ones(src.size(), CV_32F);
+        Mat tmpMask, mask;
+
+        if (regionMask.empty()) {
+            cout << "empty"<< endl;
+
+            // mask with ones of image size
+            tmpMask = Mat::ones(src.size(), CV_32F);
+        } else {
+            cout << "not empty "<< endl;
+            imshow("mask", regionMask);
+            waitKey();
+
+            // because region here is a CV_8U with 0 and 255 values
+            // it will be converted to float and set to 0 and 1
+            regionMask.convertTo(tmpMask, CV_32F);
+            tmpMask /= 255;
+        }
 
         // add border with zeros to the mask
-        Mat mask;
         copyMakeBorder(tmpMask, mask, hfsY, hfsY, hfsX, hfsX,
                        BORDER_CONSTANT, Scalar::all(0));
 
+        // // mask for copyTo need to be CV_8U
+        // Mat copyMask;
+        // mask.convertTo(copyMask, CV_8U);
 
         // get first and second order derivations in x and y direction as sobel filter
         derivationFilter df;
@@ -528,6 +544,7 @@ namespace deblur {
         Mat x;
         deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
 
+
         // showFloat("intermediate result x", x, true);
         // double minX; double maxX;
         // minMaxLoc(x, &minX, &maxX);
@@ -541,11 +558,23 @@ namespace deblur {
             conv2(x, dyy, df.yyf, VALID);
             conv2(x, dxy, df.xyf, VALID);
 
-            updateWeight(weights.x,  dx);
-            updateWeight(weights.y,  dy);
-            updateWeight(weights.xx, dxx, 0.25);
-            updateWeight(weights.yy, dyy, 0.25);
-            updateWeight(weights.xy, dxy, 0.25);
+            updateWeight(weights.x,  dx, mask);
+            updateWeight(weights.y,  dy, mask);
+            updateWeight(weights.xx, dxx, mask, 0.25);
+            updateWeight(weights.yy, dyy, mask, 0.25);
+            updateWeight(weights.xy, dxy, mask, 0.25);
+
+            // // just gradients of region
+            // cerr << "sizes: " << dx.size() << " " << mask(Rect(0, 0, dx.cols, dx.rows)).size() << endl;
+            // weights.x = weights.x.mul(mask(Rect(0, 0, weights.x.cols, weights.x.rows)));
+            // cerr << "sizes: " << weights.y.size() << " " << mask(Rect(0, 0, weights.y.cols, weights.y.rows)).size() << endl;
+            // weights.y = weights.y.mul(mask(Rect(0, 0, weights.y.cols, weights.y.rows)));
+            // cerr << "sizes: " << weights.xx.size() << " " << mask(Rect(0, 0, weights.xx.cols, weights.xx.rows)).size() << endl;
+            // weights.xx = weights.xx.mul(mask(Rect(0, 0, weights.xx.cols, weights.xx.rows)));
+            // cerr << "sizes: " << weights.yy.size() << " " << mask(Rect(0, 0, weights.yy.cols, weights.yy.rows)).size() << endl;
+            // weights.yy = weights.yy.mul(mask(Rect(0, 0, weights.yy.cols, weights.yy.rows)));
+            // cerr << "sizes: " << weights.xy.size() << " " << mask(Rect(0, 0, weights.xy.cols, weights.xy.rows)).size() << endl;
+            // weights.xy = weights.xy.mul(mask(Rect(0, 0, weights.xy.cols, weights.xy.rows)));
 
             deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
         }
@@ -572,7 +601,7 @@ namespace deblur {
     }
 
 
-    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const float we, const int maxIt) {
+    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask, const float we, const int maxIt) {
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
         assert(kernel.rows % 2 == 1 && "odd kernel expected");
@@ -586,14 +615,14 @@ namespace deblur {
 
 
             for (int i = 0; i < channels.size(); i++) {
-                deconvolveChannelIRLS(channels[i], tmp[i], kernel, we, maxIt);
+                deconvolveChannelIRLS(channels[i], tmp[i], kernel, regionMask, we, maxIt);
             }
 
             merge(tmp, dst);
 
         } else if (src.type() == CV_8U) {
             // deconvolve gray value image
-            deconvolveChannelIRLS(src, dst, kernel, we, maxIt);
+            deconvolveChannelIRLS(src, dst, kernel, regionMask, we, maxIt);
 
         } else {
             throw runtime_error("Cannot convolve this image type");
