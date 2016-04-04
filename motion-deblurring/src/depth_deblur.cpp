@@ -22,7 +22,7 @@ namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat& imageLeft, Mat& imageRight, const int width)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
-                            , layers((width < 25) ? ((width % 2 == 0) ? width - 1 : width) : 24)  // psf width should be larger - even layer number needed
+                            , layers((width < 24) ? ((width % 2 == 0) ? width - 1 : width) : 24)  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
                             , current(0)
     {
@@ -137,12 +137,26 @@ namespace deblur {
                                          const array<Mat,2>& salientEdgesRight,
                                          Mat& psf) {
 
-        // get gradients of current region only
+        // // get gradients of current region only
         array<Mat,2> regionGradsLeft, regionGradsRight;
         gradsLeft[0].copyTo(regionGradsLeft[0], maskLeft);
         gradsLeft[1].copyTo(regionGradsLeft[1], maskLeft);
         gradsRight[0].copyTo(regionGradsRight[0], maskRight);
         gradsRight[1].copyTo(regionGradsRight[1], maskRight);
+
+        // // FIXME: the masks do not match????
+        // imshow("mask left", maskLeft);
+        // imshow("mask right", maskRight);
+        // waitKey();
+
+        // // get gradients of current region only
+        // Mat blurredRegionLeft, blurredRegionRight;
+        // grayImages[LEFT].copyTo(blurredRegionLeft, maskLeft);
+        // grayImages[RIGHT].copyTo(blurredRegionRight, maskRight);
+
+        // imshow("left", blurredRegionLeft);
+        // imshow("right", blurredRegionRight);
+        // waitKey();
 
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
         // where i ∈ {r, m}, and S_i is the region for reference and matching view 
@@ -169,21 +183,40 @@ namespace deblur {
         Mat xSr, xSm, ySr, ySm;  // fourier transform of region gradients
         Mat xBr, xBm, yBr, yBm;  // fourier transform of blurred images
 
-        fft(salientEdgesLeft[0], xSm);
-        fft(salientEdgesLeft[1], ySm);
-        fft(salientEdgesRight[0], xSr);
-        fft(salientEdgesRight[1], ySr);
-        fft(regionGradsLeft[0], xBm);
-        fft(regionGradsLeft[1], yBm);
-        fft(regionGradsRight[0], xBr);
-        fft(regionGradsRight[1], yBr);
+        dft(salientEdgesLeft[0], xSm);
+        dft(salientEdgesLeft[1], ySm);
+        dft(salientEdgesRight[0], xSr);
+        dft(salientEdgesRight[1], ySr);
+        dft(regionGradsLeft[0], xBm);
+        dft(regionGradsLeft[1], yBm);
+        dft(regionGradsRight[0], xBr);
+        dft(regionGradsRight[1], yBr);
+
 
 
         // delta function as one white pixel in black image
         Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
         deltaFloat.at<float>(xSm.rows / 2, xSm.cols / 2) = 1;
         Mat delta;
-        fft(deltaFloat, delta);
+        dft(deltaFloat, delta);
+
+
+        // Mat Br, Bm;
+        // dft(blurredRegionLeft, Bm);
+        // dft(blurredRegionRight, Br);
+        
+        // // sobel gradients for x and y direction
+        // Mat sobelx = Mat::zeros(xSm.size(), CV_32F);
+        // sobelx.at<float>(0,0) = -1;
+        // sobelx.at<float>(0,1) = 1;
+
+        // Mat sobely = Mat::zeros(xSm.size(), CV_32F);
+        // sobely.at<float>(0,0) = -1;
+        // sobely.at<float>(1,0) = 1;
+
+        // Mat Gx, Gy;
+        // dft(sobelx, Gx);
+        // dft(sobely, Gy);
 
         // kernel in Fourier domain
         Mat K = Mat::zeros(xSm.size(), xSm.type());
@@ -202,16 +235,28 @@ namespace deblur {
                 complex<float> xbm(xBm.at<Vec2f>(y, x)[0], xBm.at<Vec2f>(y, x)[1]);
                 complex<float> ybm(yBm.at<Vec2f>(y, x)[0], yBm.at<Vec2f>(y, x)[1]);
 
+                // complex<float> bm(Br.at<Vec2f>(y, x)[0], Br.at<Vec2f>(y, x)[1]);
+                // complex<float> br(Bm.at<Vec2f>(y, x)[0], Bm.at<Vec2f>(y, x)[1]);
+                // complex<float> gx(Gx.at<Vec2f>(y, x)[0], Gx.at<Vec2f>(y, x)[1]);
+                // complex<float> gy(Gy.at<Vec2f>(y, x)[0], Gy.at<Vec2f>(y, x)[1]);
+
                 complex<float> d(delta.at<Vec2f>(y, x)[0], delta.at<Vec2f>(y, x)[1]);
 
-                complex<float> weight(10000.50, 0.0);
+                complex<float> weight(1, 0.0);
 
                 // kernel entry in the Fourier space
                 complex<float> k = ( (conj(xsr) * xbr + conj(xsm) * xbm) +
                                      (conj(ysr) * ybr + conj(ysm) * ybm) ) /
                                      ( (conj(xsr) * xsr + conj(ysr) * ysr) + 
-                                       (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
-                                       // (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
+                                       // (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
+                                     (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
+
+                // // kernel entry in the Fourier space
+                // complex<float> k = ( (conj(xsr) * gx * br + conj(xsm) * gx * bm) +
+                //                      (conj(ysr) * gy * br + conj(ysm) * gy * bm) ) /
+                //                      ( (conj(xsr) * xsr + conj(ysr) * ysr) + 
+                //                        // (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
+                //                      (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
                 
                 K.at<Vec2f>(y, x) = { real(k), imag(k) };
             }
@@ -319,6 +364,11 @@ namespace deblur {
             grayImages[LEFT].copyTo(region, maskM);
             string filename = "mid-" + to_string(id) + "-left.png";
             imwrite(filename, region);
+
+            Mat regionR;
+            grayImages[RIGHT].copyTo(regionR, maskR);
+            filename = "mid-" + to_string(id) + "-right.png";
+            imwrite(filename, regionR);
 
             // kernels
             Mat tmp;
@@ -597,31 +647,63 @@ namespace deblur {
 
 
     void DepthDeblur::deconvolve(Mat& dst, view view, bool color) {
-        // make a deconvolution for each disparity layer
-        for (int i = 0; i < layers; i++) {         
-            // get mask of the disparity level
-            Mat mask;
-            regionTree.getMask(i, mask, view);
+        // // make a deconvolution for each disparity layer
+        // for (int i = 0; i < layers; i++) {         
+        //     // get mask of the disparity level
+        //     Mat mask;
+        //     regionTree.getMask(i, mask, view);
 
-            Mat tmpDeconv;
+        //     Mat tmpDeconv;
 
-            if (color) {
-                deconvolveIRLS(images[view], tmpDeconv, regionTree[i].psf);
-            } else {
-                deconvolveIRLS(grayImages[view], tmpDeconv, regionTree[i].psf);
-            }
+        //     if (color) {
+        //         deconvolveIRLS(images[view], tmpDeconv, regionTree[i].psf);
+        //     } else {
+        //         deconvolveIRLS(grayImages[view], tmpDeconv, regionTree[i].psf);
+        //     }
 
-            tmpDeconv.copyTo(dst, mask);
+        //     tmpDeconv.copyTo(dst, mask);
 
-            #ifdef IMWRITE
-                string filename = "tmp-deconv-" + to_string(view) + "-" + to_string(i) + ".png";
-                imwrite(filename, dst);
-            #endif
-        }
+        //     #ifdef IMWRITE
+        //         string filename = "tmp-deconv-" + to_string(view) + "-" + to_string(i) + ".png";
+        //         imwrite(filename, dst);
+        //     #endif
+        // }
 
-        #ifdef IMWRITE
-            string filename = "deconv-" + to_string(view) + ".png";
-            imwrite(filename, dst);
-        #endif
+        // #ifdef IMWRITE
+        //     string filename = "deconv-" + to_string(view) + ".png";
+        //     imwrite(filename, dst);
+        // #endif
+        
+
+
+        // --------- for debugging
+        Mat src, kernel, deconv;
+        // src = imread("I.png", CV_LOAD_IMAGE_GRAYSCALE);
+        // kernel = imread("filt.png", CV_LOAD_IMAGE_GRAYSCALE);
+        
+        kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
+
+        imshow("kernel", kernel);
+        imshow("image", grayImages[LEFT]);
+        waitKey();
+
+        kernel.convertTo(kernel, CV_32F);
+
+        // kernel /= 255;
+        kernel /= sum(kernel)[0];
+
+        // deconvolveIRLS(src, deconv, kernel);
+        
+        // pass region mask
+        Mat mask;
+        regionTree.getMask(42, mask, LEFT);
+        
+        deconvolveIRLS(grayImages[LEFT], deconv, kernel, mask);
+        imshow("deconv", deconv);
+        waitKey();
+
+        imwrite("deconv.png", deconv);
+
+        //----------- end debugging
     }
 }
