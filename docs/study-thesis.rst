@@ -48,6 +48,17 @@ Introduction
     \newpage
 
 
+++++++++++++
+Related Work
+++++++++++++
+
+.. include:: chapters/related-work.rst
+
+.. raw:: LaTex
+
+    \newpage
+
+
 ++++++++++++++
 Basics of blur
 ++++++++++++++
