@@ -4,7 +4,7 @@ A short theoretical preliminary to deblurring.
 Blur
 ++++
 
-Blur is the result of averaged intensities from different real world points in one image point. :cite:`CHO2009`
+Blur is the result of averaged intensities from different real world points in one image point. :cite:`Cho2009`
 
 There are two major classes of blur: the defocus blur and the motion blur. The first one is obviously caused because an object is out of focus. The second one is caused by the relative motion between the camera and the scene during the exposure time.
 
@@ -15,7 +15,7 @@ The **motion blur** can occur due to different reasons: moving objects in the sc
     B = I \otimes k + n
 
 
-Where *B* is the observation, *I* is the latent (sharp) image convolved with a blur kernel *k* and *n* is some additional noise. If the scene has different depths than there is a blur kernel for each depth layer. :cite:`XU2012` The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system. So we can use it to describe the movement of a point on the image plane.
+Where *B* is the observation, *I* is the latent (sharp) image convolved with a blur kernel *k* and *n* is some additional noise. If the scene has different depths than there is a blur kernel for each depth layer. :cite:`Xu2012` The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system. So we can use it to describe the movement of a point on the image plane.
 
 .. raw:: LaTex
 

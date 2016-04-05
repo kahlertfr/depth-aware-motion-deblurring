@@ -1,4 +1,4 @@
-The depth-aware motion deblurring algorithm was developed by Xu and Jia :cite:`XU2012`. This algorithm operates on a stereo image pair and processes the images with the steps described below. For improving the result the process is done a second time with the deblurred images from the first run as input for the second one.
+The depth-aware motion deblurring algorithm was developed by Xu and Jia :cite:`Xu2012`. This algorithm operates on a stereo image pair and processes the images with the steps described below. For improving the result the process is done a second time with the deblurred images from the first run as input for the second one.
 
 .. raw:: LaTex
 
@@ -24,7 +24,7 @@ Reference Implementation
 
 The reference implementation for the depth-aware motion deblurring algorithm provides a command line interface and a C++ library. A OpenCV 3.0 installation is required for this project. For further information please read the *README* of this project. The source code can be found here: https://square-src.de/gitlab/franzi/study-thesis.git
 
-The project contains two independent algorithms: the two-phase kernel estimation algorithm from Xu and Jia :cite:`XU2010` and the depth-aware motion deblurring algorithm. The first one is used inside for the depth-aware deblurring. Because both algorithms are independent there is also a standalone command line interface and a C++ library for the two-phase kernel estimation algorithm.
+The project contains two independent algorithms: the two-phase kernel estimation algorithm from Xu and Jia :cite:`Xu2010` and the depth-aware motion deblurring algorithm. The first one is used inside for the depth-aware deblurring. Because both algorithms are independent there is also a standalone command line interface and a C++ library for the two-phase kernel estimation algorithm.
 :red:`Unfortunately the two-phase kernel estimation algorithm could not be finished within the context of this study thesis.`
 
 
@@ -103,7 +103,7 @@ The *RegionTree* class stores binary masks of all depth layers regions in the le
 PSF Estimation for Top-Level Regions
 ++++++++++++++++++++++++++++++++++++
 
-This follows the algorithm of :cite:`XU2010`.
+This follows the algorithm of :cite:`Xu2010`.
 
 :red:`tried to implement the two-phase kernel estimation` but unfortunately this couldn't be finished in time. So the provided exe is used to generate the top-level PSFs which are necessary to go on with the main algorithm.
 
