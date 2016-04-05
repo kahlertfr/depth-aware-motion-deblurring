@@ -44,7 +44,7 @@ class Writer(latex2e.Writer):
         self.translator_class = LaTeXTranslator
 
 
-def rst2pdf(filename):
+def rst2pdf(filename, bibtex='references.bib'):
     """Creates a PDF from a file written in restructuredText by using"""
 
     filename = Path(filename)
@@ -58,6 +58,7 @@ def rst2pdf(filename):
     if not builddir.exists():
         builddir.mkdir(mode=0o755)
 
+
     destination = builddir / "{filename.stem}.tex".format(filename=filename)
 
     # Compile restructuredText to LaTex
@@ -69,7 +70,9 @@ def rst2pdf(filename):
                  })
     
     # Copy BibTex references
-    copy(str(rootdir / 'references.bib'), str(builddir / 'references.bib'))
+    bibtex = Path(bibtex)
+    if bibtex.exists():
+        copy(str(bibtex), str(builddir / bibtex.name))
 
     # Compile LaTex to PDF
     # FIXME As long as latexmk is not installable on the working machine, we use
@@ -77,6 +80,7 @@ def rst2pdf(filename):
     # check_call(['latexmk', '-xelatex', destination.name], cwd=str(builddir))
     check_call(['xelatex', destination.name], cwd=str(builddir))
     check_call(['xelatex', destination.name], cwd=str(builddir))
+    check_call(['bibtex', destination.stem + '.aux'], cwd=str(builddir))
     check_call(['xelatex', destination.name], cwd=str(builddir))
 
 
