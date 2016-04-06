@@ -1,7 +1,7 @@
 #include <iostream>                     // cout, cerr, endl
 #include <opencv2/highgui/highgui.hpp>  // imread, imshow, imwrite
-#include <queue>                        // FIFO queue
 #include <cmath>                        // log
+#include <thread>
 
 #include "utils.hpp"
 #include "disparity_estimation.hpp"     // SGBM, fillOcclusions, quantize
@@ -24,7 +24,6 @@ namespace deblur {
                             : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
                             , layers((width < 24) ? ((width % 2 == 0) ? width - 1 : width) : 24)  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
-                            , current(0)
     {
         // convert color images to gray value images
         if (imageLeft.type() == CV_8UC3) {
@@ -579,7 +578,74 @@ namespace deblur {
     }
 
 
-    void DepthDeblur::midLevelKernelEstimation() {
+    bool DepthDeblur::safeQueueAccess(queue<int>* sharedQueue, int& item) {
+        // this lock guard calls lock and if the end of the scope is reached
+        // it calls unlock automatically
+        lock_guard<mutex> g(m);
+
+        // now we can access the stack without collisions
+        if (sharedQueue->empty() != true) {
+            item = sharedQueue->front();
+            sharedQueue->pop();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    void DepthDeblur::midLevelKernelEstimationNode(){
+        int id;
+        while(visitedLeafs != layers) {
+            if (safeQueueAccess(&remainingNodes, id)) {
+                // get IDs of the child nodes
+                int cid1 = regionTree[id].children.first;
+                int cid2 = regionTree[id].children.second;
+
+                // do PSF computation for a middle node with its children
+                // (leaf nodes doesn't have any children)
+                if (cid1 != -1 && cid2 != -1) {
+                    // PSF estimation for each children
+                    // (salient edge map computation and joint psf estimation)
+                    estimateChildPSF(cid1);
+                    estimateChildPSF(cid2);
+
+                    // to eliminate errors
+                    //
+                    // calucate entropy of the found psf
+                    regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
+                    regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
+
+                    // candiate selection
+                    vector<Mat> candiates1, candiates2;
+                    candidateSelection(candiates1, cid1, cid2);
+                    candidateSelection(candiates2, cid2, cid1);
+
+                    // final psf selection
+                    psfSelection(candiates1, cid1);
+                    psfSelection(candiates2, cid2);
+
+
+                    m.lock();
+
+                    // add children ids to the back of the queue
+                    remainingNodes.push(cid1);
+                    remainingNodes.push(cid2);
+
+                    m.unlock();
+                } else {
+                    mCounter.lock();
+                    visitedLeafs++;
+                    mCounter.unlock();
+                }
+            }
+        }
+    }
+
+
+    void DepthDeblur::midLevelKernelEstimation(int nThreads) {
+        visitedLeafs = 0;
+
         // we can compute the gradients for each blurred image only ones
         computeBlurredGradients();
 
@@ -592,61 +658,102 @@ namespace deblur {
         // for storing the future "current nodes" a queue is used (FIFO) this fits the
         // levelwise computation of the paper
         
-        queue<int> remainingNodes;
-
         // init queue with the top-level node IDs
         for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
             remainingNodes.push(regionTree.topLevelNodeIds[i]);
         }
 
+        // create worker threads
+        int nrOfWorker = nThreads - 1;
+        thread threads[nrOfWorker];
 
-        while(!remainingNodes.empty()) {
-            // pop id of current node from the front of the queue
-            int id = remainingNodes.front();
-            remainingNodes.pop();
+        for (int id = 0; id < nrOfWorker; id++) {
+            // each worker gets the deconvolveRegion method with the regionStack
+            threads[id] = thread(&DepthDeblur::midLevelKernelEstimationNode, this);
+        }
 
-            // cout << "  at node: " << id;
+        midLevelKernelEstimationNode();
 
-            // get IDs of the child nodes
-            int cid1 = regionTree[id].children.first;
-            int cid2 = regionTree[id].children.second;
+        // wait for all threads to finish
+        for (int id = 0; id < nrOfWorker; id++) {
+            threads[id].join();
+        }
+    }
 
-            // cout << " with " << cid1 << " " << cid2 << endl;
 
-            // do PSF computation for a middle node with its children
-            // (leaf nodes doesn't have any children)
-            if (cid1 != -1 && cid2 != -1) {
-                // add children ids to the back of the queue
-                remainingNodes.push(regionTree[id].children.first);
-                remainingNodes.push(regionTree[id].children.second);
+    bool DepthDeblur::safeStackAccess(stack<int>* sharedStack, int& item) {
+        // this lock guard calls lock and if the end of the scope is reached
+        // it calls unlock automatically
+        lock_guard<mutex> g(m);
 
-                // PSF estimation for each children
-                // (salient edge map computation and joint psf estimation)
-                estimateChildPSF(cid1);
-                estimateChildPSF(cid2);
+        // now we can access the stack without collisions
+        if (sharedStack->empty() != true) {
+            item = sharedStack->top();
+            sharedStack->pop();
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-                // to eliminate errors
-                //
-                // calucate entropy of the found psf
-                regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
-                regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
-                // cout << "  entropies: " << regionTree[cid1].entropy << " " << regionTree[cid2].entropy << endl;
+    void DepthDeblur::deconvolveRegion(const view view, const bool color) {
+        // region index
+        int i;
 
-                // candiate selection
-                vector<Mat> candiates1, candiates2;
-                candidateSelection(candiates1, cid1, cid2);
-                candidateSelection(candiates2, cid2, cid1);
+        // work as long as there is something on the stack
+        while (safeStackAccess(&regionStack, i)) {
+            // get mask of the disparity level
+            Mat mask;
+            regionTree.getMask(i, mask, view);
 
-                // final psf selection
-                psfSelection(candiates1, cid1);
-                psfSelection(candiates2, cid2);
+            if (color) {
+                deconvolveIRLS(images[view], regionDeconv[i], regionTree[i].psf, mask);
+            } else {
+                deconvolveIRLS(grayImages[view], regionDeconv[i], regionTree[i].psf, mask);
             }
         }
     }
 
 
-    void DepthDeblur::deconvolve(Mat& dst, view view, bool color) {
+    void DepthDeblur::deconvolve(Mat& dst, view view, int nThreads, bool color) {
+        // deconvolve in parallel
+        // reset storage for deconvolved images
+        regionDeconv.resize(layers);
+
+        // set up stack with regions that have to be calculated
+        // store leaf node region index
+        for (int nr = 0; nr < layers; nr++) {
+            regionStack.push(nr);
+        }
+
+        // create worker threads
+        int nrOfWorker = nThreads - 1;
+        thread threads[nrOfWorker];
+
+        for (int id = 0; id < nrOfWorker; id++) {
+            // each worker gets the deconvolveRegion method with the regionStack
+            threads[id] = thread(&DepthDeblur::deconvolveRegion, this, view, color);
+        }
+
+        // let the main thread do some work too
+        deconvolveRegion(view, color);
+
+        // wait for all threads to finish
+        for (int id = 0; id < nrOfWorker; id++) {
+            threads[id].join();
+        }
+
+        // add all region deconvs
+        for (int i = 0; i < regionDeconv.size(); i++) {
+            Mat mask;
+            // the index of the region in regionDeconv and regionTree are the same
+            regionTree.getMask(i, mask, view);
+
+            regionDeconv[i].copyTo(dst, mask);
+        }
+
+
         // // make a deconvolution for each disparity layer
         // for (int i = 0; i < layers; i++) {         
         //     // get mask of the disparity level
@@ -669,41 +776,54 @@ namespace deblur {
         //     #endif
         // }
 
-        // #ifdef IMWRITE
-        //     string filename = "deconv-" + to_string(view) + ".png";
-        //     imwrite(filename, dst);
-        // #endif
+        #ifdef IMWRITE
+            string filename = "deconv-" + to_string(view) + ".png";
+            imwrite(filename, dst);
+        #endif
         
 
 
-        // --------- for debugging
-        Mat src, kernel, deconv;
-        // src = imread("I.png", CV_LOAD_IMAGE_GRAYSCALE);
+        // // --------- for debugging
+        
+        // Mat mask, src, kernel, deconv;
+
+        // // levin example
+        // src = imread("src-region.png", CV_LOAD_IMAGE_GRAYSCALE);
         // kernel = imread("filt.png", CV_LOAD_IMAGE_GRAYSCALE);
-        
-        kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
+        // int border = 50;
+        // Mat tmpmask = Mat::ones(src.rows - border * 2, src.cols - border * 2, CV_8U);
+        // copyMakeBorder(tmpmask, mask, border, border, border, border,
+        //                BORDER_CONSTANT, Scalar::all(0));
+        // mask *= 255;
 
-        imshow("kernel", kernel);
-        imshow("image", grayImages[LEFT]);
-        waitKey();
+        // // mouse with mask
+        // src = imread("tapered0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
+        // regionTree.getMask(42, mask, LEFT);
 
-        kernel.convertTo(kernel, CV_32F);
 
-        // kernel /= 255;
-        kernel /= sum(kernel)[0];
+        // imshow("kernel", kernel);
+        // imshow("image", src);
+        // imshow("mask", mask);
+        // waitKey();
 
-        // deconvolveIRLS(src, deconv, kernel);
-        
-        // pass region mask
-        Mat mask;
-        regionTree.getMask(42, mask, LEFT);
-        
-        deconvolveIRLS(grayImages[LEFT], deconv, kernel, mask);
-        imshow("deconv", deconv);
-        waitKey();
+        // kernel.convertTo(kernel, CV_32F);
 
-        imwrite("deconv.png", deconv);
+        // // kernel /= 255; // levin kernel
+        // kernel /= sum(kernel)[0];  // mouse kernel    
+               
+        // deconvolveIRLS(src, deconv, kernel, mask);
+        // imshow("deconv-sp", deconv);
+        // waitKey();
 
-        //----------- end debugging
+        // imwrite("deconv-sp.png", deconv);
+
+        // deconvolveFFT(src, deconv, kernel);
+        // imshow("deconv-fft", deconv);
+        // waitKey();
+
+        // imwrite("deconv-fft.png", deconv);
+
+        // //----------- end debugging
     }
 }

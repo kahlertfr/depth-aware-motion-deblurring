@@ -23,7 +23,7 @@ using namespace std;
 struct arg_lit *help;
 struct arg_file *left_image, *right_image;
 struct arg_end *end_args;
-struct arg_int *psf_width, *max_toplevel_nodes;
+struct arg_int *psf_width, *max_toplevel_nodes, *mythreads;
 
 
 /**
@@ -31,15 +31,16 @@ struct arg_int *psf_width, *max_toplevel_nodes;
  * On error while parsing or used help option this function returns false.
  */
 static bool parse_commandline_args(int argc, char** argv, 
-                                   string &left, string &right,
+                                   string &left, string &right, int &nThreads,
                                    int &psfWidth, int &maxTopLevelNodes,
                                    int &exitcode) {
     
     // command line options
     // the global arg_xxx structs are initialized within the argtable
     void *argtable[] = {
-        help        = arg_litn("h", "help", 0, 1, "display this help and exit"),
+        help        = arg_litn("h", "help",                        0, 1, "display this help and exit"),
         psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 24"),
+        mythreads     = arg_intn ("t", "threads", "<n>",             0, 1, "number of threads. Default: 1"),
         max_toplevel_nodes   = arg_intn ("m", "max-top-nodes", "<n>", 0, 1, "max top level nodes in region tree. Default: 3"),
         left_image  = arg_filen(nullptr, nullptr, "<left image>",  1, 1, "left image"),
         right_image = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
@@ -47,7 +48,8 @@ static bool parse_commandline_args(int argc, char** argv,
     };
 
     // default values (they weren't set if there is a value given)
-    psf_width->ival[0] = 25;
+    psf_width->ival[0] = 24;
+    mythreads->ival[0] = 1;
     max_toplevel_nodes->ival[0] = 3;
 
     // parsing arguments
@@ -84,6 +86,7 @@ static bool parse_commandline_args(int argc, char** argv,
     left = left_image->filename[0];
     right = right_image->filename[0];
     psfWidth = psf_width->ival[0];
+    nThreads = mythreads->ival[0];
     maxTopLevelNodes = max_toplevel_nodes->ival[0];
 
     // deallocate each non-null entry in argtable[]
@@ -98,11 +101,12 @@ int main(int argc, char** argv) {
     string imageLeft;
     string imageRight;
     int psfWidth;
+    int nThreads;
     int maxTopLevelNodes;
 
     // parse command line arguments
     int exitcode = 0;
-    bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, 
+    bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, nThreads,
                                           psfWidth, maxTopLevelNodes, exitcode);
 
     if (success == false) {
@@ -115,10 +119,11 @@ int main(int argc, char** argv) {
     cout << "   image right:         " << imageRight << endl;
     cout << "   approx. PSF width:   " << psfWidth << endl;
     cout << "   max top level nodes: " << maxTopLevelNodes << endl;
+    cout << "   threads:             " << nThreads << endl;
     cout << endl;
 
     try {
-        deblur::depthDeblur(imageLeft, imageRight, psfWidth, maxTopLevelNodes);
+        deblur::depthDeblur(imageLeft, imageRight, nThreads, psfWidth, maxTopLevelNodes);
     }
     catch(const exception& e) {
         cerr << "ERROR: " << e.what() << endl;
