@@ -17,6 +17,9 @@
 #ifndef DEPTH_DEBLUR_H
 #define DEPTH_DEBLUR_H
 
+#include <stack>
+#include <queue>                        // FIFO queue
+#include <mutex>
 #include <opencv2/opencv.hpp>
 
 #include "region_tree.hpp"
@@ -66,17 +69,19 @@ namespace deblur {
          * Estimates the kernel of all middle and leaf level nodes.
          * Uses candidate selection for minimizing the error of the estimated PSF.
          * 
+         * @param threads number of threads for parallel deconvolution
          */
-        void midLevelKernelEstimation();
+        void midLevelKernelEstimation(int nThreads);
 
         /**
          * Deconvolves the two views for each depth layer.
          * 
-         * @param dst   deconvolved image
-         * @param view  determine which view is deconvolved
-         * @param color use color image
+         * @param dst     deconvolved image
+         * @param view    determine which view is deconvolved
+         * @param threads number of threads for parallel deconvolution
+         * @param color   use color image
          */
-        void deconvolve(cv::Mat& dst, view view, bool color = false);
+        void deconvolve(cv::Mat& dst, view view, int nThreads = 1, bool color = false);
 
 
       private:
@@ -115,7 +120,7 @@ namespace deblur {
          * different depth layers
          */
         RegionTree regionTree;
-
+ 
         /**
          * Gradients of left image in x and y direction
          */
@@ -126,7 +131,6 @@ namespace deblur {
          */
         std::array<cv::Mat,2> gradsRight;
 
-        int current;
 
         /**
          * Estimates the PSF of a region jointly on the reference and matching view.
@@ -206,6 +210,68 @@ namespace deblur {
          * @return        correlation value
          */
         float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask);
+
+
+    // methods and variables used for parallel computation ++++++++++++++++++++++++++++++++++++++++++
+        
+        /**
+         * mutex for queue or stack acces
+         */
+        std::mutex m;
+
+        /**
+         * mutex for counting visited leafs
+         */
+        std::mutex mCounter;
+
+        /**
+         * stack for parallel computation of region deconvolution
+         */
+        std::stack<int> regionStack;
+
+        /**
+         * results of region deconvolution
+         */
+        std::vector<cv::Mat> regionDeconv;
+
+        /**
+         * queue for parallel mid psf estimation
+         */
+        std::queue<int> remainingNodes;
+
+        /**
+         * count visited leafs and use it as break condition
+         */
+        int visitedLeafs;
+
+        /*
+         * This method is used by threads for parallel deconvolution of the regions. It 
+         * uses a thread safe access to the regionStack.
+         * Results are stored in regionDeonv.
+         * 
+         */
+        void deconvolveRegion(const view view, const bool color);
+
+        /**
+         * Provides a mutex lock to safely get and pop the top item
+         * of the shared stack. Returns false if the stack is empty.
+         * 
+         */
+        bool safeStackAccess(std::stack<int>* sharedStack, int& item);
+
+        /*
+         * This method is used by threads for parallel mid level psf estimation. It 
+         * uses a thread safe access to the remainingNodes queue.
+         * 
+         */
+        void midLevelKernelEstimationNode();
+
+        /**
+         * Provides a mutex lock to safely get and pop the top item
+         * of the shared queue. Returns false if the queue is empty.
+         * 
+         */
+        bool safeQueueAccess(std::queue<int>* sharedQueue, int& item);
 
     };
 }
