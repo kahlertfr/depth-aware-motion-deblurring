@@ -446,22 +446,25 @@ namespace deblur {
     }
 
 
-    void updateWeight(Mat& weight, const Mat& gradient, const float factor = 1) {
+    void updateWeight(Mat& weight, const Mat& gradient, const Mat& boundaries, const float factor = 1) {
         // some parameters (see levin paper for details)
-        float w0 = 0.1;
+        float w0 = exp(-3);  // Levin: 0.1;
         float exp_a = 0.8;
-        float thr_e = 0.01;
+        float thr_e = 0.01;  // for avoiding zero division
 
         for (int row = 0; row < weight.rows; row++) {
             for (int col = 0; col < weight.cols; col++) {
-                float value;
-
                 if (abs(gradient.at<float>(row, col)) > thr_e) {
-                    value = abs(gradient.at<float>(row, col));
+                    float value = abs(gradient.at<float>(row, col));
+                    
+                    // to suppress visual artifacts set the weight 3 times larger in boundary areas
+                    if (boundaries.at<float>(row, col) != 0)
+                        weight.at<float>(row, col) = factor * 3 * w0 * pow(value, exp_a - 2);
+                    else
+                        weight.at<float>(row, col) = factor * w0 * pow(value, exp_a - 2);
                 } else {
-                    value = thr_e;
+                    weight.at<float>(row, col) = factor * w0 * pow(thr_e, exp_a - 2);
                 }
-                weight.at<float>(row, col) = factor * w0 * pow(value, exp_a - 2);
             }
         }
     }
@@ -487,11 +490,6 @@ namespace deblur {
         src.convertTo(src, CV_32F);
         src /= 255.0;
 
-        // double tmpmin; double tmpmax;
-        // minMaxLoc(src, &tmpmin, &tmpmax);
-        // cout << "src: " << tmpmin << " " << tmpmax << endl;
-        // minMaxLoc(kernel, &tmpmin, &tmpmax);
-        // cout << "kernel: " << tmpmin << " " << tmpmax << endl;
         // half filter size
         int hfsX = kernel.cols / 2;
         int hfsY = kernel.rows / 2;
@@ -505,13 +503,9 @@ namespace deblur {
         Mat tmpMask, mask;
 
         if (regionMask.empty()) {
-            cout << "empty"<< endl;
-
             // mask with ones of image size
             tmpMask = Mat::ones(src.size(), CV_32F);
         } else {
-            cout << "not empty "<< endl;
-
             // because region here is a CV_8U with 0 and 255 values
             // it will be converted to float and set to 0 and 1
             regionMask.convertTo(tmpMask, CV_32F);
@@ -522,14 +516,22 @@ namespace deblur {
         copyMakeBorder(tmpMask, mask, hfsY, hfsY, hfsX, hfsX,
                        BORDER_CONSTANT, Scalar::all(0));
 
-        // // mask for copyTo need to be CV_8U
-        // Mat copyMask;
-        // mask.convertTo(copyMask, CV_8U);
+
+        // create mask for region boundaries
+        // because for pixels with their distant to the region boundaries smaller
+        // than the kernel size the weight is set 3 times larger
+        Mat tmp, boundaries;
+        Mat structElement = Mat::ones(kernel.rows * 2, kernel.cols * 2, CV_32F);
+        erode(mask, tmp, structElement);
+
+        boundaries = mask - tmp;
+
+        imshow("boundaries", boundaries);
+        waitKey();
 
         // get first and second order derivations in x and y direction as sobel filter
         derivationFilter df;
         sobelDerivations(df);
-
 
         // weights for the derivation filter
         weights weights;
@@ -543,13 +545,8 @@ namespace deblur {
         Mat x;
         deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
 
-
-        // showFloat("intermediate result x", x, true);
-        // double minX; double maxX;
-        // minMaxLoc(x, &minX, &maxX);
-        // cout << "x: " << minX << " " << maxX << endl;
-
         for (int i = 0; i < 2; i++) {
+            // compute first and second order gradients
             Mat dx, dy, dxx, dyy, dxy;
             conv2(x, dx, df.xf, VALID);
             conv2(x, dy, df.yf, VALID);
@@ -557,11 +554,11 @@ namespace deblur {
             conv2(x, dyy, df.yyf, VALID);
             conv2(x, dxy, df.xyf, VALID);
 
-            updateWeight(weights.x,  dx);
-            updateWeight(weights.y,  dy);
-            updateWeight(weights.xx, dxx, 0.25);
-            updateWeight(weights.yy, dyy, 0.25);
-            updateWeight(weights.xy, dxy, 0.25);
+            updateWeight(weights.x, dx, boundaries);
+            updateWeight(weights.y, dy, boundaries);
+            updateWeight(weights.xx, dxx, boundaries, 0.25);
+            updateWeight(weights.yy, dyy, boundaries, 0.25);
+            updateWeight(weights.xy, dxy, boundaries, 0.25);
 
             deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
         }
