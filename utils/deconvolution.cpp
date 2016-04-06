@@ -396,6 +396,7 @@ namespace deblur {
 
         // matlab: b = conv2(x .* mask, filt1, 'same');
         Mat b;
+        zeroPaddedSrc = zeroPaddedSrc.mul(mask);
         conv2(zeroPaddedSrc, b, kernel, SAME);
 
         // flip kernel
@@ -445,7 +446,7 @@ namespace deblur {
     }
 
 
-    void updateWeight(Mat& weight, const Mat& gradient, const Mat& mask, const float factor = 1) {
+    void updateWeight(Mat& weight, const Mat& gradient, const float factor = 1) {
         // some parameters (see levin paper for details)
         float w0 = 0.1;
         float exp_a = 0.8;
@@ -455,7 +456,7 @@ namespace deblur {
             for (int col = 0; col < weight.cols; col++) {
                 float value;
 
-                if (abs(gradient.at<float>(row, col)) > thr_e && mask.at<float>(row, col) != 0) {
+                if (abs(gradient.at<float>(row, col)) > thr_e) {
                     value = abs(gradient.at<float>(row, col));
                 } else {
                     value = thr_e;
@@ -510,8 +511,6 @@ namespace deblur {
             tmpMask = Mat::ones(src.size(), CV_32F);
         } else {
             cout << "not empty "<< endl;
-            imshow("mask", regionMask);
-            waitKey();
 
             // because region here is a CV_8U with 0 and 255 values
             // it will be converted to float and set to 0 and 1
@@ -558,23 +557,11 @@ namespace deblur {
             conv2(x, dyy, df.yyf, VALID);
             conv2(x, dxy, df.xyf, VALID);
 
-            updateWeight(weights.x,  dx, mask);
-            updateWeight(weights.y,  dy, mask);
-            updateWeight(weights.xx, dxx, mask, 0.25);
-            updateWeight(weights.yy, dyy, mask, 0.25);
-            updateWeight(weights.xy, dxy, mask, 0.25);
-
-            // // just gradients of region
-            // cerr << "sizes: " << dx.size() << " " << mask(Rect(0, 0, dx.cols, dx.rows)).size() << endl;
-            // weights.x = weights.x.mul(mask(Rect(0, 0, weights.x.cols, weights.x.rows)));
-            // cerr << "sizes: " << weights.y.size() << " " << mask(Rect(0, 0, weights.y.cols, weights.y.rows)).size() << endl;
-            // weights.y = weights.y.mul(mask(Rect(0, 0, weights.y.cols, weights.y.rows)));
-            // cerr << "sizes: " << weights.xx.size() << " " << mask(Rect(0, 0, weights.xx.cols, weights.xx.rows)).size() << endl;
-            // weights.xx = weights.xx.mul(mask(Rect(0, 0, weights.xx.cols, weights.xx.rows)));
-            // cerr << "sizes: " << weights.yy.size() << " " << mask(Rect(0, 0, weights.yy.cols, weights.yy.rows)).size() << endl;
-            // weights.yy = weights.yy.mul(mask(Rect(0, 0, weights.yy.cols, weights.yy.rows)));
-            // cerr << "sizes: " << weights.xy.size() << " " << mask(Rect(0, 0, weights.xy.cols, weights.xy.rows)).size() << endl;
-            // weights.xy = weights.xy.mul(mask(Rect(0, 0, weights.xy.cols, weights.xy.rows)));
+            updateWeight(weights.x,  dx);
+            updateWeight(weights.y,  dy);
+            updateWeight(weights.xx, dxx, 0.25);
+            updateWeight(weights.yy, dyy, 0.25);
+            updateWeight(weights.xy, dxy, 0.25);
 
             deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
         }
