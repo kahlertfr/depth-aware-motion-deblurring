@@ -59,9 +59,9 @@ Related Work
     \newpage
 
 
-++++++++++++++
-Basics of blur
-++++++++++++++
++++++++++++++++++++++++++++++++++
+Image Formation under Motion Blur
++++++++++++++++++++++++++++++++++
 
 .. include:: chapters/blur-basics.rst
 
