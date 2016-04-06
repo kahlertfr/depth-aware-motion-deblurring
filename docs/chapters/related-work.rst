@@ -9,3 +9,5 @@ Some methods deals with rotation blur models such as Shan *et al.* :cite:`Shan20
 There are also works that take both rotation and translation into consideration like Joshi *et al.* :cite:`Joshi2010` where a inertial sensor is used to measure the camera motion. Tai *et al.* :cite:`Tai2010` uses labeled cues to estimate 6-DoF camera motion. These approaches have the limitations that they either need external input like user interactions or hardware or they simplify the camera parameter.
 
 There are also works focused on removal of blur caused by object motion :cite:`Jia2007` and :cite:`Chak2010`. However we deal with motion blur caused by camera motion combined with depth scenes.
+
+:red:`add new paper to it`
