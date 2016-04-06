@@ -16,7 +16,7 @@ using namespace cv;
 namespace deblur {
 
     void depthDeblur(const Mat& blurredLeft, const Mat& blurredRight,
-                     Mat& deblurredLeft, Mat& deblurredRight,
+                     Mat& deblurredLeft, Mat& deblurredRight, const int threads,
                      int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
@@ -64,23 +64,24 @@ namespace deblur {
 
             cout << " Step 3.1: Iterative PSF estimation" << endl;
             cout << "   ... jointly compute PSF for middle & leaf level-regions of both views" << endl;
-            depthDeblur.midLevelKernelEstimation();
+            depthDeblur.midLevelKernelEstimation(threads);
 
 
             cout << " Step 4: Blur removal given PSF estimate" << endl;
-            // set new left and right view for second pass
-            if ((i + 1) < 2) {
+            // // set new left and right view for second pass
+            // if ((i + 1) < 2) {
                 Mat deconvLeft, deconvRight;
-                depthDeblur.deconvolve(deconvLeft, LEFT);
-                depthDeblur.deconvolve(deconvRight, RIGHT);
+                // use threads
+                depthDeblur.deconvolve(deconvLeft, LEFT, threads);
+                // depthDeblur.deconvolve(deconvRight, RIGHT, threads);
                 
-                deconvLeft.copyTo(left);
-                deconvRight.copyTo(right);
-            } else {
-                // deblur final color images
-                depthDeblur.deconvolve(deblurredLeft, LEFT, true);
-                depthDeblur.deconvolve(deblurredRight, RIGHT, true);
-            }
+            //     deconvLeft.copyTo(left);
+            //     deconvRight.copyTo(right);
+            // } else {
+            //     // deblur final color images
+            //     depthDeblur.deconvolve(deblurredLeft, LEFT, threads, true);
+            //     depthDeblur.deconvolve(deblurredRight, RIGHT, threads, true);
+            // }
 
             // TODO: update parameters
             i++; // FIXME: for debugging without second pass
@@ -95,7 +96,7 @@ namespace deblur {
 
 
     void depthDeblur(const string filenameLeft, const string filenameRight,
-                     const int psfWidth, const int maxTopLevelNodes,
+                     const int threads, const int psfWidth, const int maxTopLevelNodes,
                      const string filenameResultLeft, const string filenameResultRight) {
 
         // load images
@@ -108,7 +109,7 @@ namespace deblur {
         }
 
         Mat left, right;
-        depthDeblur(blurredLeft, blurredRight, left, right, psfWidth, maxTopLevelNodes);
+        depthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, maxTopLevelNodes);
 
         imwrite(filenameResultLeft, left);
         imwrite(filenameResultRight, right);
