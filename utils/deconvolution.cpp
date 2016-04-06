@@ -526,9 +526,6 @@ namespace deblur {
 
         boundaries = mask - tmp;
 
-        imshow("boundaries", boundaries);
-        waitKey();
-
         // get first and second order derivations in x and y direction as sobel filter
         derivationFilter df;
         sobelDerivations(df);
