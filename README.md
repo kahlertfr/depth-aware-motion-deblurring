@@ -37,13 +37,13 @@ make
 
 #### motion-deblurring
 
-This is the main algorithm.
+This is the main algorithm. Some tasks can be done in parallel so the number of threads can be specified.
 
 ```bash
 make motion-deblurring
 
 # Executable can be found in build/bin
-bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg
+bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--threads <n>] [--max-top-nodes <n>] [--help]
 ```
 
 #### two-phase-kernel  !! deferred !!
