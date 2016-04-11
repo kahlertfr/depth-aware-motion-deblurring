@@ -21,14 +21,13 @@ namespace deblur {
 
         Mat fkernel;
         flip(kernel, fkernel, -1);
-        fkernel.copyTo(kernel);
 
         // fill kernel with zeros to get to blurred image size
         Mat pkernel;
 
-        copyMakeBorder(kernel, pkernel,
-                       0, src.rows - kernel.rows,
-                       0,  src.cols - kernel.cols,
+        copyMakeBorder(fkernel, pkernel,
+                       0, src.rows - fkernel.rows,
+                       0,  src.cols - fkernel.cols,
                        BORDER_CONSTANT, Scalar::all(0));
 
         // sobel gradients for x and y direction
@@ -87,13 +86,13 @@ namespace deblur {
         Mat deconv;
         dft(X, deconv, DFT_INVERSE | DFT_REAL_OUTPUT);
 
-
         // swap slices of the result
-        // because the image is shifted to the upper-left corner (why??)
+        // because the image is shifted to the upper-left corner
         int x = deconv.cols;
         int y = deconv.rows;
         int hs1 = (kernel.cols - 1) / 2;
-        int hs2 = (kernel.rows - 1) / 2;
+        // difference to levin code: added division by 2 because otherwise the slice is wrong
+        int hs2 = (kernel.rows - 1) / 4;
 
         // create rects per image slice
         //  __________
