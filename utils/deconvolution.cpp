@@ -19,13 +19,17 @@ namespace deblur {
         src.convertTo(src, CV_32F);
         src /= 255.0;
 
+        Mat fkernel;
+        flip(kernel, fkernel, -1);
+        fkernel.copyTo(kernel);
+
         // fill kernel with zeros to get to blurred image size
         Mat pkernel;
-        copyMakeBorder(kernel, pkernel, 0,
-                       src.rows - kernel.rows, 0,
-                       src.cols - kernel.cols,
-                       BORDER_CONSTANT, Scalar::all(0));
 
+        copyMakeBorder(kernel, pkernel,
+                       0, src.rows - kernel.rows,
+                       0,  src.cols - kernel.cols,
+                       BORDER_CONSTANT, Scalar::all(0));
 
         // sobel gradients for x and y direction
         Mat sobelx = Mat::zeros(src.size(), CV_32F);
