@@ -200,4 +200,20 @@ namespace deblur {
             }
         }
     }
+
+
+    Mat realMat(const Mat& src) {
+        assert(src.type() == CV_32FC2 && "Input must be complex floating point matrix");
+
+        Mat planes[] = { Mat::zeros(src.size(), CV_32F),
+                         Mat::zeros(src.size(), CV_32F) };
+
+        
+        // planes[0] = Re(DFT(I)
+        // planes[1] = Im(DFT(I))
+        split(src, planes);
+
+        return planes[0];
+    }
+
 }

@@ -93,6 +93,15 @@ namespace deblur {
     void showComplexImage(const std::string windowName, const cv::Mat& complex);
 
     /**
+     * Returns the real part of a complex matrix. Same as the "real()"
+     * function in MatLab
+     * 
+     * @param  src  Complex input matrix of floats 
+     * @return      Real part of the complex matrix
+     */
+    cv::Mat realMat(const cv::Mat& src);
+
+    /**
      * Computes one channel gradients:
      *     sqrt(x² + y²)
      * 
