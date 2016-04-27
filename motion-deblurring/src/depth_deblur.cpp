@@ -136,25 +136,22 @@ namespace deblur {
                                          const array<Mat,2>& salientEdgesRight,
                                          Mat& psf) {
 
-        // // get gradients of current region only
+        // get gradients of current region only
         array<Mat,2> regionGradsLeft, regionGradsRight;
         gradsLeft[0].copyTo(regionGradsLeft[0], maskLeft);
         gradsLeft[1].copyTo(regionGradsLeft[1], maskLeft);
         gradsRight[0].copyTo(regionGradsRight[0], maskRight);
         gradsRight[1].copyTo(regionGradsRight[1], maskRight);
 
+        // showGradients("region grads left", regionGradsLeft[0]);
+        // showGradients("region grads right", regionGradsRight[0]);
+        // showGradients("salient left", salientEdgesLeft[0]);
+        // showGradients("salient right", salientEdgesRight[0]);
+        // waitKey();
+
         // // FIXME: the masks do not match????
         // imshow("mask left", maskLeft);
         // imshow("mask right", maskRight);
-        // waitKey();
-
-        // // get gradients of current region only
-        // Mat blurredRegionLeft, blurredRegionRight;
-        // grayImages[LEFT].copyTo(blurredRegionLeft, maskLeft);
-        // grayImages[RIGHT].copyTo(blurredRegionRight, maskRight);
-
-        // imshow("left", blurredRegionLeft);
-        // imshow("right", blurredRegionRight);
         // waitKey();
 
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
@@ -190,8 +187,6 @@ namespace deblur {
         dft(regionGradsLeft[1], yBm);
         dft(regionGradsRight[0], xBr);
         dft(regionGradsRight[1], yBr);
-
-
 
         // delta function as one white pixel in black image
         Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
@@ -273,15 +268,47 @@ namespace deblur {
         // this means: sum(kernel) = 1
         kernel /= sum(kernel)[0];
 
+
+        // swap slices of the result
+        // because the image is shifted to the upper-left corner
+        int x = kernel.cols;
+        int y = kernel.rows;
+        int hs1 = (psfWidth - 1) / 2;
+        // difference to levin code: added division by 2 because otherwise the slice is wrong
+        int hs2 = (psfWidth - 1) / 4;
+
+        // create rects per image slice
+        //  __________
+        // |      |   |
+        // |   0  | 1 |
+        // |      |   |
+        // |------|---|
+        // |   2  | 3 |
+        // |______|___|
+        // 
+        // rect gets the coordinates of the top-left corner, width and height
+        Mat q0(kernel, Rect(0, 0, x - hs1, y - hs2));      // Top-Left
+        Mat q1(kernel, Rect(x - hs1, 0, hs1, y - hs2));    // Top-Right
+        Mat q2(kernel, Rect(0, y - hs2, x - hs1, hs2));    // Bottom-Left
+        Mat q3(kernel, Rect(x - hs1, y - hs2, hs1, hs2));  // Bottom-Right
+
+        Mat kernelSwap;
+        hconcat(q3, q2, kernelSwap);
+        Mat tmp;
+        hconcat(q1, q0, tmp);
+        vconcat(kernelSwap, tmp, kernelSwap);
+        kernelSwap.copyTo(kernel);
+
         // cut of the psf-kernel
-        int x = kernel.cols / 2 - psfWidth / 2;
-        int y = kernel.rows / 2 - psfWidth / 2;
-        swapQuadrants(kernel);
-        Mat kernelROI = kernel(Rect(x, y, psfWidth, psfWidth));
+        Mat kernelROI = kernel(Rect(0, 0, psfWidth, psfWidth));
 
         // important to copy the roi - otherwise for padding the originial image
         // will be used (we don't want this behavior)
-        kernelROI.copyTo(psf);
+        Mat flipped;
+        kernelROI.copyTo(flipped);
+
+        // flip kernel
+        flip(flipped, psf, -1);
 
         // #ifndef NDEBUG
         //     Mat kernelUchar;
@@ -319,16 +346,36 @@ namespace deblur {
         normalize(gradsR[1], gradsRight[1], -1, 1);
         normalize(gradsL[0], gradsLeft[0], -1, 1);
         normalize(gradsL[1], gradsLeft[1], -1, 1);
+
+        // showGradients("grads-blur-left.png", gradsL[0], true);
+        // showGradients("grads-blur-right.png", gradsR[0], true);
     }
 
 
     void DepthDeblur::estimateChildPSF(int id) {
+        // //
+        // // mock-up for testing
+        // //
+        // Mat maskM = Mat::ones(grayImages[LEFT].size(), CV_8U);
+        // maskM *= 255;
+        // Mat maskR = Mat::ones(grayImages[LEFT].size(), CV_8U);
+        // maskR *= 255;
+        // int parent = 1;
+
+        // cout << "finished mocking" << endl;
+
+        // // end debug ---------------------
+        
+
+
         // get masks for regions of both views
         Mat maskM, maskR;
         regionTree.getMasks(id, maskM, maskR);
 
         // get parent id
         int parent = regionTree[id].parent;
+
+
 
         // compute salient edge map ∇S_i for region
         // 
@@ -347,6 +394,9 @@ namespace deblur {
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
         computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
         computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
+
+        // showGradients("edge-map-left-" + to_string(id) + ".png", salientEdgesLeft[0], true);
+        // showGradients("edge-map-right-" + to_string(id) + ".png", salientEdgesRight[0], true);
 
         // #ifdef IMWRITE
         //     showGradients("salient edges left x", salientEdgesLeft[0]);
@@ -644,6 +694,38 @@ namespace deblur {
 
 
     void DepthDeblur::midLevelKernelEstimation(int nThreads) {
+        // // debug --------------------------------------------------------------
+        // Mat src, kernel, dst;
+        // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // kernel = imread("kernel.png", CV_LOAD_IMAGE_GRAYSCALE);
+        // kernel.convertTo(kernel, CV_32F);
+        // kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
+        // // kernel.copyTo(regionTree[1].psf);
+
+
+        // // computeBlurredGradients();
+        // // estimateChildPSF(0);
+
+
+        // // deconvolveFFT(src, dst, regionTree[0].psf);
+        // // imwrite("deconv-fft.png",dst);
+        // deconvolveFFT(src, dst, kernel);
+        // imwrite("deconv-fft-original.png",dst);
+
+        // Mat fkernel;
+
+        // // flip(regionTree[0].psf, fkernel, -1);
+        // // deconvolveIRLS(src, dst, fkernel);
+        // // // imwrite("deconv-sp.png",dst);
+        // // flip(kernel, fkernel, -1);
+        // // deconvolveIRLS(src, dst, fkernel);
+        // // imwrite("deconv-sp-original.png",dst);
+
+        // // imshow("deconv fft", dst);
+        // // waitKey();
+
+        // // end debug ----------------------------------------------------------------
+
         visitedLeafs = 0;
 
         // we can compute the gradients for each blurred image only ones
@@ -751,30 +833,8 @@ namespace deblur {
             regionTree.getMask(i, mask, view);
 
             regionDeconv[i].copyTo(dst, mask);
+            convertFloatToUchar(dst, dst);
         }
-
-
-        // // make a deconvolution for each disparity layer
-        // for (int i = 0; i < layers; i++) {         
-        //     // get mask of the disparity level
-        //     Mat mask;
-        //     regionTree.getMask(i, mask, view);
-
-        //     Mat tmpDeconv;
-
-        //     if (color) {
-        //         deconvolveIRLS(images[view], tmpDeconv, regionTree[i].psf);
-        //     } else {
-        //         deconvolveIRLS(grayImages[view], tmpDeconv, regionTree[i].psf);
-        //     }
-
-        //     tmpDeconv.copyTo(dst, mask);
-
-        //     #ifdef IMWRITE
-        //         string filename = "tmp-deconv-" + to_string(view) + "-" + to_string(i) + ".png";
-        //         imwrite(filename, dst);
-        //     #endif
-        // }
 
         #ifdef IMWRITE
             string filename = "deconv-" + to_string(view) + ".png";
