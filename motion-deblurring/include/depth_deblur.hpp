@@ -87,17 +87,17 @@ namespace deblur {
       private:
 
         /**
-         * both views
+         * both views as CV_8UC3
          */
-        const std::array<cv::Mat, 2> images;
+        std::array<cv::Mat, 2> images;
 
         /**
-         * both gray views
+         * both gray views CV_8U
          */
         std::array<cv::Mat, 2> grayImages;
 
         /**
-         * both views as float images for computation with better precision
+         * both views as float images CV_32F for computation with better precision
          */
         std::array<cv::Mat, 2> floatImages;
 
