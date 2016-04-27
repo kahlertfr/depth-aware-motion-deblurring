@@ -124,17 +124,6 @@ namespace deblur {
                             const deblur::view view) const;
 
         /**
-         * fill the black regions with the neighboring pixel colors (half way the left one
-         * and half way the right one) and blur the resulting image. Copy the original region
-         * over it.
-         * 
-         * @param taperedRegion resulting image
-         * @param region        region image
-         * @param mask          mask of region
-         */
-        void edgeTaper(cv::Mat& taperedRegion, cv::Mat& region, cv::Mat& mask, cv::Mat& image) const;
-
-        /**
          * Returns total number of nodes in this region tree
          */
         inline int size() { return tree.size(); }
