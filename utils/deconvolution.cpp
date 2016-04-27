@@ -11,8 +11,8 @@ using namespace std;
 
 namespace deblur {
 
-    void deconvolveFFT(Mat src, Mat& dst, Mat& kernel, const float weight){
-        assert(src.type() == CV_8U && "works on gray value images");
+    void deconvolveFFT(const Mat& src, Mat& dst, Mat& kernel, const float weight){
+        assert(src.type() == CV_32F && "works on floating point images [0,1]");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
         // double min; double max;
@@ -20,10 +20,6 @@ namespace deblur {
         // mask *= 255;
         // minMaxLoc(src, &min, &max, NULL, NULL, mask);
         // cout << "src: " << min << " " << max << endl;
-
-        // convert input image to floats and normalize it to [0,1]
-        src.convertTo(src, CV_32F);
-        src /= 255.0;
 
         Mat fkernel;
         flip(kernel, fkernel, -1);
@@ -135,11 +131,13 @@ namespace deblur {
         // deconv *= (abs(max -min) / abs(maxC - minC));
         // deconv += min;
 
-        // convert to uchar
-        normalize(deconv, deconv, 0, 255, CV_MINMAX);
-        // deconv *= 255;
-        deconv.convertTo(dst, CV_8U);
-        // convertFloatToUchar(deconv, dst);
+        // // convert to uchar
+        // normalize(deconv, deconv, 0, 255, CV_MINMAX);
+        // // deconv *= 255;
+        // deconv.convertTo(dst, CV_8U);
+        // // convertFloatToUchar(deconv, dst);
+        
+        deconv.copyTo(dst);
     }
 
 
@@ -498,17 +496,13 @@ namespace deblur {
      * @param we     weight
      * @param maxIt  number of iterations
      */
-    void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask,
+    void deconvolveChannelIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
                                const float we, const int maxIt) {
-        assert(src.type() == CV_8U && "works on gray value images");
+        assert(src.type() == CV_32F && "works on floating point images [0,1]");
 
         // // save min and max values of src to restore the image with correct range
         // double min; double max;
         // minMaxLoc(src, &min, &max, NULL, NULL, regionMask);
-
-        // convert input image to floats and normalize it to [0,1]
-        src.convertTo(src, CV_32F);
-        src /= 255.0;
 
         // half filter size
         int hfsX = kernel.cols / 2;
@@ -597,22 +591,25 @@ namespace deblur {
         // cropped *= (abs(max -min) / abs(maxC - minC));
         // cropped += min;
 
-        // convert to uchar
-        normalize(cropped, cropped, 0, 1, CV_MINMAX);
-        cropped *= 255;
-        cropped.convertTo(dst, CV_8U);
+        // // convert to uchar
+        // normalize(cropped, cropped, 0, 1, CV_MINMAX);
+        // cropped *= 255;
+        // cropped.convertTo(dst, CV_8U);
+        
+        cropped.copyTo(dst);
     }
 
 
-    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask,
+    void deconvolveIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
                         const float we, const int maxIt) {
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
+        assert((src.type() == CV_32FC3 || src.type() == CV_32F) && "works with energy preserving kernel");
 
         assert(kernel.rows % 2 == 1 && "odd kernel expected");
         assert(kernel.cols % 2 == 1 && "odd kernel expected");
 
 
-        if (src.type() == CV_8UC3) {
+        if (src.channels() == 3) {
             // deconvolve each channel of a color image
             vector<Mat> channels(3), tmp(3);
             split(src, channels);
@@ -625,7 +622,7 @@ namespace deblur {
 
             merge(tmp, dst);
 
-        } else if (src.type() == CV_8U) {
+        } else if (src.channels() == 1) {
             // deconvolve gray value image
             deconvolveChannelIRLS(src, dst, kernel, regionMask, we, maxIt);
 
