@@ -22,7 +22,7 @@ namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat& imageLeft, Mat& imageRight, const int width)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
-                            , layers((width < 24) ? ((width % 2 == 0) ? width - 1 : width) : 24)  // psf width should be larger - even layer number needed
+                            , layers((width < 10) ? ((width % 2 == 0) ? width - 1 : width) : 10)  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
@@ -37,10 +37,8 @@ namespace deblur {
         }
 
         // convert images to floats and scale to range [0,1]
-        grayImages[LEFT].convertTo(floatImages[LEFT], CV_32F);
-        floatImages[LEFT] /= 255;
-        grayImages[RIGHT].convertTo(floatImages[RIGHT], CV_32F);
-        floatImages[RIGHT] /= 255;
+        grayImages[LEFT].convertTo(floatImages[LEFT], CV_32F, 1 / 255.0);
+        grayImages[RIGHT].convertTo(floatImages[RIGHT], CV_32F, 1 / 255.0);
     }
 
 
@@ -54,7 +52,7 @@ namespace deblur {
     void DepthDeblur::regionTreeReconstruction(const int maxTopLevelNodes) {
         // create a region tree
         regionTree.create(disparityMaps[LEFT], disparityMaps[RIGHT], layers,
-                          &floatImages[LEFT], &floatImages[RIGHT], maxTopLevelNodes);
+                          &grayImages[LEFT], &grayImages[RIGHT], maxTopLevelNodes);
     }
 
 
@@ -359,21 +357,6 @@ namespace deblur {
 
 
     void DepthDeblur::estimateChildPSF(int id) {
-        // //
-        // // mock-up for testing
-        // //
-        // Mat maskM = Mat::ones(grayImages[LEFT].size(), CV_8U);
-        // maskM *= 255;
-        // Mat maskR = Mat::ones(grayImages[LEFT].size(), CV_8U);
-        // maskR *= 255;
-        // int parent = 1;
-
-        // cout << "finished mocking" << endl;
-
-        // // end debug ---------------------
-        
-
-
         // get masks for regions of both views
         Mat maskM, maskR;
         regionTree.getMasks(id, maskM, maskR);
@@ -381,21 +364,17 @@ namespace deblur {
         // get parent id
         int parent = regionTree[id].parent;
 
-
-
         // compute salient edge map ∇S_i for region
         // 
         // deblur the current views with psf from parent
         Mat deblurredLeft, deblurredRight;
-        deconvolveFFT(grayImages[LEFT], deblurredLeft, regionTree[parent].psf);
-        deconvolveFFT(grayImages[RIGHT], deblurredRight, regionTree[parent].psf);
+        deconvolveFFT(floatImages[LEFT], deblurredLeft, regionTree[parent].psf);
+        deconvolveFFT(floatImages[RIGHT], deblurredRight, regionTree[parent].psf);
         // FIXME: strong ringing artifacts in deconvoled image
-
         // #ifdef IMWRITE
         //     imshow("devonv left", deblurredLeft);
         //     waitKey();
         // #endif
-
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
         computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
@@ -492,7 +471,7 @@ namespace deblur {
             // compute latent image
             Mat latent;
             // FIXME: latent image just of one view?
-            deconvolveFFT(grayImages[LEFT], latent, candiates[i]);
+            deconvolveFFT(floatImages[LEFT], latent, candiates[i]);
 
             // slightly Gaussian smoothed
             // use the complete image to avoid unwanted effects at the borders
@@ -798,7 +777,7 @@ namespace deblur {
             if (color) {
                 deconvolveIRLS(images[view], regionDeconv[i], regionTree[i].psf, mask);
             } else {
-                deconvolveIRLS(grayImages[view], regionDeconv[i], regionTree[i].psf, mask);
+                deconvolveIRLS(floatImages[view], regionDeconv[i], regionTree[i].psf, mask);
             }
         }
     }
@@ -839,8 +818,10 @@ namespace deblur {
             regionTree.getMask(i, mask, view);
 
             regionDeconv[i].copyTo(dst, mask);
-            convertFloatToUchar(dst, dst);
         }
+
+        normalize(dst, dst, 0, 1, CV_MINMAX);
+        dst.convertTo(dst, CV_8U, 255);
 
         #ifdef IMWRITE
             string filename = "deconv-" + to_string(view) + ".png";
