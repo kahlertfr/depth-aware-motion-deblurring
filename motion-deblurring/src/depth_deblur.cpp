@@ -26,30 +26,35 @@ namespace deblur {
                             , images({imageLeft, imageRight})
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
+
+        // use gray values for disparity estimation
+        if (images[LEFT].type() == CV_8UC3) {
+            cvtColor(images[LEFT], grayImages[LEFT], CV_BGR2GRAY);
+            cvtColor(images[RIGHT], grayImages[RIGHT], CV_BGR2GRAY);
+        } else {
+            grayImages[LEFT] = images[LEFT];
+            grayImages[RIGHT] = images[RIGHT];
+        }
+
+        // convert images to floats and scale to range [0,1]
+        grayImages[LEFT].convertTo(floatImages[LEFT], CV_32F);
+        floatImages[LEFT] /= 255;
+        grayImages[RIGHT].convertTo(floatImages[RIGHT], CV_32F);
+        floatImages[RIGHT] /= 255;
     }
 
 
     void DepthDeblur::disparityEstimation() {
-        // use gray values for disparity estimation
-        Mat grayLeft, grayRight;
-        if (images[LEFT].type() == CV_8UC3) {
-            cvtColor(images[LEFT], grayLeft, CV_BGR2GRAY);
-            cvtColor(images[RIGHT], grayRight, CV_BGR2GRAY);
-        } else {
-            grayLeft = images[LEFT];
-            grayRight = images[RIGHT];
-        }
-
         // quantized disparity maps for both directions (left-right and right-left)
-        quantizedDisparityEstimation(grayLeft, grayRight, layers, disparityMaps[LEFT]);
-        quantizedDisparityEstimation(grayRight, grayLeft, layers, disparityMaps[RIGHT], true);
+        quantizedDisparityEstimation(grayImages[LEFT], grayImages[RIGHT], layers, disparityMaps[LEFT]);
+        quantizedDisparityEstimation(grayImages[RIGHT], grayImages[LEFT], layers, disparityMaps[RIGHT], true);
     }
 
 
     void DepthDeblur::regionTreeReconstruction(const int maxTopLevelNodes) {
         // create a region tree
         regionTree.create(disparityMaps[LEFT], disparityMaps[RIGHT], layers,
-                          &grayImages[LEFT], &grayImages[RIGHT], maxTopLevelNodes);
+                          &floatImages[LEFT], &floatImages[RIGHT], maxTopLevelNodes);
     }
 
 
@@ -63,9 +68,9 @@ namespace deblur {
             // regionTree.getRegionImage(id, region, mask, LEFT);
 
             // // edge tapering to remove high frequencies at the border of the region
-            // Mat taperedRegion;
-            // // TODO: refactoring convert region
-            // edgeTaper(region, taperedRegion, mask, grayImages[LEFT]);
+            // Mat regionUchar, taperedRegion;
+            // region.convertTo(regionUchar, CV_8U);
+            // edgeTaper(regionUchar, taperedRegion, mask, grayImages[LEFT]);
 
             // // compute kernel
             // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, grayImages[LEFT], psfWidth, mask);
@@ -104,8 +109,9 @@ namespace deblur {
             // regionTree.getRegionImage(id, region, mask, LEFT);
             
             // // edge tapering to remove high frequencies at the border of the region
-            // Mat taperedRegion;
-            // regionTree.edgeTaper(taperedRegion, region, mask, grayImages[LEFT]);
+            // Mat regionUchar, taperedRegion;
+            // region.convertTo(regionUchar, CV_8U);
+            // edgeTaper(regionUchar, taperedRegion, mask, grayImages[LEFT]);
 
             // // use this images for example for the .exe of the two-phase kernel estimation
             // string name = "tapered" + to_string(i) + ".jpg";

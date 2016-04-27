@@ -97,6 +97,11 @@ namespace deblur {
         std::array<cv::Mat, 2> grayImages;
 
         /**
+         * both views as float images for computation with better precision
+         */
+        std::array<cv::Mat, 2> floatImages;
+
+        /**
          * Approximate psf kernel width
          *
          * this is an odd number.
