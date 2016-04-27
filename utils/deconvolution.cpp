@@ -15,6 +15,12 @@ namespace deblur {
         assert(src.type() == CV_8U && "works on gray value images");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
+        // double min; double max;
+        // Mat mask = Mat::ones(src.size(), CV_8U);
+        // mask *= 255;
+        // minMaxLoc(src, &min, &max, NULL, NULL, mask);
+        // cout << "src: " << min << " " << max << endl;
+
         // convert input image to floats and normalize it to [0,1]
         src.convertTo(src, CV_32F);
         src /= 255.0;
@@ -47,7 +53,8 @@ namespace deblur {
         dft(sobely, Gy);
         dft(pkernel, F);
         dft(src, I);
-        
+
+        // FIXME
         // weight from paper
         complex<float> we(weight, 0.0);
 
@@ -71,20 +78,17 @@ namespace deblur {
                 complex<float> a = conj(f) * f 
                                   + we * (conj(gx) * gx + conj(gy) * gy);
 
-                complex<float> x = b / real(a);
+                complex<float> x = b / a;
                 
                 X.at<Vec2f>(row, col) = { real(x), imag(x) };
             }
         }
 
-
-        // // inverse dft with complex output
-        // dft(X, deconv, DFT_INVERSE);
-        // showComplexImage("result complex", deconv, false);
-
         // inverse dft with real output
+        // does exactly the same as returning the complex matrix
+        // and cropping the real channel
         Mat deconv;
-        dft(X, deconv, DFT_INVERSE | DFT_REAL_OUTPUT);
+        dft(X, deconv, DFT_INVERSE | DFT_REAL_OUTPUT | DFT_SCALE);
 
         // swap slices of the result
         // because the image is shifted to the upper-left corner
@@ -116,14 +120,26 @@ namespace deblur {
         vconcat(deconvSwap, tmp, deconvSwap);
         deconvSwap.copyTo(deconv);
 
+        // // show and save the deblurred image
+        // //
+        // // threshold the result because it has large negative and positive values
+        // // which would result in a very grayish image
+        // threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
 
-        // show and save the deblurred image
-        //
-        // threshold the result because it has large negative and positive values
-        // which would result in a very grayish image
-        threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
+        // // scale float image to [0,255] while preserving original brightness and contrast
+        // // I' = I - min' * (|max - min|)/(|max' - min'|) + min
+        // double minC; double maxC;
+        // minMaxLoc(deconv, &minC, &maxC);
+        // cerr << "min = " << minC << " max = " << maxC << endl;
+        // deconv -= minC;
+        // deconv *= (abs(max -min) / abs(maxC - minC));
+        // deconv += min;
 
-        convertFloatToUchar(deconv, dst);
+        // convert to uchar
+        normalize(deconv, deconv, 0, 255, CV_MINMAX);
+        // deconv *= 255;
+        deconv.convertTo(dst, CV_8U);
+        // convertFloatToUchar(deconv, dst);
     }
 
 
@@ -482,12 +498,13 @@ namespace deblur {
      * @param we     weight
      * @param maxIt  number of iterations
      */
-    void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask, const float we, const int maxIt) {
+    void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask,
+                               const float we, const int maxIt) {
         assert(src.type() == CV_8U && "works on gray value images");
 
-        // save min and max values of src to restore the image with correct range
-        double min; double max;
-        minMaxLoc(src, &min, &max);
+        // // save min and max values of src to restore the image with correct range
+        // double min; double max;
+        // minMaxLoc(src, &min, &max, NULL, NULL, regionMask);
 
         // convert input image to floats and normalize it to [0,1]
         src.convertTo(src, CV_32F);
@@ -572,20 +589,23 @@ namespace deblur {
             src.rows
         )).copyTo(cropped);
 
-        // scale float image to [0,255] while preserving original brightness and contrast
-        // I' = I - min' * (|max - min|)/(|max' - min'|) + min
-        double minC; double maxC;
-        minMaxLoc(cropped, &minC, &maxC);
-        cropped -= minC;
-        cropped *= (abs(max -min) / abs(maxC - minC));
-        cropped += min;
+        // // scale float image to [0,255] while preserving original brightness and contrast
+        // // I' = I - min' * (|max - min|)/(|max' - min'|) + min
+        // double minC; double maxC;
+        // minMaxLoc(cropped, &minC, &maxC, NULL, NULL, regionMask);
+        // cropped -= minC;
+        // cropped *= (abs(max -min) / abs(maxC - minC));
+        // cropped += min;
 
         // convert to uchar
+        normalize(cropped, cropped, 0, 1, CV_MINMAX);
+        cropped *= 255;
         cropped.convertTo(dst, CV_8U);
     }
 
 
-    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask, const float we, const int maxIt) {
+    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask,
+                        const float we, const int maxIt) {
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
         assert(kernel.rows % 2 == 1 && "odd kernel expected");
@@ -599,7 +619,8 @@ namespace deblur {
 
 
             for (int i = 0; i < channels.size(); i++) {
-                deconvolveChannelIRLS(channels[i], tmp[i], kernel, regionMask, we, maxIt);
+                deconvolveChannelIRLS(channels[i], tmp[i], kernel, regionMask,
+                                      we, maxIt);
             }
 
             merge(tmp, dst);

@@ -74,8 +74,8 @@ namespace deblur {
      * @param we     weight
      * @param maxIt  number of iterations
      */
-    void deconvolveIRLS(cv::Mat src, cv::Mat& dst, cv::Mat& kernel, const cv::Mat& regionMask = cv::Mat(), const float we = 0.001,
-                        const int maxIt = 200);
+    void deconvolveIRLS(cv::Mat src, cv::Mat& dst, cv::Mat& kernel, const cv::Mat& regionMask = cv::Mat(),
+                        const float we = 0.001, const int maxIt = 200);
 
 }
 
