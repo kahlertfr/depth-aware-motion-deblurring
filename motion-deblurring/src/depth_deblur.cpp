@@ -25,25 +25,24 @@ namespace deblur {
                             , layers((width < 24) ? ((width % 2 == 0) ? width - 1 : width) : 24)  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
     {
-        // convert color images to gray value images
-        if (imageLeft.type() == CV_8UC3) {
-            cvtColor(imageLeft, grayImages[LEFT], CV_BGR2GRAY);
-        } else {
-            grayImages[LEFT] = imageLeft;
-        }
-
-        if (imageRight.type() == CV_8UC3) {
-            cvtColor(imageRight, grayImages[RIGHT], CV_BGR2GRAY);
-        } else {
-            grayImages[RIGHT] = imageRight;
-        }
+        assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
     }
 
 
     void DepthDeblur::disparityEstimation() {
+        // use gray values for disparity estimation
+        Mat grayLeft, grayRight;
+        if (images[LEFT].type() == CV_8UC3) {
+            cvtColor(images[LEFT], grayLeft, CV_BGR2GRAY);
+            cvtColor(images[RIGHT], grayRight, CV_BGR2GRAY);
+        } else {
+            grayLeft = images[LEFT];
+            grayRight = images[RIGHT];
+        }
+
         // quantized disparity maps for both directions (left-right and right-left)
-        quantizedDisparityEstimation(grayImages[LEFT], grayImages[RIGHT], layers, disparityMaps[LEFT]);
-        quantizedDisparityEstimation(grayImages[RIGHT], grayImages[LEFT], layers, disparityMaps[RIGHT], true);
+        quantizedDisparityEstimation(grayLeft, grayRight, layers, disparityMaps[LEFT]);
+        quantizedDisparityEstimation(grayRight, grayLeft, layers, disparityMaps[RIGHT], true);
     }
 
 
@@ -65,7 +64,8 @@ namespace deblur {
 
             // // edge tapering to remove high frequencies at the border of the region
             // Mat taperedRegion;
-            // regionTree.edgeTaper(taperedRegion, region, mask, grayImages[LEFT]);
+            // // TODO: refactoring convert region
+            // edgeTaper(region, taperedRegion, mask, grayImages[LEFT]);
 
             // // compute kernel
             // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, grayImages[LEFT], psfWidth, mask);
