@@ -15,9 +15,9 @@ using namespace cv;
 
 namespace deblur {
 
-    void depthDeblur(const Mat& blurredLeft, const Mat& blurredRight,
-                     Mat& deblurredLeft, Mat& deblurredRight, const int threads,
-                     int psfWidth, const int maxTopLevelNodes) {
+    void runDepthDeblur(const Mat& blurredLeft, const Mat& blurredRight,
+                        Mat& deblurredLeft, Mat& deblurredRight, const int threads,
+                        int psfWidth, const int maxTopLevelNodes) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("Images aren't of same size!");
@@ -95,9 +95,9 @@ namespace deblur {
     }
 
 
-    void depthDeblur(const string filenameLeft, const string filenameRight,
-                     const int threads, const int psfWidth, const int maxTopLevelNodes,
-                     const string filenameResultLeft, const string filenameResultRight) {
+    void runDepthDeblur(const string filenameLeft, const string filenameRight,
+                        const int threads, const int psfWidth, const int maxTopLevelNodes,
+                        const string filenameResultLeft, const string filenameResultRight) {
 
         // load images
         Mat blurredLeft, blurredRight;
@@ -109,7 +109,7 @@ namespace deblur {
         }
 
         Mat left, right;
-        depthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, maxTopLevelNodes);
+        runDepthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, maxTopLevelNodes);
 
         imwrite(filenameResultLeft, left);
         imwrite(filenameResultRight, right);

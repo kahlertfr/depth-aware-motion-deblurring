@@ -44,9 +44,9 @@ namespace deblur {
      * @param psfWidth          approximate PSF width
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
      */
-    void depthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
-                     cv::Mat& deblurredLeft, cv::Mat& deblurredRight, const int threads = 1,
-                     int psfWidth = 24, const int maxTopLevelNodes = 3);
+    void runDepthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
+                        cv::Mat& deblurredLeft, cv::Mat& deblurredRight, const int threads = 1,
+                        int psfWidth = 24, const int maxTopLevelNodes = 3);
 
     /**
      * Loads images from given filenames and then starts the depth-aware motion 
@@ -59,10 +59,10 @@ namespace deblur {
      * @param filenameDeblurLeft  filename for result left
      * @param filenameDeblurRight filename for result right
      */
-    void depthDeblur(const std::string filenameLeft, const std::string filenameRight,
-                     const int threads = 1, int psfWidth = 24, const int maxTopLevelNodes = 3,
-                     const std::string filenameDeblurLeft = "deblur-left.png",
-                     const std::string filenameDeblurRight = "deblur-right.png");
+    void runDepthDeblur(const std::string filenameLeft, const std::string filenameRight,
+                        const int threads = 1, int psfWidth = 24, const int maxTopLevelNodes = 3,
+                        const std::string filenameDeblurLeft = "deblur-left.png",
+                        const std::string filenameDeblurRight = "deblur-right.png");
 
 }
 
