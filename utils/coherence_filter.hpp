@@ -27,7 +27,7 @@ namespace deblur {
     /**
     * Shock filters an image.
     * 
-    * @param img        input image ranging value from 0 to 255.
+    * @param img        input image CV_32F or CV_32FC3.
     * @param sigma      sobel kernel size.
     * @param str_sigma  neighborhood size,see detail in reference[2]
     * @param blend      blending coefficient.default value 0.5.
