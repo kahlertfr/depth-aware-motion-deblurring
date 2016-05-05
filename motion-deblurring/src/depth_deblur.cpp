@@ -22,7 +22,7 @@ namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat& imageLeft, Mat& imageRight, const int width)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
-                            , layers((width < 10) ? ((width % 2 == 0) ? width - 1 : width) : 10)  // psf width should be larger - even layer number needed
+                            , layers((width < 10) ? 10 : ((width % 2 == 0) ? width - 1 : width))  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
@@ -43,9 +43,83 @@ namespace deblur {
 
 
     void DepthDeblur::disparityEstimation() {
-        // quantized disparity maps for both directions (left-right and right-left)
-        quantizedDisparityEstimation(grayImages[LEFT], grayImages[RIGHT], layers, disparityMaps[LEFT]);
-        quantizedDisparityEstimation(grayImages[RIGHT], grayImages[LEFT], layers, disparityMaps[RIGHT], true);
+        // down sample images to roughly reduce blur for disparity estimation
+        array<Mat, 2> small;
+
+        // because we checked that both images are of the same size
+        // the new size is the same for both too
+        // (down sampling ratio is 2)
+        Size downsampledSize = Size(grayImages[LEFT].cols / 2, grayImages[RIGHT].rows / 2);
+
+        // down sample with Gaussian pyramid
+        pyrDown(grayImages[LEFT], small[LEFT], downsampledSize);
+        pyrDown(grayImages[RIGHT], small[RIGHT], downsampledSize);
+
+
+        // disparity map with occlusions as black regions
+        // 
+        // here a different algorithm as the paper approach is used
+        // because it is more convenient to use a OpenCV implementation.
+        array<Mat, 2> smallDMaps;
+        
+        // disparity map for left-right
+        semiGlobalBlockMatching(small[LEFT], small[RIGHT], smallDMaps[LEFT]);
+
+        // disparity map from right to left
+        // therfore flip the images because otherwise SGBM will not work
+        Mat smallLeftFlipped, smallRightFlipped;
+        flip(small[LEFT], smallLeftFlipped, 1);
+        flip(small[RIGHT], smallRightFlipped, 1);
+        smallLeftFlipped.copyTo(small[LEFT]);
+        smallRightFlipped.copyTo(small[RIGHT]);
+
+        // disparity map for left-right
+        semiGlobalBlockMatching(small[RIGHT], small[LEFT], smallDMaps[RIGHT]);
+
+        // flip disparity map back
+        Mat disparityFlipped;
+        flip(smallDMaps[RIGHT], disparityFlipped, 1);
+        disparityFlipped.copyTo(smallDMaps[RIGHT]);
+
+
+        // fill occlusion regions (= value < 10)
+        fillOcclusionRegions(smallDMaps[LEFT], 10);
+        fillOcclusionRegions(smallDMaps[RIGHT], 10);
+
+        // median filter
+        Mat median;
+        medianBlur(smallDMaps[LEFT], median, 9);
+        median.copyTo(smallDMaps[LEFT]);
+        medianBlur(smallDMaps[RIGHT], median, 9);
+        median.copyTo(smallDMaps[RIGHT]);
+
+
+        // quantize the image
+        array<Mat, 2> quantizedDMaps;
+        quantizeImage(smallDMaps, layers, quantizedDMaps);
+
+        #ifdef IMWRITE
+            // convert quantized image to be displayable
+            Mat disparityViewable;
+            double min; double max;
+            minMaxLoc(quantizedDMaps[LEFT], &min, &max);
+            quantizedDMaps[LEFT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
+
+            // imshow("quantized disparity map " + prefix, disparityViewable);
+            string filename = "dmap-left.png";
+            imwrite(filename, disparityViewable);
+
+            minMaxLoc(quantizedDMaps[RIGHT], &min, &max);
+            quantizedDMaps[RIGHT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
+
+            // imshow("quantized disparity map " + prefix, disparityViewable);
+            filename = "dmap-right.png";
+            imwrite(filename, disparityViewable);
+        #endif
+
+        // up sample disparity map to original resolution without interpolation
+        resize(quantizedDMaps[LEFT], disparityMaps[LEFT], Size(grayImages[LEFT].cols, grayImages[LEFT].rows), 0, 0, INTER_NEAREST);      
+        resize(quantizedDMaps[RIGHT], disparityMaps[RIGHT], Size(grayImages[RIGHT].cols, grayImages[RIGHT].rows), 0, 0, INTER_NEAREST);      
     }
 
 
@@ -267,11 +341,14 @@ namespace deblur {
         // threshold kernel to erease negative values
         // this is done because otherwise the resulting kernel is very grayish
         threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
+        // FIXME: is this really necessary? can a kernel have negative values?
 
         // kernel has to be energy preserving
         // this means: sum(kernel) = 1
         kernel /= sum(kernel)[0];
 
+        // FIXME: test: is kernel sum really one here???
+        cerr << "kernel sum: " << sum(kernel)[0] << endl;
 
         // swap slices of the result
         // because the image is shifted to the upper-left corner

@@ -18,20 +18,6 @@
 namespace deblur {
 
     /**
-     * Disparity estimation of two blurred images
-     * where occluded regions are filled and where the disparity map is 
-     * quantized to l regions.
-     * 
-     * @param blurredLeft  left image
-     * @param blurredRight right image
-     * @param l            number of layers
-     * @param disparityMap resulting disparity map
-     * @param inverse      determine if the disparity is calculated from right to left
-     */
-    void quantizedDisparityEstimation(const cv::Mat& blurredLeft, const cv::Mat& blurredRight,
-                                      int l, cv::Mat& disparityMap, bool inverse = false);
-
-    /**
      * Fills occlusion regions (where the value is smaller than a given threshold) 
      * with smallest neighborhood disparity (in a row) because just relatively small 
      * disparities can be occluded.
@@ -52,15 +38,18 @@ namespace deblur {
     void semiGlobalBlockMatching(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparityMap);
 
     /**
-     * Quantizes a given picture with kmeans algorithm and sorts the
+     * Quantizes two images with kmeans algorithm and sorts the
      * clustering depending on the color value of the cluster centers
      * such that the clustering represents depth graduation.
+     *
+     * Using two images at once results in the same clusters for the same color
+     * in both images (otherwise the clusters may differ depending on the color range).
      * 
-     * @param image          input image
-     * @param k              cluster number
-     * @param quantizedImage clustered image
+     * @param images          input images
+     * @param k               cluster number
+     * @param quantizedImages clustered images
      */
-    void quantizeImage(const cv::Mat& image, const int k, cv::Mat& quantizedImage);
+    void quantizeImage(const std::array<cv::Mat,2>& images, const int k, std::array<cv::Mat,2>& quantizedImages);
 }
 
 #endif

@@ -11,78 +11,6 @@ using namespace std;
 
 namespace deblur {
 
-    void quantizedDisparityEstimation(const Mat& blurredLeft, const Mat& blurredRight,
-                                          int l, Mat& disparityMap, bool inverse) {
-
-        assert(blurredLeft.type() == CV_8U && "gray values needed");
-
-        // down sample images to roughly reduce blur for disparity estimation
-        Mat blurredLeftSmall, blurredRightSmall;
-
-        // because we checked that both images are of the same size
-        // the new size is the same for both too
-        // (down sampling ratio is 2)
-        Size downsampledSize = Size(blurredLeftSmall.cols / 2, blurredLeftSmall.rows / 2);
-
-        // down sample with Gaussian pyramid
-        pyrDown(blurredLeft, blurredLeftSmall, downsampledSize);
-        pyrDown(blurredRight, blurredRightSmall, downsampledSize);
-
-        // disparity map with occlusions as black regions
-        // 
-        // here a different algorithm as the paper approach is used
-        // because it is more convenient to use a OpenCV implementation.
-        // TODO: functions pointer
-        Mat disparityMapSmall;
-
-        // if the disparity is caculated from right to left flip the images
-        // because otherwise SGBM will not work
-        if (inverse) {
-            Mat blurredLeftFlipped, blurredRightFlipped;
-            flip(blurredLeftSmall, blurredLeftFlipped, 1);
-            flip(blurredRightSmall, blurredRightFlipped, 1);
-            blurredLeftFlipped.copyTo(blurredLeftSmall);
-            blurredRightFlipped.copyTo(blurredRightSmall);
-        }
-
-        semiGlobalBlockMatching(blurredLeftSmall, blurredRightSmall, disparityMapSmall);
-
-        // flip back the disparity map
-        if (inverse) {
-            Mat disparityFlipped;
-            flip(disparityMapSmall, disparityFlipped, 1);
-            disparityFlipped.copyTo(disparityMapSmall);
-        }
-
-        // fill occlusion regions (= value < 10)
-        fillOcclusionRegions(disparityMapSmall, 10);
-
-        // median filter
-        Mat median;
-        medianBlur(disparityMapSmall, median, 9);
-        median.copyTo(disparityMapSmall);
-
-        // quantize the image
-        Mat quantizedDisparity;
-        quantizeImage(disparityMapSmall, l, quantizedDisparity);
-
-        #ifdef IMWRITE
-            // convert quantized image to be displayable
-            Mat disparityViewable;
-            double min; double max;
-            minMaxLoc(quantizedDisparity, &min, &max);
-            quantizedDisparity.convertTo(disparityViewable, CV_8U, 255.0/(max-min));
-
-            // imshow("quantized disparity map " + prefix, disparityViewable);
-            string filename = "dmap-" + to_string(inverse) + ".png";
-            imwrite(filename, disparityViewable);
-        #endif
-
-        // up sample disparity map to original resolution without interpolation
-        resize(quantizedDisparity, disparityMap, Size(blurredLeft.cols, blurredLeft.rows), 0, 0, INTER_NEAREST);
-    }
-
-
     /**
      * Fills pixel in a given range with a given uchar.
      * 
@@ -195,13 +123,21 @@ namespace deblur {
     }
 
 
-    void quantizeImage(const Mat& image, const int k, Mat& quantizedImage) {
-        // map the image to the samples
-        Mat samples(image.total(), 1, CV_32F);
+    void quantizeImage(const array<Mat,2>& images, const int k, array<Mat,2>& quantizedImages) {
+        assert(images[0].size() == images[1].size() && "Both images have to be of the same size");
 
-        for (int row = 0; row < image.rows; row++) {
-            for (int col = 0; col < image.cols; col++) {
-                    samples.at<float>(row + col * image.rows, 0) = image.at<uchar>(row, col);
+        int totalPixels = images[0].total() + images[1].total();
+        int rows = images[0].rows;
+        int cols = images[0].cols;
+        int offset = images[0].total();
+        
+        // map the image to the samples
+        Mat samples(totalPixels, 1, CV_32F);
+
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                    samples.at<float>(row + col * rows, 0)          = images[0].at<uchar>(row, col);
+                    samples.at<float>(row + col * rows + offset, 0) = images[1].at<uchar>(row, col);
             }    
         }
 
@@ -239,15 +175,21 @@ namespace deblur {
         }
 
         // map the clustering to an image
-        Mat newImage(image.size(), CV_8U);
-        for (int row = 0; row < image.rows; row++) {
-            for (int col = 0; col < image.cols; col++) {
+        Mat newImage1(images[0].size(), CV_8U);
+        Mat newImage2(images[1].size(), CV_8U);
+
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
                 // store new cluster
-                int cluster_idx = labels.at<int>(row + col * image.rows, 0);
-                newImage.at<uchar>(row,col) = mapping[cluster_idx];
+                int cluster_idx = labels.at<int>(row + col * rows, 0);
+                newImage1.at<uchar>(row,col) = mapping[cluster_idx];
+
+                cluster_idx = labels.at<int>(row + col * rows + offset, 0);
+                newImage2.at<uchar>(row,col) = mapping[cluster_idx];
             }
         }
 
-        newImage.copyTo(quantizedImage);
+        newImage1.copyTo(quantizedImages[0]);
+        newImage2.copyTo(quantizedImages[1]);
     }
 }
