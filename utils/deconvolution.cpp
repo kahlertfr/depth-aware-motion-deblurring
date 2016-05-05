@@ -583,19 +583,6 @@ namespace deblur {
             src.rows
         )).copyTo(cropped);
 
-        // // scale float image to [0,255] while preserving original brightness and contrast
-        // // I' = I - min' * (|max - min|)/(|max' - min'|) + min
-        // double minC; double maxC;
-        // minMaxLoc(cropped, &minC, &maxC, NULL, NULL, regionMask);
-        // cropped -= minC;
-        // cropped *= (abs(max -min) / abs(maxC - minC));
-        // cropped += min;
-
-        // // convert to uchar
-        // normalize(cropped, cropped, 0, 1, CV_MINMAX);
-        // cropped *= 255;
-        // cropped.convertTo(dst, CV_8U);
-        
         cropped.copyTo(dst);
     }
 

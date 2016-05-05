@@ -22,7 +22,8 @@ namespace deblur {
 
     DepthDeblur::DepthDeblur(Mat& imageLeft, Mat& imageRight, const int width)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
-                            , layers((width < 10) ? 10 : ((width % 2 == 0) ? width - 1 : width))  // psf width should be larger - even layer number needed
+                            // FIXME: only for debugging
+                            , layers( 10)// (width < 10) ? 10 : ((width % 2 == 0) ? width : width - 1))  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
@@ -227,11 +228,6 @@ namespace deblur {
         // showGradients("salient right", salientEdgesRight[0]);
         // waitKey();
 
-        // // FIXME: the masks do not match????
-        // imshow("mask left", maskLeft);
-        // imshow("mask right", maskRight);
-        // waitKey();
-
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
         // where i ∈ {r, m}, and S_i is the region for reference and matching view 
         // and k is the psf-kernel
@@ -343,13 +339,6 @@ namespace deblur {
         threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
         // FIXME: is this really necessary? can a kernel have negative values?
 
-        // kernel has to be energy preserving
-        // this means: sum(kernel) = 1
-        kernel /= sum(kernel)[0];
-
-        // FIXME: test: is kernel sum really one here???
-        cerr << "kernel sum: " << sum(kernel)[0] << endl;
-
         // swap slices of the result
         // because the image is shifted to the upper-left corner
         int x = kernel.cols;
@@ -390,6 +379,10 @@ namespace deblur {
 
         // flip kernel
         flip(flipped, psf, -1);
+
+        // kernel has to be energy preserving
+        // this means: sum(kernel) = 1
+        psf /= sum(psf)[0];
 
         // #ifndef NDEBUG
         //     Mat kernelUchar;
@@ -897,7 +890,12 @@ namespace deblur {
             regionDeconv[i].copyTo(dst, mask);
         }
 
-        normalize(dst, dst, 0, 1, CV_MINMAX);
+        // show and save the deblurred image
+        //
+        // threshold the result because it has large negative and positive values
+        // which would result in a very grayish image
+        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
         dst.convertTo(dst, CV_8U, 255);
 
         #ifdef IMWRITE
