@@ -423,32 +423,29 @@ namespace deblur {
 
         // showGradients("grads-blur-left.png", gradsL[0], true);
         // showGradients("grads-blur-right.png", gradsR[0], true);
+        // waitKey();
     }
 
 
-    void DepthDeblur::estimateChildPSF(int id) {
-        // get masks for regions of both views
-        Mat maskM, maskR;
-        regionTree.getMasks(id, maskM, maskR);
-
-        // get parent id
-        int parent = regionTree[id].parent;
-
+    void DepthDeblur::estimateChildPSF(const Mat& parentPSF, Mat& psf, const array<Mat, 2>& masks, const int id) {
         // compute salient edge map ∇S_i for region
         // 
         // deblur the current views with psf from parent
         Mat deblurredLeft, deblurredRight;
-        deconvolveFFT(floatImages[LEFT], deblurredLeft, regionTree[parent].psf);
-        deconvolveFFT(floatImages[RIGHT], deblurredRight, regionTree[parent].psf);
+        deconvolveFFT(floatImages[LEFT], deblurredLeft, parentPSF);
+        deconvolveFFT(floatImages[RIGHT], deblurredRight, parentPSF);
+
         // FIXME: strong ringing artifacts in deconvoled image
+    
         // #ifdef IMWRITE
         //     imshow("devonv left", deblurredLeft);
         //     waitKey();
         // #endif
+        
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
-        computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
-        computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
+        computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, masks[LEFT]);
+        computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, masks[RIGHT]);
 
         // showGradients("edge-map-left-" + to_string(id) + ".png", salientEdgesLeft[0], true);
         // showGradients("edge-map-right-" + to_string(id) + ".png", salientEdgesRight[0], true);
@@ -460,23 +457,23 @@ namespace deblur {
         // #endif
 
         // estimate psf for the first child node
-        jointPSFEstimation(maskM, maskR, salientEdgesLeft, salientEdgesRight, regionTree[id].psf);
+        jointPSFEstimation(masks[LEFT], masks[RIGHT], salientEdgesLeft, salientEdgesRight, psf);
 
         #ifdef IMWRITE
             // region images
             Mat region;
-            grayImages[LEFT].copyTo(region, maskM);
+            grayImages[LEFT].copyTo(region, masks[LEFT]);
             string filename = "mid-" + to_string(id) + "-left.png";
             imwrite(filename, region);
 
             Mat regionR;
-            grayImages[RIGHT].copyTo(regionR, maskR);
+            grayImages[RIGHT].copyTo(regionR, masks[RIGHT]);
             filename = "mid-" + to_string(id) + "-right.png";
             imwrite(filename, regionR);
 
             // kernels
             Mat tmp;
-            regionTree[id].psf.copyTo(tmp);
+            psf.copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
             filename = "mid-" + to_string(id) + "-kernel-init.png";
@@ -701,6 +698,7 @@ namespace deblur {
 
     void DepthDeblur::midLevelKernelEstimationNode(){
         int id;
+
         while(visitedLeafs != layers) {
             if (safeQueueAccess(&remainingNodes, id)) {
                 // get IDs of the child nodes
@@ -712,8 +710,35 @@ namespace deblur {
                 if (cid1 != -1 && cid2 != -1) {
                     // PSF estimation for each children
                     // (salient edge map computation and joint psf estimation)
-                    estimateChildPSF(cid1);
-                    estimateChildPSF(cid2);
+                    
+                    // initial psf estimation child 1
+                    // get masks for regions of both views
+                    array<Mat, 2> masks;
+                    regionTree.getMasks(cid1, masks);
+
+                    // check if one of the masks is empty because then the joint estimation is not working
+                    // (this could happen when the depth value is appears just in one disparity map)
+                    if (sum(masks[LEFT])[0] != 0 && sum(masks[RIGHT])[0] != 0) {
+                        estimateChildPSF(regionTree[id].psf, regionTree[cid1].psf, masks, cid1);
+                    } else {
+                        // set the child psf to the parents one if one mask is empty
+                        regionTree[cid1].psf = regionTree[id].psf;
+                    }
+                    
+
+                    // initial psf estimation child 2
+                    // get masks for regions of both views
+                    regionTree.getMasks(cid2, masks);
+
+                    // check if one of the masks is empty because then the joint estimation is not working
+                    // (this could happen when the depth value is appears just in one disparity map)
+                    if (sum(masks[LEFT])[0] != 0 && sum(masks[RIGHT])[0] != 0) {
+                        estimateChildPSF(regionTree[id].psf, regionTree[cid2].psf, masks, cid2);
+                    } else {
+                        // set the child psf to the parents one if one mask is empty
+                        regionTree[cid2].psf = regionTree[id].psf;
+                    }
+
 
                     // to eliminate errors
                     //
@@ -731,13 +756,12 @@ namespace deblur {
                     psfSelection(candiates2, cid2);
 
 
+                    // add children ids to the back of the queue (this has to be thread save)
                     m.lock();
-
-                    // add children ids to the back of the queue
                     remainingNodes.push(cid1);
                     remainingNodes.push(cid2);
-
                     m.unlock();
+
                 } else {
                     mCounter.lock();
                     visitedLeafs++;
@@ -749,7 +773,7 @@ namespace deblur {
 
 
     void DepthDeblur::midLevelKernelEstimation(int nThreads) {
-        // // debug --------------------------------------------------------------
+        // // // debug --------------------------------------------------------------
         // Mat src, kernel, dst;
         // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
         // kernel = imread("kernel.png", CV_LOAD_IMAGE_GRAYSCALE);
@@ -757,29 +781,25 @@ namespace deblur {
         // kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
         // // kernel.copyTo(regionTree[1].psf);
 
+        // computeBlurredGradients();
 
-        // // computeBlurredGradients();
-        // // estimateChildPSF(0);
+        // // get masks for regions of both views
+        // array<Mat, 2> masks;
+        // masks[LEFT] = Mat::ones(src.size(), CV_8U);
+        // masks[RIGHT] = Mat::ones(src.size(), CV_8U);
+
+        // Mat parentPSF, psf;
+        // estimateChildPSF(kernel, psf, masks, 0);
 
 
         // // deconvolveFFT(src, dst, regionTree[0].psf);
         // // imwrite("deconv-fft.png",dst);
         // deconvolveFFT(src, dst, kernel);
-        // imwrite("deconv-fft-original.png",dst);
+        // imwrite("deconv-fft-original.png", dst);
 
-        // Mat fkernel;
+        // // // end debug ----------------------------------------------------------------
 
-        // // flip(regionTree[0].psf, fkernel, -1);
-        // // deconvolveIRLS(src, dst, fkernel);
-        // // // imwrite("deconv-sp.png",dst);
-        // // flip(kernel, fkernel, -1);
-        // // deconvolveIRLS(src, dst, fkernel);
-        // // imwrite("deconv-sp-original.png",dst);
 
-        // // imshow("deconv fft", dst);
-        // // waitKey();
-
-        // // end debug ----------------------------------------------------------------
 
         visitedLeafs = 0;
 
@@ -902,50 +922,5 @@ namespace deblur {
             string filename = "deconv-" + to_string(view) + ".png";
             imwrite(filename, dst);
         #endif
-        
-
-
-        // // --------- for debugging
-        
-        // Mat mask, src, kernel, deconv;
-
-        // // levin example
-        // src = imread("src-region.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel = imread("filt.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // int border = 50;
-        // Mat tmpmask = Mat::ones(src.rows - border * 2, src.cols - border * 2, CV_8U);
-        // copyMakeBorder(tmpmask, mask, border, border, border, border,
-        //                BORDER_CONSTANT, Scalar::all(0));
-        // mask *= 255;
-
-        // // mouse with mask
-        // src = imread("tapered0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // regionTree.getMask(42, mask, LEFT);
-
-
-        // imshow("kernel", kernel);
-        // imshow("image", src);
-        // imshow("mask", mask);
-        // waitKey();
-
-        // kernel.convertTo(kernel, CV_32F);
-
-        // // kernel /= 255; // levin kernel
-        // kernel /= sum(kernel)[0];  // mouse kernel    
-               
-        // deconvolveIRLS(src, deconv, kernel, mask);
-        // imshow("deconv-sp", deconv);
-        // waitKey();
-
-        // imwrite("deconv-sp.png", deconv);
-
-        // deconvolveFFT(src, deconv, kernel);
-        // imshow("deconv-fft", deconv);
-        // waitKey();
-
-        // imwrite("deconv-fft.png", deconv);
-
-        // //----------- end debugging
     }
 }

@@ -156,10 +156,13 @@ namespace deblur {
         /**
          * Executes a joint psf estimation after computing the salient edge map of
          * this region node and saves the psf in the region tree.
-         * 
-         * @param id     current node
+         *
+         * @param parentPSF psf of parent node
+         * @param psf       psf of current node that will be computed
+         * @param masks     masks of left and right view of this region
+         * @param id        current node (just for saving the results)
          */
-        void estimateChildPSF(int id);
+        void estimateChildPSF(const cv::Mat& parentPSF, cv::Mat& psf, const std::array<cv::Mat, 2>& masks, int id = -1);
 
         /**
          * Calculates the entropy of the kernel
