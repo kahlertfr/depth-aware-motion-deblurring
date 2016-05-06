@@ -61,7 +61,7 @@ namespace deblur {
      * @param kernel energy preserving kernel
      * @param we     weight
      */
-    void deconvolveFFT(const cv::Mat& src, cv::Mat& dst, cv::Mat& kernel, const float we = 0.001);
+    void deconvolveFFT(const cv::Mat& src, cv::Mat& dst, const cv::Mat& kernel, const float we = 0.001);
 
     /**
      * Non-blind deconvolution in spatial domain using a

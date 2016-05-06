@@ -11,7 +11,7 @@ using namespace std;
 
 namespace deblur {
 
-    void deconvolveFFT(const Mat& src, Mat& dst, Mat& kernel, const float weight){
+    void deconvolveFFT(const Mat& src, Mat& dst, const Mat& kernel, const float weight){
         assert(src.type() == CV_32F && "works on floating point images [0,1]");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
