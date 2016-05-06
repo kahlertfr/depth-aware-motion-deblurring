@@ -95,12 +95,11 @@ namespace deblur {
          * Returns the depth mask of both view for a specific node by adding all mask of all layers.
          * 
          * @param nodeId  Id of the node in the region tree
-         * @param maskL   mask of left region
-         * @param maskR   mask of right region
+         * @param maskL   mask of both regions
          */
-        inline void getMasks(const int nodeId, cv::Mat& maskL, cv::Mat& maskR) const {
-            getMask(nodeId, maskL, deblur::LEFT);
-            getMask(nodeId, maskR, deblur::RIGHT);
+        inline void getMasks(const int nodeId, std::array<cv::Mat, 2>& masks) const {
+            getMask(nodeId, masks[deblur::LEFT], deblur::LEFT);
+            getMask(nodeId, masks[deblur::RIGHT], deblur::RIGHT);
         };
 
         /**
