@@ -140,11 +140,12 @@ namespace deblur {
         /**
          * Estimates the PSF of a region jointly on the reference and matching view.
          * 
-         * @param maskLeft       mask for region of matching view
-         * @param maskRight      mask for region of reference view
-         * @param psf            resulting psf
+         * @param maks              masks for regions of matching and reference view
+         * @param salientEdgesLeft  salient edges for left view in x and y direction
+         * @param salientEdgesRight salient edges for right view in x and y direction
+         * @param psf               resulting psf
          */
-        void jointPSFEstimation(const cv::Mat& maskLeft, const cv::Mat& maskRight,
+        void jointPSFEstimation(const std::array<cv::Mat, 2>& masks,
                                 const std::array<cv::Mat,2>& salientEdgesLeft,
                                 const std::array<cv::Mat,2>& salientEdgesRight, cv::Mat& psf);
 
