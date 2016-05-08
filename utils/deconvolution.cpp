@@ -15,21 +15,13 @@ namespace deblur {
         assert(src.type() == CV_32F && "works on floating point images [0,1]");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
-        // double min; double max;
-        // Mat mask = Mat::ones(src.size(), CV_8U);
-        // mask *= 255;
-        // minMaxLoc(src, &min, &max, NULL, NULL, mask);
-        // cout << "src: " << min << " " << max << endl;
-
-        Mat fkernel;
-        flip(kernel, fkernel, -1);
-
+        // important: do not flipp the kernel
         // fill kernel with zeros to get to blurred image size
         Mat pkernel;
 
-        copyMakeBorder(fkernel, pkernel,
-                       0, src.rows - fkernel.rows,
-                       0,  src.cols - fkernel.cols,
+        copyMakeBorder(kernel, pkernel,
+                       0, src.rows - kernel.rows,
+                       0,  src.cols - kernel.cols,
                        BORDER_CONSTANT, Scalar::all(0));
 
         // sobel gradients for x and y direction
@@ -115,28 +107,7 @@ namespace deblur {
         hconcat(q1, q0, tmp);
         vconcat(deconvSwap, tmp, deconvSwap);
         deconvSwap.copyTo(deconv);
-
-        // // show and save the deblurred image
-        // //
-        // // threshold the result because it has large negative and positive values
-        // // which would result in a very grayish image
-        // threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
-
-        // // scale float image to [0,255] while preserving original brightness and contrast
-        // // I' = I - min' * (|max - min|)/(|max' - min'|) + min
-        // double minC; double maxC;
-        // minMaxLoc(deconv, &minC, &maxC);
-        // cerr << "min = " << minC << " max = " << maxC << endl;
-        // deconv -= minC;
-        // deconv *= (abs(max -min) / abs(maxC - minC));
-        // deconv += min;
-
-        // // convert to uchar
-        // normalize(deconv, deconv, 0, 255, CV_MINMAX);
-        // // deconv *= 255;
-        // deconv.convertTo(dst, CV_8U);
-        // // convertFloatToUchar(deconv, dst);
-        
+      
         deconv.copyTo(dst);
     }
 
@@ -210,7 +181,7 @@ namespace deblur {
         Point anchor(0, 0);
 
         // // openCV is doing a correlation in their filter2D function ...
-        // Mat fkernel;
+        // Mat kernel;
         // flip(kernel, fkernel, -1);
 
         Mat tmp;
@@ -500,10 +471,6 @@ namespace deblur {
                                const float we, const int maxIt) {
         assert(src.type() == CV_32F && "works on floating point images [0,1]");
 
-        // // save min and max values of src to restore the image with correct range
-        // double min; double max;
-        // minMaxLoc(src, &min, &max, NULL, NULL, regionMask);
-
         // half filter size
         int hfsX = kernel.cols / 2;
         int hfsY = kernel.rows / 2;
@@ -574,16 +541,14 @@ namespace deblur {
             deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
         }
 
-        // crop result and convert to uchar
+        // crop result
         Mat cropped;
         x(Rect(
             hfsX,
             hfsY,
             src.cols,
             src.rows
-        )).copyTo(cropped);
-
-        cropped.copyTo(dst);
+        )).copyTo(dst);
     }
 
 
