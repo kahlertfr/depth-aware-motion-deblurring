@@ -9,7 +9,7 @@ using namespace std;
 namespace deblur {
 
     void gradientMaps(const Mat& image, array<Mat, 2>& gradients) {
-        assert(image.type() == CV_8U && "Input image must be grayscaled");
+        assert(image.type() == CV_32F || image.type() == CV_8U && "Input image must be grayscaled or floating point");
 
         Mat bilateral;
         bilateralFilter(image, bilateral,

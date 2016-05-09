@@ -11,21 +11,17 @@ using namespace std;
 
 namespace deblur {
 
-    void deconvolveFFT(Mat src, Mat& dst, Mat& kernel, const float weight){
-        assert(src.type() == CV_8U && "works on gray value images");
+    void deconvolveFFT(const Mat& src, Mat& dst, const Mat& kernel, const float weight){
+        assert(src.type() == CV_32F && "works on floating point images [0,1]");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
 
-        // convert input image to floats and normalize it to [0,1]
-        src.convertTo(src, CV_32F);
-        src /= 255.0;
-
+        // important: do not flipp the kernel
         // fill kernel with zeros to get to blurred image size
         Mat pkernel;
-        copyMakeBorder(kernel, pkernel, 0,
-                       src.rows - kernel.rows, 0,
-                       src.cols - kernel.cols,
+        copyMakeBorder(kernel, pkernel,
+                       0, src.rows - kernel.rows,
+                       0, src.cols - kernel.cols,
                        BORDER_CONSTANT, Scalar::all(0));
-
 
         // sobel gradients for x and y direction
         Mat sobelx = Mat::zeros(src.size(), CV_32F);
@@ -44,7 +40,8 @@ namespace deblur {
         dft(sobely, Gy);
         dft(pkernel, F);
         dft(src, I);
-        
+
+        // FIXME
         // weight from paper
         complex<float> we(weight, 0.0);
 
@@ -68,24 +65,20 @@ namespace deblur {
                 complex<float> a = conj(f) * f 
                                   + we * (conj(gx) * gx + conj(gy) * gy);
 
-                complex<float> x = b / real(a);
+                complex<float> x = b / a;
                 
                 X.at<Vec2f>(row, col) = { real(x), imag(x) };
             }
         }
 
-
-        // // inverse dft with complex output
-        // dft(X, deconv, DFT_INVERSE);
-        // showComplexImage("result complex", deconv, false);
-
         // inverse dft with real output
+        // does exactly the same as returning the complex matrix
+        // and cropping the real channel
         Mat deconv;
-        dft(X, deconv, DFT_INVERSE | DFT_REAL_OUTPUT);
-
+        dft(X, deconv, DFT_INVERSE | DFT_REAL_OUTPUT | DFT_SCALE);
 
         // swap slices of the result
-        // because the image is shifted to the upper-left corner (why??)
+        // because the image is shifted to the upper-left corner
         int x = deconv.cols;
         int y = deconv.rows;
         int hs1 = (kernel.cols - 1) / 2;
@@ -97,8 +90,13 @@ namespace deblur {
         // |   0  | 1 |
         // |      |   |
         // |------|---|
-        // |   2  | 3 |
+        // |   2  | 3 | <- size of kernel
         // |______|___|
+        // 
+        // After cropping some image information from the top will be at the bottom.
+        // This is due to the repeated pattern of the image in the frequency domain
+        // so the region of the half filter size at the bottom and right edge have many
+        // visual artifacts.
         // 
         // rect gets the coordinates of the top-left corner, width and height
         Mat q0(deconv, Rect(0, 0, x - hs1, y - hs2));      // Top-Left
@@ -112,15 +110,8 @@ namespace deblur {
         hconcat(q1, q0, tmp);
         vconcat(deconvSwap, tmp, deconvSwap);
         deconvSwap.copyTo(deconv);
-
-
-        // show and save the deblurred image
-        //
-        // threshold the result because it has large negative and positive values
-        // which would result in a very grayish image
-        threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
-
-        convertFloatToUchar(deconv, dst);
+      
+        deconv.copyTo(dst);
     }
 
 
@@ -193,7 +184,7 @@ namespace deblur {
         Point anchor(0, 0);
 
         // // openCV is doing a correlation in their filter2D function ...
-        // Mat fkernel;
+        // Mat kernel;
         // flip(kernel, fkernel, -1);
 
         Mat tmp;
@@ -479,16 +470,9 @@ namespace deblur {
      * @param we     weight
      * @param maxIt  number of iterations
      */
-    void deconvolveChannelIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask, const float we, const int maxIt) {
-        assert(src.type() == CV_8U && "works on gray value images");
-
-        // save min and max values of src to restore the image with correct range
-        double min; double max;
-        minMaxLoc(src, &min, &max);
-
-        // convert input image to floats and normalize it to [0,1]
-        src.convertTo(src, CV_32F);
-        src /= 255.0;
+    void deconvolveChannelIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
+                               const float we, const int maxIt) {
+        assert(src.type() == CV_32F && "works on floating point images [0,1]");
 
         // half filter size
         int hfsX = kernel.cols / 2;
@@ -506,10 +490,9 @@ namespace deblur {
             // mask with ones of image size
             tmpMask = Mat::ones(src.size(), CV_32F);
         } else {
-            // because region here is a CV_8U with 0 and 255 values
+            // mask with range [0, 1] needed
             // it will be converted to float and set to 0 and 1
             regionMask.convertTo(tmpMask, CV_32F);
-            tmpMask /= 255;
         }
 
         // add border with zeros to the mask
@@ -560,48 +543,40 @@ namespace deblur {
             deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
         }
 
-        // crop result and convert to uchar
+        // crop result
         Mat cropped;
         x(Rect(
             hfsX,
             hfsY,
             src.cols,
             src.rows
-        )).copyTo(cropped);
-
-        // scale float image to [0,255] while preserving original brightness and contrast
-        // I' = I - min' * (|max - min|)/(|max' - min'|) + min
-        double minC; double maxC;
-        minMaxLoc(cropped, &minC, &maxC);
-        cropped -= minC;
-        cropped *= (abs(max -min) / abs(maxC - minC));
-        cropped += min;
-
-        // convert to uchar
-        cropped.convertTo(dst, CV_8U);
+        )).copyTo(dst);
     }
 
 
-    void deconvolveIRLS(Mat src, Mat& dst, Mat& kernel, const Mat& regionMask, const float we, const int maxIt) {
+    void deconvolveIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
+                        const float we, const int maxIt) {
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
+        assert((src.type() == CV_32FC3 || src.type() == CV_32F) && "works with energy preserving kernel");
 
         assert(kernel.rows % 2 == 1 && "odd kernel expected");
         assert(kernel.cols % 2 == 1 && "odd kernel expected");
 
 
-        if (src.type() == CV_8UC3) {
+        if (src.channels() == 3) {
             // deconvolve each channel of a color image
             vector<Mat> channels(3), tmp(3);
             split(src, channels);
 
 
             for (int i = 0; i < channels.size(); i++) {
-                deconvolveChannelIRLS(channels[i], tmp[i], kernel, regionMask, we, maxIt);
+                deconvolveChannelIRLS(channels[i], tmp[i], kernel, regionMask,
+                                      we, maxIt);
             }
 
             merge(tmp, dst);
 
-        } else if (src.type() == CV_8U) {
+        } else if (src.channels() == 1) {
             // deconvolve gray value image
             deconvolveChannelIRLS(src, dst, kernel, regionMask, we, maxIt);
 
