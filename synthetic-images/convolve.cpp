@@ -29,15 +29,14 @@ void conv2(const Mat& src, Mat& dst, const Mat& kernel) {
     Mat zeroPadded;
     copyMakeBorder(src, zeroPadded, padSizeY, padSizeY, padSizeX, padSizeX,
                    BORDER_CONSTANT, Scalar::all(0));
-    
-    Point anchor(0, 0);
 
-    // // openCV is doing a correlation in their filter2D function ...
-    // Mat fkernel;
-    // flip(kernel, fkernel, -1);
+    // openCV is doing a correlation in their filter2D function ...
+    Mat fkernel;
+    flip(kernel, fkernel, -1);
 
     Mat tmp;
-    filter2D(zeroPadded, tmp, -1, kernel, anchor);
+    Point anchor(0, 0);
+    filter2D(zeroPadded, tmp, -1, fkernel, anchor);
 
     // src =
     //     1 2 3 4
@@ -66,16 +65,13 @@ void conv2(const Mat& src, Mat& dst, const Mat& kernel) {
     // crop padding
     Mat cropped;
 
-    // variables cannot be declared in case statements
-    int width  = -1;
-    int height = -1;
-
-    width  = src.cols - kernel.cols + 1;
-            height = src.rows - kernel.rows + 1;
-            cropped = tmp(Rect((tmp.cols - padSizeX - width) / 2,
-                               (tmp.rows - padSizeY - height) / 2,
-                               width,
-                               height));
+    // crop like matlab valid
+    int width  = src.cols - fkernel.cols + 1;
+    int height = src.rows - fkernel.rows + 1;
+    cropped = tmp(Rect((tmp.cols - padSizeX - width) / 2,
+                       (tmp.rows - padSizeY - height) / 2,
+                       width,
+                       height));
 
     cropped.copyTo(dst);
 }

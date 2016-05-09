@@ -9,6 +9,8 @@ namespace deblur {
     void coherenceFilter(const Mat& img, Mat& shockImage,
                          const int sigma, const int str_sigma,
                          const float blend, const int iter) {
+        
+        assert(img.type() == CV_32F || img.type() == CV_32FC3 && "works on float images");
 
         img.copyTo(shockImage);
 
@@ -16,16 +18,8 @@ namespace deblur {
         int width  = shockImage.cols;
 
         for(int i = 0;i <iter; i++) {
-            Mat gray;
-            
-            if (img.type() != CV_8U) {
-                cvtColor(shockImage, gray, COLOR_BGR2GRAY);
-            } else {
-                img.copyTo(gray);
-            }
-
             Mat eigen;
-            cornerEigenValsAndVecs(gray, eigen, str_sigma, 3);
+            cornerEigenValsAndVecs(shockImage, eigen, str_sigma, 3);
 
             vector<Mat> vec;
             split(eigen,vec);
@@ -35,9 +29,9 @@ namespace deblur {
             y = vec[3];
 
             Mat gxx,gxy,gyy;
-            Sobel(gray, gxx, CV_32F, 2, 0, sigma);
-            Sobel(gray, gxy, CV_32F, 1, 1, sigma);
-            Sobel(gray, gyy, CV_32F, 0, 2, sigma);
+            Sobel(shockImage, gxx, CV_32F, 2, 0, sigma);
+            Sobel(shockImage, gxy, CV_32F, 1, 1, sigma);
+            Sobel(shockImage, gyy, CV_32F, 0, 2, sigma);
 
             Mat ero;
             Mat dil;
@@ -51,10 +45,10 @@ namespace deblur {
                         + 2 * x.at<float>(nY, nX) * y.at<float>(nY, nX)* gxy.at<float>(nY, nX)
                         + y.at<float>(nY, nX) * y.at<float>(nY, nX) * gyy.at<float>(nY, nX) < 0) {
 
-                            if (img.type() != CV_8U)
-                                img1.at<Vec3b>(nY,nX) = dil.at<Vec3b>(nY,nX);
+                            if (img.channels() == 3)
+                                img1.at<Vec3f>(nY,nX) = dil.at<Vec3f>(nY,nX);
                             else
-                                img1.at<uchar>(nY,nX) = dil.at<uchar>(nY,nX);
+                                img1.at<float>(nY,nX) = dil.at<float>(nY,nX);
                     }
                 }
             }

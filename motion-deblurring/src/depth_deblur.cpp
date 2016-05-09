@@ -20,30 +20,118 @@ using namespace std;
 
 namespace deblur {
 
-    DepthDeblur::DepthDeblur(Mat& imageLeft, Mat& imageRight, const int width)
+    DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
-                            , layers((width < 24) ? ((width % 2 == 0) ? width - 1 : width) : 24)  // psf width should be larger - even layer number needed
+                            // FIXME: only for debugging
+                            , layers(10)// (width < 10) ? 10 : ((width % 2 == 0) ? width : width - 1))  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
     {
-        // convert color images to gray value images
-        if (imageLeft.type() == CV_8UC3) {
-            cvtColor(imageLeft, grayImages[LEFT], CV_BGR2GRAY);
+        assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
+
+        // use gray values for disparity estimation
+        if (images[LEFT].type() == CV_8UC3) {
+            cvtColor(images[LEFT], grayImages[LEFT], CV_BGR2GRAY);
+            cvtColor(images[RIGHT], grayImages[RIGHT], CV_BGR2GRAY);
         } else {
-            grayImages[LEFT] = imageLeft;
+            grayImages[LEFT] = images[LEFT];
+            grayImages[RIGHT] = images[RIGHT];
         }
 
-        if (imageRight.type() == CV_8UC3) {
-            cvtColor(imageRight, grayImages[RIGHT], CV_BGR2GRAY);
-        } else {
-            grayImages[RIGHT] = imageRight;
-        }
+        // convert images to floats and scale to range [0,1]
+        grayImages[LEFT].convertTo(floatImages[LEFT], CV_32F, 1 / 255.0);
+        grayImages[RIGHT].convertTo(floatImages[RIGHT], CV_32F, 1 / 255.0);
     }
 
 
-    void DepthDeblur::disparityEstimation() {
-        // quantized disparity maps for both directions (left-right and right-left)
-        quantizedDisparityEstimation(grayImages[LEFT], grayImages[RIGHT], layers, disparityMaps[LEFT]);
-        quantizedDisparityEstimation(grayImages[RIGHT], grayImages[LEFT], layers, disparityMaps[RIGHT], true);
+    void DepthDeblur::disparityEstimation(const array<Mat, 2>& input) {
+        array<Mat, 2> views;
+
+        // use gray values for disparity estimation
+        if (input[LEFT].type() == CV_8UC3) {
+            cvtColor(input[LEFT], views[LEFT], CV_BGR2GRAY);
+            cvtColor(input[RIGHT], views[RIGHT], CV_BGR2GRAY);
+        } else {
+            views[LEFT] = input[LEFT];
+            views[RIGHT] = input[RIGHT];
+        }
+
+        // down sample images to roughly reduce blur for disparity estimation
+        array<Mat, 2> small;
+
+        // because we checked that both images are of the same size
+        // the new size is the same for both too
+        // (down sampling ratio is 2)
+        Size downsampledSize = Size(views[LEFT].cols / 2, views[RIGHT].rows / 2);
+
+        // down sample with Gaussian pyramid
+        pyrDown(views[LEFT], small[LEFT], downsampledSize);
+        pyrDown(views[RIGHT], small[RIGHT], downsampledSize);
+
+
+        // disparity map with occlusions as black regions
+        // 
+        // here a different algorithm as the paper approach is used
+        // because it is more convenient to use a OpenCV implementation.
+        array<Mat, 2> smallDMaps;
+        
+        // disparity map for left-right
+        semiGlobalBlockMatching(small[LEFT], small[RIGHT], smallDMaps[LEFT]);
+
+        // disparity map from right to left
+        // therfore flip the images because otherwise SGBM will not work
+        Mat smallLeftFlipped, smallRightFlipped;
+        flip(small[LEFT], smallLeftFlipped, 1);
+        flip(small[RIGHT], smallRightFlipped, 1);
+        smallLeftFlipped.copyTo(small[LEFT]);
+        smallRightFlipped.copyTo(small[RIGHT]);
+
+        // disparity map for left-right
+        semiGlobalBlockMatching(small[RIGHT], small[LEFT], smallDMaps[RIGHT]);
+
+        // flip disparity map back
+        Mat disparityFlipped;
+        flip(smallDMaps[RIGHT], disparityFlipped, 1);
+        disparityFlipped.copyTo(smallDMaps[RIGHT]);
+
+
+        // fill occlusion regions (= value < 10)
+        fillOcclusionRegions(smallDMaps[LEFT], 10);
+        fillOcclusionRegions(smallDMaps[RIGHT], 10);
+
+        // median filter
+        Mat median;
+        medianBlur(smallDMaps[LEFT], median, 9);
+        median.copyTo(smallDMaps[LEFT]);
+        medianBlur(smallDMaps[RIGHT], median, 9);
+        median.copyTo(smallDMaps[RIGHT]);
+
+
+        // quantize the image
+        array<Mat, 2> quantizedDMaps;
+        quantizeImage(smallDMaps, layers, quantizedDMaps);
+
+        #ifdef IMWRITE
+            // convert quantized image to be displayable
+            Mat disparityViewable;
+            double min; double max;
+            minMaxLoc(quantizedDMaps[LEFT], &min, &max);
+            quantizedDMaps[LEFT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
+
+            // imshow("quantized disparity map " + prefix, disparityViewable);
+            string filename = "dmap-left.png";
+            imwrite(filename, disparityViewable);
+
+            minMaxLoc(quantizedDMaps[RIGHT], &min, &max);
+            quantizedDMaps[RIGHT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
+
+            // imshow("quantized disparity map " + prefix, disparityViewable);
+            filename = "dmap-right.png";
+            imwrite(filename, disparityViewable);
+        #endif
+
+        // up sample disparity map to original resolution without interpolation
+        resize(quantizedDMaps[LEFT], disparityMaps[LEFT], Size(views[LEFT].cols, views[LEFT].rows), 0, 0, INTER_NEAREST);      
+        resize(quantizedDMaps[RIGHT], disparityMaps[RIGHT], Size(views[RIGHT].cols, views[RIGHT].rows), 0, 0, INTER_NEAREST);      
     }
 
 
@@ -64,8 +152,9 @@ namespace deblur {
             // regionTree.getRegionImage(id, region, mask, LEFT);
 
             // // edge tapering to remove high frequencies at the border of the region
-            // Mat taperedRegion;
-            // regionTree.edgeTaper(taperedRegion, region, mask, grayImages[LEFT]);
+            // Mat regionUchar, taperedRegion;
+            // region.convertTo(regionUchar, CV_8U);
+            // edgeTaper(regionUchar, taperedRegion, mask, grayImages[LEFT]);
 
             // // compute kernel
             // TwoPhaseKernelEstimation::estimateKernel(regionTree[id].psf, grayImages[LEFT], psfWidth, mask);
@@ -101,14 +190,21 @@ namespace deblur {
             // // 1. save the tappered region images for the exe of two-phase kernel estimation
             // // get an image of the top-level region
             // Mat region, mask;
+            // regionTree.getRegionImage(id, region, mask, RIGHT);
+            // string name = "mask-right" + to_string(i) + ".jpg";
+            // imwrite(name, mask);
+
             // regionTree.getRegionImage(id, region, mask, LEFT);
+            // name = "mask-left" + to_string(i) + ".jpg";
+            // imwrite(name, mask);
             
             // // edge tapering to remove high frequencies at the border of the region
-            // Mat taperedRegion;
-            // regionTree.edgeTaper(taperedRegion, region, mask, grayImages[LEFT]);
+            // Mat regionUchar, taperedRegion;
+            // region.convertTo(regionUchar, CV_8U);
+            // edgeTaper(regionUchar, taperedRegion, mask, grayImages[LEFT]);
 
             // // use this images for example for the .exe of the two-phase kernel estimation
-            // string name = "tapered" + to_string(i) + ".jpg";
+            // name = "tapered" + to_string(i) + ".jpg";
             // imwrite(name, taperedRegion);
             
             // 2. load kernel images generated with the exe for toplevels
@@ -131,27 +227,24 @@ namespace deblur {
     }
 
 
-    void DepthDeblur::jointPSFEstimation(const Mat& maskLeft, const Mat& maskRight, 
-                                         const array<Mat,2>& salientEdgesLeft,
-                                         const array<Mat,2>& salientEdgesRight,
-                                         Mat& psf) {
+    void DepthDeblur::jointPSFEstimation(const array<Mat, 2>& masks, const array<Mat,2>& salientEdgesLeft,
+                                         const array<Mat,2>& salientEdgesRight, Mat& psf) {
 
         // get gradients of current region only
         array<Mat,2> regionGradsLeft, regionGradsRight;
-        gradsLeft[0].copyTo(regionGradsLeft[0], maskLeft);
-        gradsLeft[1].copyTo(regionGradsLeft[1], maskLeft);
-        gradsRight[0].copyTo(regionGradsRight[0], maskRight);
-        gradsRight[1].copyTo(regionGradsRight[1], maskRight);
+        gradsLeft[0].copyTo(regionGradsLeft[0], masks[LEFT]);
+        gradsLeft[1].copyTo(regionGradsLeft[1], masks[LEFT]);
+        gradsRight[0].copyTo(regionGradsRight[0], masks[RIGHT]);
+        gradsRight[1].copyTo(regionGradsRight[1], masks[RIGHT]);
 
-        // showGradients("region grads left", regionGradsLeft[0]);
-        // showGradients("region grads right", regionGradsRight[0]);
-        // showGradients("salient left", salientEdgesLeft[0]);
-        // showGradients("salient right", salientEdgesRight[0]);
-        // waitKey();
-
-        // // FIXME: the masks do not match????
-        // imshow("mask left", maskLeft);
-        // imshow("mask right", maskRight);
+        // showGradients("region-grads-left-x", regionGradsLeft[0], true);
+        // showGradients("region-grads-right-x", regionGradsRight[0], true);
+        // showGradients("salient-left-x", salientEdgesLeft[0], true);
+        // showGradients("salient-right-x", salientEdgesRight[0], true);
+        // showGradients("region-grads-left-y", regionGradsLeft[1], true);
+        // showGradients("region-grads-right-y", regionGradsRight[1], true);
+        // showGradients("salient-left-y", salientEdgesLeft[1], true);
+        // showGradients("salient-right-y", salientEdgesRight[1], true);
         // waitKey();
 
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
@@ -183,6 +276,7 @@ namespace deblur {
         dft(salientEdgesLeft[1], ySm);
         dft(salientEdgesRight[0], xSr);
         dft(salientEdgesRight[1], ySr);
+
         dft(regionGradsLeft[0], xBm);
         dft(regionGradsLeft[1], yBm);
         dft(regionGradsRight[0], xBr);
@@ -190,14 +284,16 @@ namespace deblur {
 
         // delta function as one white pixel in black image
         Mat deltaFloat = Mat::zeros(xSm.size(), CV_32F);
-        deltaFloat.at<float>(xSm.rows / 2, xSm.cols / 2) = 1;
+        deltaFloat.at<float>(0, 0) = 1;
         Mat delta;
         dft(deltaFloat, delta);
 
-
         // Mat Br, Bm;
-        // dft(blurredRegionLeft, Bm);
-        // dft(blurredRegionRight, Br);
+        // array<Mat, 2> blurredRegion;
+        // floatImages[LEFT].copyTo(blurredRegion[LEFT], masks[LEFT]);
+        // floatImages[RIGHT].copyTo(blurredRegion[RIGHT], masks[RIGHT]);
+        // dft(blurredRegion[LEFT], Bm);
+        // dft(blurredRegion[RIGHT], Br);
         
         // // sobel gradients for x and y direction
         // Mat sobelx = Mat::zeros(xSm.size(), CV_32F);
@@ -236,20 +332,23 @@ namespace deblur {
 
                 complex<float> d(delta.at<Vec2f>(y, x)[0], delta.at<Vec2f>(y, x)[1]);
 
+                // weight from paper wk = 1
                 complex<float> weight(1, 0.0);
 
                 // kernel entry in the Fourier space
+                // we are using the Fourier transform of the gradients of the blurred region
+                // instead of transforming the sobel filter and the blurred region separately in
+                // frequency domain. Because this will prevent the huge gradients at the
+                // region boundary
                 complex<float> k = ( (conj(xsr) * xbr + conj(xsm) * xbm) +
                                      (conj(ysr) * ybr + conj(ysm) * ybm) ) /
                                      ( (conj(xsr) * xsr + conj(ysr) * ysr) + 
-                                       // (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
                                      (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
 
                 // // kernel entry in the Fourier space
                 // complex<float> k = ( (conj(xsr) * gx * br + conj(xsm) * gx * bm) +
                 //                      (conj(ysr) * gy * br + conj(ysm) * gy * bm) ) /
                 //                      ( (conj(xsr) * xsr + conj(ysr) * ysr) + 
-                //                        // (conj(xsm) * xsm + conj(ysm) * ysm) + weight );
                 //                      (conj(xsm) * xsm + conj(ysm) * ysm) + weight * conj(d) * d );
                 
                 K.at<Vec2f>(y, x) = { real(k), imag(k) };
@@ -263,19 +362,19 @@ namespace deblur {
         // threshold kernel to erease negative values
         // this is done because otherwise the resulting kernel is very grayish
         threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
+        // FIXME: is this really necessary? can a kernel have negative values?
 
-        // kernel has to be energy preserving
-        // this means: sum(kernel) = 1
-        kernel /= sum(kernel)[0];
-
+        // // alternative thresholding idea:
+        // double min; double max;
+        // minMaxLoc(kernel, &min, &max);
+        // threshold(kernel, kernel, max / 5, -1, THRESH_TOZERO);
 
         // swap slices of the result
         // because the image is shifted to the upper-left corner
         int x = kernel.cols;
         int y = kernel.rows;
         int hs1 = (psfWidth - 1) / 2;
-        // difference to levin code: added division by 2 because otherwise the slice is wrong
-        int hs2 = (psfWidth - 1) / 4;
+        int hs2 = (psfWidth - 1) / 2;
 
         // create rects per image slice
         //  __________
@@ -304,11 +403,11 @@ namespace deblur {
 
         // important to copy the roi - otherwise for padding the originial image
         // will be used (we don't want this behavior)
-        Mat flipped;
-        kernelROI.copyTo(flipped);
+        kernelROI.copyTo(psf);
 
-        // flip kernel
-        flip(flipped, psf, -1);
+        // kernel has to be energy preserving
+        // this means: sum(kernel) = 1
+        psf /= sum(psf)[0];
 
         // #ifndef NDEBUG
         //     Mat kernelUchar;
@@ -347,81 +446,60 @@ namespace deblur {
         normalize(gradsL[0], gradsLeft[0], -1, 1);
         normalize(gradsL[1], gradsLeft[1], -1, 1);
 
-        // showGradients("grads-blur-left.png", gradsL[0], true);
-        // showGradients("grads-blur-right.png", gradsR[0], true);
+        // showGradients("grads-blur-left-x.png", gradsL[0], true);
+        // showGradients("grads-blur-left-y.png", gradsL[1], true);
+        // showGradients("grads-blur-right-x.png", gradsR[0], true);
+        // showGradients("grads-blur-right-y.png", gradsR[1], true);
+        // waitKey();
     }
 
 
-    void DepthDeblur::estimateChildPSF(int id) {
-        // //
-        // // mock-up for testing
-        // //
-        // Mat maskM = Mat::ones(grayImages[LEFT].size(), CV_8U);
-        // maskM *= 255;
-        // Mat maskR = Mat::ones(grayImages[LEFT].size(), CV_8U);
-        // maskR *= 255;
-        // int parent = 1;
-
-        // cout << "finished mocking" << endl;
-
-        // // end debug ---------------------
-        
-
-
-        // get masks for regions of both views
-        Mat maskM, maskR;
-        regionTree.getMasks(id, maskM, maskR);
-
-        // get parent id
-        int parent = regionTree[id].parent;
-
-
+    void DepthDeblur::estimateChildPSF(const Mat& parentPSF, Mat& psf, const array<Mat, 2>& masks,
+                                       const int id) {
 
         // compute salient edge map ∇S_i for region
         // 
         // deblur the current views with psf from parent
-        Mat deblurredLeft, deblurredRight;
-        deconvolveFFT(grayImages[LEFT], deblurredLeft, regionTree[parent].psf);
-        deconvolveFFT(grayImages[RIGHT], deblurredRight, regionTree[parent].psf);
-        // FIXME: strong ringing artifacts in deconvoled image
+        array<Mat, 2> deconv;
+        deconvolveFFT(floatImages[LEFT], deconv[LEFT], parentPSF);
+        deconvolveFFT(floatImages[RIGHT], deconv[RIGHT], parentPSF);
 
+        // FIXME: strong ringing artifacts in deconvoled image (with fft)
+    
         // #ifdef IMWRITE
-        //     imshow("devonv left", deblurredLeft);
+        //     imshow("devonv left", deconv[LEFT]);
         //     waitKey();
         // #endif
-
+        
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
-        computeSalientEdgeMap(deblurredLeft, salientEdgesLeft, psfWidth, maskM);
-        computeSalientEdgeMap(deblurredRight, salientEdgesRight, psfWidth, maskR);
-
-        // showGradients("edge-map-left-" + to_string(id) + ".png", salientEdgesLeft[0], true);
-        // showGradients("edge-map-right-" + to_string(id) + ".png", salientEdgesRight[0], true);
+        computeSalientEdgeMap(deconv[LEFT], salientEdgesLeft, psfWidth, masks[LEFT]);
+        computeSalientEdgeMap(deconv[RIGHT], salientEdgesRight, psfWidth, masks[RIGHT]);
 
         // #ifdef IMWRITE
-        //     showGradients("salient edges left x", salientEdgesLeft[0]);
-        //     showGradients("salient edges right x", salientEdgesRight[0]);
-        //     waitKey();
+        //     showGradients("salient-edges-left-x", salientEdgesLeft[0], true);
+        //     showGradients("salient-edges-left-y", salientEdgesLeft[1], true);
+        //     // waitKey();
         // #endif
 
         // estimate psf for the first child node
-        jointPSFEstimation(maskM, maskR, salientEdgesLeft, salientEdgesRight, regionTree[id].psf);
+        jointPSFEstimation(masks, salientEdgesLeft, salientEdgesRight, psf);
 
         #ifdef IMWRITE
             // region images
             Mat region;
-            grayImages[LEFT].copyTo(region, maskM);
+            grayImages[LEFT].copyTo(region, masks[LEFT]);
             string filename = "mid-" + to_string(id) + "-left.png";
             imwrite(filename, region);
 
             Mat regionR;
-            grayImages[RIGHT].copyTo(regionR, maskR);
+            grayImages[RIGHT].copyTo(regionR, masks[RIGHT]);
             filename = "mid-" + to_string(id) + "-right.png";
             imwrite(filename, regionR);
 
             // kernels
             Mat tmp;
-            regionTree[id].psf.copyTo(tmp);
+            psf.copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
             filename = "mid-" + to_string(id) + "-kernel-init.png";
@@ -486,7 +564,7 @@ namespace deblur {
             // compute latent image
             Mat latent;
             // FIXME: latent image just of one view?
-            deconvolveFFT(grayImages[LEFT], latent, candiates[i]);
+            deconvolveFFT(floatImages[LEFT], latent, candiates[i]);
 
             // slightly Gaussian smoothed
             // use the complete image to avoid unwanted effects at the borders
@@ -646,6 +724,7 @@ namespace deblur {
 
     void DepthDeblur::midLevelKernelEstimationNode(){
         int id;
+
         while(visitedLeafs != layers) {
             if (safeQueueAccess(&remainingNodes, id)) {
                 // get IDs of the child nodes
@@ -657,8 +736,35 @@ namespace deblur {
                 if (cid1 != -1 && cid2 != -1) {
                     // PSF estimation for each children
                     // (salient edge map computation and joint psf estimation)
-                    estimateChildPSF(cid1);
-                    estimateChildPSF(cid2);
+                    
+                    // initial psf estimation child 1
+                    // get masks for regions of both views
+                    array<Mat, 2> masks;
+                    regionTree.getMasks(cid1, masks);
+
+                    // check if one of the masks is empty because then the joint estimation is not working
+                    // (this could happen when the depth value is appears just in one disparity map)
+                    if (sum(masks[LEFT])[0] != 0 && sum(masks[RIGHT])[0] != 0) {
+                        estimateChildPSF(regionTree[id].psf, regionTree[cid1].psf, masks, cid1);
+                    } else {
+                        // set the child psf to the parents one if one mask is empty
+                        regionTree[cid1].psf = regionTree[id].psf;
+                    }
+                    
+
+                    // initial psf estimation child 2
+                    // get masks for regions of both views
+                    regionTree.getMasks(cid2, masks);
+
+                    // check if one of the masks is empty because then the joint estimation is not working
+                    // (this could happen when the depth value is appears just in one disparity map)
+                    if (sum(masks[LEFT])[0] != 0 && sum(masks[RIGHT])[0] != 0) {
+                        estimateChildPSF(regionTree[id].psf, regionTree[cid2].psf, masks, cid2);
+                    } else {
+                        // set the child psf to the parents one if one mask is empty
+                        regionTree[cid2].psf = regionTree[id].psf;
+                    }
+
 
                     // to eliminate errors
                     //
@@ -676,13 +782,12 @@ namespace deblur {
                     psfSelection(candiates2, cid2);
 
 
+                    // add children ids to the back of the queue (this has to be thread save)
                     m.lock();
-
-                    // add children ids to the back of the queue
                     remainingNodes.push(cid1);
                     remainingNodes.push(cid2);
-
                     m.unlock();
+
                 } else {
                     mCounter.lock();
                     visitedLeafs++;
@@ -694,37 +799,67 @@ namespace deblur {
 
 
     void DepthDeblur::midLevelKernelEstimation(int nThreads) {
-        // // debug --------------------------------------------------------------
+        // // // debug --------------------------------------------------------------
         // Mat src, kernel, dst;
-        // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel = imread("kernel.png", CV_LOAD_IMAGE_GRAYSCALE);
+        // // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // // // src = imread("conv-texture-wall-ausschnitt.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // // src.convertTo(src, CV_32F);
+        // // src /= 255;
+
+        // kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
         // kernel.convertTo(kernel, CV_32F);
         // kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
-        // // kernel.copyTo(regionTree[1].psf);
+
+        // computeBlurredGradients();
+
+        // // get masks for regions of both views
+        // array<Mat, 2> masks;
+        // masks[LEFT] = imread("mask-left0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // masks[LEFT] /= 255;
+        // masks[RIGHT] = imread("mask-right0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // masks[RIGHT] /= 255;
+
+        // // masks[LEFT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
+        // // masks[RIGHT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
+        
+
+        // Mat parentPSF, psf;
+        // estimateChildPSF(kernel, psf, masks, 0);
+
+        // deconvolveFFT(floatImages[LEFT], dst, psf);
+        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        // dst.convertTo(dst, CV_8U, 255);
+        // imwrite("deconv-estimate-fft.png", dst);
+
+        // deconvolveIRLS(floatImages[LEFT], dst, psf, masks[LEFT]);
+        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        // dst.convertTo(dst, CV_8U, 255);
+        // imwrite("deconv-estimate-irls.png", dst);
+        
+        // // deconvolveFFT(floatImages[LEFT], dst, kernel);
+        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        // // dst.convertTo(dst, CV_8U, 255);
+        // // imwrite("deconv-original-fft.png", dst);
+        
+        // // // add border with zeros to the mask
+        // // copyMakeBorder(floatImages[LEFT], floatImages[LEFT], 130, 130, 130, 130,
+        // //                BORDER_CONSTANT, Scalar::all(0));
+        // // // add border with zeros to the mask
+        // // copyMakeBorder(masks[LEFT], masks[LEFT], 130, 130, 130, 130,
+        // //                BORDER_CONSTANT, Scalar::all(0));
+
+        // // deconvolveIRLS(floatImages[LEFT], dst, kernel, masks[LEFT]);
+        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        // // dst.convertTo(dst, CV_8U, 255);
+        // // imwrite("deconv-original-irls.png", dst);
+
+        // // // end debug ----------------------------------------------------------------
 
 
-        // // computeBlurredGradients();
-        // // estimateChildPSF(0);
-
-
-        // // deconvolveFFT(src, dst, regionTree[0].psf);
-        // // imwrite("deconv-fft.png",dst);
-        // deconvolveFFT(src, dst, kernel);
-        // imwrite("deconv-fft-original.png",dst);
-
-        // Mat fkernel;
-
-        // // flip(regionTree[0].psf, fkernel, -1);
-        // // deconvolveIRLS(src, dst, fkernel);
-        // // // imwrite("deconv-sp.png",dst);
-        // // flip(kernel, fkernel, -1);
-        // // deconvolveIRLS(src, dst, fkernel);
-        // // imwrite("deconv-sp-original.png",dst);
-
-        // // imshow("deconv fft", dst);
-        // // waitKey();
-
-        // // end debug ----------------------------------------------------------------
 
         visitedLeafs = 0;
 
@@ -789,11 +924,16 @@ namespace deblur {
             Mat mask;
             regionTree.getMask(i, mask, view);
 
+            // get region image (color or grayvalue as float)
+            Mat region;
+
             if (color) {
-                deconvolveIRLS(images[view], regionDeconv[i], regionTree[i].psf, mask);
+                images[view].copyTo(region, mask);
             } else {
-                deconvolveIRLS(grayImages[view], regionDeconv[i], regionTree[i].psf, mask);
+                floatImages[view].copyTo(region, mask);
             }
+
+            deconvolveIRLS(region, regionDeconv[i], regionTree[i].psf, mask);
         }
     }
 
@@ -833,57 +973,19 @@ namespace deblur {
             regionTree.getMask(i, mask, view);
 
             regionDeconv[i].copyTo(dst, mask);
-            convertFloatToUchar(dst, dst);
         }
+
+        // show and save the deblurred image
+        //
+        // threshold the result because it has large negative and positive values
+        // which would result in a very grayish image
+        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        dst.convertTo(dst, CV_8U, 255);
 
         #ifdef IMWRITE
             string filename = "deconv-" + to_string(view) + ".png";
             imwrite(filename, dst);
         #endif
-        
-
-
-        // // --------- for debugging
-        
-        // Mat mask, src, kernel, deconv;
-
-        // // levin example
-        // src = imread("src-region.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel = imread("filt.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // int border = 50;
-        // Mat tmpmask = Mat::ones(src.rows - border * 2, src.cols - border * 2, CV_8U);
-        // copyMakeBorder(tmpmask, mask, border, border, border, border,
-        //                BORDER_CONSTANT, Scalar::all(0));
-        // mask *= 255;
-
-        // // mouse with mask
-        // src = imread("tapered0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // regionTree.getMask(42, mask, LEFT);
-
-
-        // imshow("kernel", kernel);
-        // imshow("image", src);
-        // imshow("mask", mask);
-        // waitKey();
-
-        // kernel.convertTo(kernel, CV_32F);
-
-        // // kernel /= 255; // levin kernel
-        // kernel /= sum(kernel)[0];  // mouse kernel    
-               
-        // deconvolveIRLS(src, deconv, kernel, mask);
-        // imshow("deconv-sp", deconv);
-        // waitKey();
-
-        // imwrite("deconv-sp.png", deconv);
-
-        // deconvolveFFT(src, deconv, kernel);
-        // imshow("deconv-fft", deconv);
-        // waitKey();
-
-        // imwrite("deconv-fft.png", deconv);
-
-        // //----------- end debugging
     }
 }

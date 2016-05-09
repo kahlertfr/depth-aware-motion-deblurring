@@ -170,6 +170,27 @@ namespace deblur {
     inline void normalizeOne(std::vector<cv::Mat>& input) {
         normalizeOne<std::vector<cv::Mat>>(input, input);
     }
+
+    /**
+     * Fills pixel in a given range with a given uchar.
+     * 
+     * @param image image to work on
+     * @param start starting point
+     * @param end   end point
+     * @param color color for filling
+     */
+    void fillPixel(cv::Mat& image, const cv::Point start, const cv::Point end, const uchar color);
+
+    /**
+     * fill the black regions with the neighboring pixel colors (half way the left one
+     * and half way the right one) and blur the resulting image. Copy the original region
+     * over it.
+     * 
+     * @param taperedRegion resulting image
+     * @param region        region image
+     * @param mask          mask of region
+     */
+    void edgeTaper(cv::Mat& taperedRegion, cv::Mat& region, cv::Mat& mask, cv::Mat& image);
 }
 
 #endif

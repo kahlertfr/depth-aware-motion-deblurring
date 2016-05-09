@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
     cout << endl;
 
     try {
-        deblur::depthDeblur(imageLeft, imageRight, nThreads, psfWidth, maxTopLevelNodes);
+        deblur::runDepthDeblur(imageLeft, imageRight, nThreads, psfWidth, maxTopLevelNodes);
     }
     catch(const exception& e) {
         cerr << "ERROR: " << e.what() << endl;

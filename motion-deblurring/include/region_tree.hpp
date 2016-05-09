@@ -95,12 +95,11 @@ namespace deblur {
          * Returns the depth mask of both view for a specific node by adding all mask of all layers.
          * 
          * @param nodeId  Id of the node in the region tree
-         * @param maskL   mask of left region
-         * @param maskR   mask of right region
+         * @param maskL   mask of both regions
          */
-        inline void getMasks(const int nodeId, cv::Mat& maskL, cv::Mat& maskR) const {
-            getMask(nodeId, maskL, deblur::LEFT);
-            getMask(nodeId, maskR, deblur::RIGHT);
+        inline void getMasks(const int nodeId, std::array<cv::Mat, 2>& masks) const {
+            getMask(nodeId, masks[deblur::LEFT], deblur::LEFT);
+            getMask(nodeId, masks[deblur::RIGHT], deblur::RIGHT);
         };
 
         /**
@@ -122,17 +121,6 @@ namespace deblur {
          */
         void getRegionImage(const int nodeId, cv::Mat &regionImage, cv::Mat &mask,
                             const deblur::view view) const;
-
-        /**
-         * fill the black regions with the neighboring pixel colors (half way the left one
-         * and half way the right one) and blur the resulting image. Copy the original region
-         * over it.
-         * 
-         * @param taperedRegion resulting image
-         * @param region        region image
-         * @param mask          mask of region
-         */
-        void edgeTaper(cv::Mat& taperedRegion, cv::Mat& region, cv::Mat& mask, cv::Mat& image) const;
 
         /**
          * Returns total number of nodes in this region tree

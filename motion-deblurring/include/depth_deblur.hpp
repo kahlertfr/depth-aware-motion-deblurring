@@ -38,7 +38,7 @@ namespace deblur {
          * @param imageRight blurred right view
          * @param width      approximate PSF width
          */
-        DepthDeblur(cv::Mat& imageLeft, cv::Mat& imageRight, const int width);
+        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width);
 
         /**
          * Disparity estimation of two blurred images
@@ -47,7 +47,7 @@ namespace deblur {
          * 
          * @param inverse  determine if the disparity is calculated from right to left
          */
-        void disparityEstimation();
+        void disparityEstimation(const std::array<cv::Mat, 2>& views);
 
         /**
          * Creates a region tree from disparity maps
@@ -87,14 +87,19 @@ namespace deblur {
       private:
 
         /**
-         * both views
+         * both views as CV_8UC3
          */
-        const std::array<cv::Mat, 2> images;
+        std::array<cv::Mat, 2> images;
 
         /**
-         * both gray views
+         * both gray views CV_8U
          */
         std::array<cv::Mat, 2> grayImages;
+
+        /**
+         * both views as float images CV_32F for computation with better precision
+         */
+        std::array<cv::Mat, 2> floatImages;
 
         /**
          * Approximate psf kernel width
@@ -135,11 +140,12 @@ namespace deblur {
         /**
          * Estimates the PSF of a region jointly on the reference and matching view.
          * 
-         * @param maskLeft       mask for region of matching view
-         * @param maskRight      mask for region of reference view
-         * @param psf            resulting psf
+         * @param maks              masks for regions of matching and reference view
+         * @param salientEdgesLeft  salient edges for left view in x and y direction
+         * @param salientEdgesRight salient edges for right view in x and y direction
+         * @param psf               resulting psf
          */
-        void jointPSFEstimation(const cv::Mat& maskLeft, const cv::Mat& maskRight,
+        void jointPSFEstimation(const std::array<cv::Mat, 2>& masks,
                                 const std::array<cv::Mat,2>& salientEdgesLeft,
                                 const std::array<cv::Mat,2>& salientEdgesRight, cv::Mat& psf);
 
@@ -151,10 +157,13 @@ namespace deblur {
         /**
          * Executes a joint psf estimation after computing the salient edge map of
          * this region node and saves the psf in the region tree.
-         * 
-         * @param id     current node
+         *
+         * @param parentPSF psf of parent node
+         * @param psf       psf of current node that will be computed
+         * @param masks     masks of left and right view of this region
+         * @param id        current node (just for saving the results)
          */
-        void estimateChildPSF(int id);
+        void estimateChildPSF(const cv::Mat& parentPSF, cv::Mat& psf, const std::array<cv::Mat, 2>& masks, int id = -1);
 
         /**
          * Calculates the entropy of the kernel
