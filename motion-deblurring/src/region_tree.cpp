@@ -31,10 +31,14 @@ namespace deblur {
             Mat maskLeft, maskRight;
 
             // find all pixels that have the color l
-            //      1 - pixel has color
-            //      0 - pixel has other color
+            //      255 - pixel has color
+            //      0   - pixel has other color
             inRange(quantizedDisparityMapL, l, l, maskLeft);
             inRange(quantizedDisparityMapR, l, l, maskRight);
+
+            // set range of the masks to 0 and 1
+            maskRight /= 255;
+            maskLeft /= 255;
 
             _masks[LEFT].push_back(maskLeft);
             _masks[RIGHT].push_back(maskRight);

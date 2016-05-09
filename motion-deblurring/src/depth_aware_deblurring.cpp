@@ -34,24 +34,24 @@ namespace deblur {
             imwrite("input-right.png", blurredRight);
         #endif
 
-
-        // input images at each iteration step
-        Mat left, right;
-        blurredLeft.copyTo(left);
-        blurredRight.copyTo(right);
+        // views for disparity estimation
+        // they will be updated after the first pass
+        array<Mat, 2> deblurViews;
+        blurredLeft.copyTo(deblurViews[LEFT]);
+        blurredRight.copyTo(deblurViews[RIGHT]);
 
         // two passes through algorithm
         for (int i = 0; i < 2; i++) {
             cout << i + 1 << ". Pass Estimation" << endl;
 
             // this class holds everything needed for one step of the depth-aware deblurring
-            DepthDeblur depthDeblur(left, right, psfWidth);
+            DepthDeblur depthDeblur(blurredLeft, blurredLeft, psfWidth);
 
             // initial disparity estimation of blurred images
             // here: left image is matching image and right image is reference image
             //       I_m(x) = I_r(x + d_m(x))
             cout << " Step 1: disparity estimation" << endl;
-            depthDeblur.disparityEstimation();
+            depthDeblur.disparityEstimation(deblurViews);
             
 
             cout << " Step 2: region tree reconstruction" << endl;
@@ -68,28 +68,30 @@ namespace deblur {
 
 
             cout << " Step 4: Blur removal given PSF estimate" << endl;
-            // // set new left and right view for second pass
-            // if ((i + 1) < 2) {
+            // set new left and right view for second pass
+            if ((i + 1) < 2) {
                 Mat deconvLeft, deconvRight;
                 // use threads
                 depthDeblur.deconvolve(deconvLeft, LEFT, threads);
-                // depthDeblur.deconvolve(deconvRight, RIGHT, threads);
+                depthDeblur.deconvolve(deconvRight, RIGHT, threads);
                 
-            //     deconvLeft.copyTo(left);
-            //     deconvRight.copyTo(right);
-            // } else {
-            //     // deblur final color images
-            //     depthDeblur.deconvolve(deblurredLeft, LEFT, threads, true);
-            //     depthDeblur.deconvolve(deblurredRight, RIGHT, threads, true);
-            // }
+                // this deconvolved images will be used for a disparity update
+                deconvLeft.copyTo(deblurViews[LEFT]);
+                deconvRight.copyTo(deblurViews[RIGHT]);
+            } else {
+                // deblur final images
+                depthDeblur.deconvolve(deblurViews[LEFT], LEFT, threads);
+                depthDeblur.deconvolve(deblurViews[RIGHT], RIGHT, threads);
 
-            // TODO: update parameters
-            i++; // FIXME: for debugging without second pass
+                // FIXME: deblur color images
+            }
+
+            // FIXME: just for debugging
+            waitKey();
         }
 
-        // FIXME: for debugging
-        blurredLeft.copyTo(deblurredLeft);
-        blurredRight.copyTo(deblurredRight);
+        deblurViews[LEFT].copyTo(deblurredLeft);
+        deblurViews[RIGHT].copyTo(deblurredRight);
         
         cout << "finished Algorithm" << endl;
     }

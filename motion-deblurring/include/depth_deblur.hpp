@@ -38,7 +38,7 @@ namespace deblur {
          * @param imageRight blurred right view
          * @param width      approximate PSF width
          */
-        DepthDeblur(cv::Mat& imageLeft, cv::Mat& imageRight, const int width);
+        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width);
 
         /**
          * Disparity estimation of two blurred images
@@ -47,7 +47,7 @@ namespace deblur {
          * 
          * @param inverse  determine if the disparity is calculated from right to left
          */
-        void disparityEstimation();
+        void disparityEstimation(const std::array<cv::Mat, 2>& views);
 
         /**
          * Creates a region tree from disparity maps

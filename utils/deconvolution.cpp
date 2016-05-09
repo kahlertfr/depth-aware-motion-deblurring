@@ -490,10 +490,9 @@ namespace deblur {
             // mask with ones of image size
             tmpMask = Mat::ones(src.size(), CV_32F);
         } else {
-            // because region here is a CV_8U with 0 and 255 values
+            // mask with range [0, 1] needed
             // it will be converted to float and set to 0 and 1
             regionMask.convertTo(tmpMask, CV_32F);
-            tmpMask /= 255;
         }
 
         // add border with zeros to the mask
