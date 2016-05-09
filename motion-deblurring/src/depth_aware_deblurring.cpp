@@ -45,7 +45,7 @@ namespace deblur {
             cout << i + 1 << ". Pass Estimation" << endl;
 
             // this class holds everything needed for one step of the depth-aware deblurring
-            DepthDeblur depthDeblur(blurredLeft, blurredLeft, psfWidth);
+            DepthDeblur depthDeblur(blurredLeft, blurredRight, psfWidth);
 
             // initial disparity estimation of blurred images
             // here: left image is matching image and right image is reference image
