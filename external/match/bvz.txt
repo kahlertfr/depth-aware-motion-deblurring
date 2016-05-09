@@ -1,0 +1,27 @@
+LOAD_COLOR images/scene_l.ppm images/scene_r.ppm
+SET disp_range -15 0 0 0         # x_min y_min x_max y_max
+
+SET iter_max 3
+
+# Regularization parameter. Should be tuned for different images.
+SET lambda 10
+
+#############################################################
+# Other parameters that can be changed:
+#############################################################
+#SET data_cost ?          # L1 or L2 (default is L2)
+#SET I_threshold ?        # intensity threshold - switches between
+                          # lambda1 and lambda2 (default is 5)
+#SET interaction_radius ? # (default is 1 - Potts model)
+#SET lambda1 ?            # (default is 2*lambda)
+#SET lambda2 ?            # (default is lambda)
+#############################################################
+
+# Running the algorithm
+BVZ
+
+# Saving results
+SAVE_X bvz.pgm
+SAVE_X_SCALED bvz.ppm
+
+

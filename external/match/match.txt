@@ -1,0 +1,252 @@
+##############################################################
+# This file contains a description of all possible commands  #
+# in the MATCH configuration file.                           #
+#                                                            #
+# All commands are case-insensitive                          #
+##############################################################
+
+
+###################################################
+############ loading and saving images ############
+############     and disparity maps    ############
+###################################################
+
+# Load two grayscale .pgm images
+# Previous images and disparity maps (if any) are deleted
+LOAD <input_left.pgm> <input_right.pgm>
+
+# Load two color .ppm images
+# Previous images and disparity maps (if any) are deleted
+LOAD_COLOR <input_left.ppm> <input_right.ppm>
+
+
+
+# Save disparity maps of the left image
+# (for saving disparity maps of the right image call SWAP_IMAGES first)
+# If there is a flag LARGER_DISPARITIES_BRIGHTER then the disparity
+# 'x_min' is saved as '0', 'x_min+1' as '1' and so on.
+# If there is no flag then the disparity 'x_max' is
+# saved as '0', 'x_max-1' as '1' and so on.
+# Occluded pixels as saved as '255'
+SAVE_X <x_disp_output.pgm> [LARGER_DISPARITIES_BRIGHTER]
+SAVE_Y <y_disp_output.pgm> [LARGER_DISPARITIES_BRIGHTER]
+
+
+
+# Save scaled disparity maps of the left image
+# Occluded pixels are marked as red
+# By default smaller disparities are brighter unless
+# there is a flag LARGER_DISPARITIES_BRIGHTER
+SAVE_X_SCALED <x_disp_output.ppm> [LARGER_DISPARITIES_BRIGHTER]
+SAVE_Y_SCALED <x_disp_output.ppm> [LARGER_DISPARITIES_BRIGHTER]
+
+
+# Load disparity maps for the left image
+# (can be used, for example, for initializing some algorithms)
+# The format is the same as in SAVE_X and SAVE_Y 
+LOAD_X <x_disp_input.pgm> [LARGER_DISPARITIES_BRIGHTER]
+LOAD_Y <y_disp_input.pgm> [LARGER_DISPARITIES_BRIGHTER]
+
+###################################################
+########## loading segmentation images ############
+###################################################
+
+# Segmentation images are used for static clues in
+# the smoothness term - see below. If they are not
+# specified, original images are used for this purpose.
+
+# Load two .pgm segmentation images
+LOAD_SEGM <segm_left.pgm> <segm_right.pgm>
+
+# Load two .ppm segmentation images
+LOAD_SEGM_COLOR <segm_left.ppm> <segm_right.ppm>
+
+###################################################
+############# setting disparity range #############
+###################################################
+
+SET disp_range <x_min> <y_min> <x_max> <y_max>
+
+
+
+###################################################
+######### setting algorithms parameters ###########
+###################################################
+
+# Maximum number of iterations for KZ and BVZ algorithms
+# Default is INFINITY
+SET iter_max <value>
+
+# Randomization method for KZ and BVZ algorithms
+# (i.e, the order of labels)
+# If 'randomize_every_iteration' is set this order
+# is randomly generated every iteration, otherwise
+# it is generated during the first iteration
+# and is used in all subsequent iterations;
+# in this case the number of iterations can be fractional
+# By default 'randomize_every_iteration' is not set
+SET randomize_every_iteration
+UNSET randomize_every_iteration
+
+
+# If 'sub_pixel' is set then data term is is computed as described in
+#	Stan Birchfield and Carlo Tomasi
+#	"A pixel dissimilarity measure that is insensitive to image sampling"
+#	PAMI 20(4):401-406, April 98
+# By default 'sub_pixel' is set
+SET sub_pixel
+UNSET sub_pixel
+
+
+# Method of computing data term - L1 or L2
+# Default is L2
+SET data_cost L1
+SET data_cost L2
+
+
+
+#### Parameters for CORR method ####
+# Size of the correlation window is (2*corr_size+1) x (2*corr_size+1)
+# Default is 5
+SET corr_size <value>
+
+#### Energy parameters for KZ1 method ####
+# -K is the minimum value for an individual data cost
+# (details are in the paper)
+# interaction_radius, I_threshold, lambda1, lambda2 describe smoothness penalty:
+# for two close pixels 'p' and 'q' in the left image
+# with labels dp,dq the smoothness penalty is
+#     min{|dq-dq|,interaction_radius}*lambda1,   if   |Is(p)-Is(q)| < I_threshold
+#     min{|dq-dq|,interaction_radius}*lambda2    otherwise
+# (for color images a maximum is taken over differences
+# between all three components).
+# 'Is' denotes intensity of the left segmentation image.
+#
+# Default values depend on one parameter 'lambda':
+# I_threshold       = 5
+# lambda1           = 3*lambda
+# lambda2           = lambda
+# K                 = 5*lambda
+#
+# 'lambda', 'lambda1', 'lambda2' and 'K' can also be set to fractions
+# (e.g. 1/2)
+#
+# If 'lambda1', 'lambda2' and 'K' are all explicitly set
+# then 'lambda' does not affect the energy function
+# 'lambda' can be set to 'AUTO', then it is automatically computed
+# using some heuristic for estimating noise in the images
+# (details are in my PhD thesis)
+
+SET lambda       <value>
+SET I_threshold  <value>
+SET lambda1      <value>
+SET lambda2      <value>
+SET K            <value>
+
+#### Energy parameters for KZ2 method ####
+# K is the penalty for making an assignment passive
+# occlusion penalty is always 0
+# I_threshold2, lambda1, lambda2 describe smoothness penalty:
+# for two close parallel assignments <l1, r1> and <l2, r2>
+# with different labels smoothness penalty is
+#     lambda1,  if   max { |Is(l1)-Is(l2)| , |Is(r1)-Is(r2)| } < I_threshold2
+#     lambda2   otherwise
+# (for color images a maximum is taken over differences
+# between all three components).
+# 'Is' denotes intensity of the segmentation images.
+#
+# Default values depend on one parameter 'lambda':
+# I_threshold2      = 8
+# lambda1           = 3*lambda
+# lambda2           = lambda
+# K                 = 5*lambda
+#
+# 'lambda', 'lambda1', 'lambda2' and 'K' can also be set to fractions
+# (e.g. 1/2)
+#
+# If 'lambda1', 'lambda2' and 'K' are all explicitly set
+# then 'lambda' does not affect the energy function
+# 'lambda' can be set to 'AUTO', then it is automatically computed
+# using some heuristic for estimating noise in the images
+# (details are in my PhD thesis)
+
+SET lambda        <value>
+SET I_threshold2  <value>
+SET lambda1       <value>
+SET lambda2       <value>
+SET K             <value>
+
+
+
+
+#### Energy parameters for BVZ method ####
+# occlusion_penalty is the penalty for label 'OCCLUDED'
+# I_threshold, lambda1, lambda2 describe smoothness penalty:
+# for two close pixels 'p' and 'q' in the left image
+# with labels dp,dq the smoothness penalty is
+#     min{|dq-dq|,interaction_radius}*lambda1,   if   |Is(p)-Is(q)| < I_threshold
+#     min{|dq-dq|,interaction_radius}*lambda2    otherwise
+# (for color images a maximum is taken over differences
+# between all three components).
+# 'Is' denotes intensity of the left segmentation image.
+#
+# Default values depend on one parameter 'lambda':
+# occlusion_penalty = INFINITY
+# I_threshold       = 5
+# lambda1           = 2*lambda
+# lambda2           = lambda
+#
+# 'lambda', 'lambda1' and 'lambda2' can also be set to fractions (e.g. 1/2)
+#
+# If 'lambda1' and 'lambda2' are all explicitly set
+# then 'lambda' does not affect the energy function
+
+SET lambda            <value>
+SET occlusion_penalty <value>
+SET I_threshold       <value>
+SET lambda1           <value>
+SET lambda2           <value>
+
+
+
+
+###################################################
+################### Algorithms ####################
+###################################################
+
+# Clear disparity maps - mark all pixels in both images as 'OCCLUDED'
+CLEAR
+
+# Swap left and right images
+SWAP_IMAGES
+
+# Convert left disparity map into unique left and right disparity maps
+# If several pixels in the left image are mapped to the same pixel
+# in the right image only one of them is kept
+# (for stereo, the leftmost pixel)
+MAKE_UNIQUE
+
+# Convert left and right disparity maps into unique maps
+# by cross checking: a disparity is kept if it maps back
+# to the same pixel
+CROSS_CHECK
+
+# Assign to occluded pixels in the left image the disparity
+# of the closest non-occluded left neighbor lying on the same scanline
+FILL_OCCLUSIONS
+
+# Correlation algorithm
+CORR
+
+# KZ1 algorithm
+# Computes disparities for every pixel
+# To show occlusions, run CROSS_CHECK after KZ1
+KZ1
+
+# KZ2 algorithm
+# Marks some pixels as 'OCCLUDED'
+# To compute disparities for every pixel, run FILL_OCCLUSIONS after KZ2
+KZ2
+
+# BVZ algorithm
+BVZ
