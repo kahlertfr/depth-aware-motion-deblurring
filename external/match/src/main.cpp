@@ -37,8 +37,8 @@ char * GetWord();
 char * GetWord(bool flag);
 int GetNumber();
 int GetNonnegativeNumber();
-int cmp(char *s1, char *s2);
-void Error(char *msg);
+int cmp(const char *s1, const char *s2);
+void Error(const char *msg);
 void StartTimer();
 void StopTimer();
 
@@ -175,7 +175,7 @@ void GetNonnegativeFraction(int *nominator, int *denominator)
 	if (*nominator < 0 || *denominator < 1) Error("wrong parameter\n");
 }
 
-int cmp(char *s1, char *s2)
+int cmp(const char *s1, const char *s2)
 {
 	char c1, c2;
 
@@ -191,7 +191,7 @@ int cmp(char *s1, char *s2)
 	return 0;
 }
 
-void Error(char *msg)
+void Error(const char *msg)
 {
 	fprintf(stderr, "Error in line %d: %s\n", g_line_num, msg);
 	exit(1);

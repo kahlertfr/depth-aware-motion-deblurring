@@ -152,7 +152,7 @@ int Match::KZ1_ComputeEnergy()
 	#define VALUE1 0
 #endif
 
-void KZ1_error_function(char *msg)
+void KZ1_error_function(const char *msg)
 {
 	fprintf(stderr, "%s\n", msg);
 	exit(1);

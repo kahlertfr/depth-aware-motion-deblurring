@@ -85,7 +85,7 @@ int Match::BVZ_ComputeEnergy()
 	#define VALUE1 0
 #endif
 
-void BVZ_error_function(char *msg)
+void BVZ_error_function(const char *msg)
 {
 	fprintf(stderr, "%s\n", msg);
 	exit(1);

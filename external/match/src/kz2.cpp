@@ -2,6 +2,7 @@
 /* Vladimir Kolmogorov (vnk@cs.cornell.edu), 2001-2003. */
 
 #include <stdio.h>
+#include <stdint.h>  // uintptr_t
 #include "match.h"
 #include "energy.h"
 
@@ -65,7 +66,7 @@ int Match::KZ2_ComputeEnergy()
 #define node_vars_a ptr_im2
 #define VAR_ACTIVE     ((Energy::Var)0)
 #define VAR_NONPRESENT ((Energy::Var)1)
-#define IS_VAR(var) ((unsigned)var>1)
+#define IS_VAR(var) ((uintptr_t)var>1)
 
 #define KZ2_ALPHA_SINK
 /*
@@ -91,7 +92,7 @@ int Match::KZ2_ComputeEnergy()
 	#define VALUE1 0
 #endif
 
-void KZ2_error_function(char *msg)
+void KZ2_error_function(const char *msg)
 {
 	fprintf(stderr, "%s\n", msg);
 	exit(1);

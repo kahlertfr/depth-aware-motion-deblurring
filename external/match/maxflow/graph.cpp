@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include "graph.h"
 
-Graph::Graph(void (*err_function)(char *))
+Graph::Graph(void (*err_function)(const char *))
 {
 	error_function = err_function;
 	node_block = new Block<node>(NODE_BLOCK_SIZE, error_function);
