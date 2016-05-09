@@ -18,10 +18,9 @@ namespace deblur {
         // important: do not flipp the kernel
         // fill kernel with zeros to get to blurred image size
         Mat pkernel;
-
         copyMakeBorder(kernel, pkernel,
                        0, src.rows - kernel.rows,
-                       0,  src.cols - kernel.cols,
+                       0, src.cols - kernel.cols,
                        BORDER_CONSTANT, Scalar::all(0));
 
         // sobel gradients for x and y direction
@@ -83,8 +82,7 @@ namespace deblur {
         int x = deconv.cols;
         int y = deconv.rows;
         int hs1 = (kernel.cols - 1) / 2;
-        // difference to levin code: added division by 2 because otherwise the slice is wrong
-        int hs2 = (kernel.rows - 1) / 4;
+        int hs2 = (kernel.rows - 1) / 2;
 
         // create rects per image slice
         //  __________
@@ -92,8 +90,13 @@ namespace deblur {
         // |   0  | 1 |
         // |      |   |
         // |------|---|
-        // |   2  | 3 |
+        // |   2  | 3 | <- size of kernel
         // |______|___|
+        // 
+        // After cropping some image information from the top will be at the bottom.
+        // This is due to the repeated pattern of the image in the frequency domain
+        // so the region of the half filter size at the bottom and right edge have many
+        // visual artifacts.
         // 
         // rect gets the coordinates of the top-left corner, width and height
         Mat q0(deconv, Rect(0, 0, x - hs1, y - hs2));      // Top-Left

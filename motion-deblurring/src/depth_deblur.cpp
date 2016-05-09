@@ -179,7 +179,13 @@ namespace deblur {
             // // 1. save the tappered region images for the exe of two-phase kernel estimation
             // // get an image of the top-level region
             // Mat region, mask;
+            // regionTree.getRegionImage(id, region, mask, RIGHT);
+            // string name = "mask-right" + to_string(i) + ".jpg";
+            // imwrite(name, mask);
+
             // regionTree.getRegionImage(id, region, mask, LEFT);
+            // name = "mask-left" + to_string(i) + ".jpg";
+            // imwrite(name, mask);
             
             // // edge tapering to remove high frequencies at the border of the region
             // Mat regionUchar, taperedRegion;
@@ -187,7 +193,7 @@ namespace deblur {
             // edgeTaper(regionUchar, taperedRegion, mask, grayImages[LEFT]);
 
             // // use this images for example for the .exe of the two-phase kernel estimation
-            // string name = "tapered" + to_string(i) + ".jpg";
+            // name = "tapered" + to_string(i) + ".jpg";
             // imwrite(name, taperedRegion);
             
             // 2. load kernel images generated with the exe for toplevels
@@ -220,10 +226,14 @@ namespace deblur {
         gradsRight[0].copyTo(regionGradsRight[0], masks[RIGHT]);
         gradsRight[1].copyTo(regionGradsRight[1], masks[RIGHT]);
 
-        // showGradients("region grads left", regionGradsLeft[0]);
-        // showGradients("region grads right", regionGradsRight[0]);
-        // showGradients("salient left", salientEdgesLeft[0]);
-        // showGradients("salient right", salientEdgesRight[0]);
+        showGradients("region-grads-left-x", regionGradsLeft[0], true);
+        showGradients("region-grads-right-x", regionGradsRight[0], true);
+        showGradients("salient-left-x", salientEdgesLeft[0], true);
+        showGradients("salient-right-x", salientEdgesRight[0], true);
+        showGradients("region-grads-left-y", regionGradsLeft[1], true);
+        showGradients("region-grads-right-y", regionGradsRight[1], true);
+        showGradients("salient-left-y", salientEdgesLeft[1], true);
+        showGradients("salient-right-y", salientEdgesRight[1], true);
         // waitKey();
 
         // compute Objective function: E(k) = sum_i( ||∇S_i ⊗ k - ∇B||² + γ||k||² )
@@ -353,8 +363,7 @@ namespace deblur {
         int x = kernel.cols;
         int y = kernel.rows;
         int hs1 = (psfWidth - 1) / 2;
-        // difference to levin code: added division by 2 because otherwise the slice is wrong
-        int hs2 = (psfWidth - 1) / 4;
+        int hs2 = (psfWidth - 1) / 2;
 
         // create rects per image slice
         //  __________
@@ -779,107 +788,95 @@ namespace deblur {
 
 
     void DepthDeblur::midLevelKernelEstimation(int nThreads) {
-        // // // debug --------------------------------------------------------------
-        // Mat src, kernel, dst;
-        // // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // // // src = imread("conv-texture-wall-ausschnitt.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // // src.convertTo(src, CV_32F);
-        // // src /= 255;
+        // // debug --------------------------------------------------------------
+        Mat src, kernel, dst;
+        // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // // src = imread("conv-texture-wall-ausschnitt.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // src.convertTo(src, CV_32F);
+        // src /= 255;
 
-        // kernel = imread("kernel1.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel.convertTo(kernel, CV_32F);
-        // kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
+        kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
+        kernel.convertTo(kernel, CV_32F);
+        kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
 
-        // computeBlurredGradients();
-
-        // // get masks for regions of both views
-        // array<Mat, 2> masks;
-        // masks[LEFT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
-        // masks[RIGHT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
-        
-        // // int range = 150;
-        // // masks[LEFT] = Mat::ones(Size(range,range), CV_8U);
-        // // copyMakeBorder(masks[LEFT], masks[LEFT],
-        // //                0, floatImages[LEFT].rows - range,
-        // //                0,  floatImages[LEFT].cols - range,
-        // //                BORDER_CONSTANT, Scalar::all(0));
-        // // masks[RIGHT] = Mat::ones(Size(range,range), CV_8U);
-        // // copyMakeBorder(masks[RIGHT], masks[RIGHT],
-        // //                0, floatImages[LEFT].rows - range,
-        // //                0,  floatImages[LEFT].cols - range,
-        //                // BORDER_CONSTANT, Scalar::all(0));
-
-
-
-        // Mat parentPSF, psf;
-        // estimateChildPSF(kernel, psf, masks, 0);
-
-        // Mat flipped;
-        // // flip(psf, flipped, -1);
-        // psf.copyTo(flipped);
-
-        // deconvolveFFT(floatImages[LEFT], dst, flipped);
-        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // dst.convertTo(dst, CV_8U, 255);
-        // imwrite("deconv-estimate-fft.png", dst);
-
-        // // deconvolveIRLS(floatImages[LEFT], dst, psf);
-        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // // dst.convertTo(dst, CV_8U, 255);
-        // // imwrite("deconv-estimate-irls.png", dst);
-        
-        // // deconvolveFFT(floatImages[LEFT], dst, kernel);
-        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // // dst.convertTo(dst, CV_8U, 255);
-        // // imwrite("deconv-original-fft.png", dst);
-
-        // deconvolveIRLS(floatImages[LEFT], dst, kernel);
-        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // dst.convertTo(dst, CV_8U, 255);
-        // imwrite("deconv-original-irls.png", dst);
-
-        // // // end debug ----------------------------------------------------------------
-
-
-
-        visitedLeafs = 0;
-
-        // we can compute the gradients for each blurred image only ones
         computeBlurredGradients();
 
-        // go through all nodes of the region tree in a top-down manner
-        // 
-        // the current node is responsible for the PSF computation of its children
-        // because later the information from the parent and the children are needed for 
-        // PSF candidate selection
-        // 
-        // for storing the future "current nodes" a queue is used (FIFO) this fits the
-        // levelwise computation of the paper
+        // get masks for regions of both views
+        array<Mat, 2> masks;
+        // masks[LEFT] = imread("mask-left0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // masks[LEFT] /= 255;
+        // masks[RIGHT] = imread("mask-right0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+        // masks[RIGHT] /= 255;
+
+        masks[LEFT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
+        masks[RIGHT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
         
-        // init queue with the top-level node IDs
-        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
-            remainingNodes.push(regionTree.topLevelNodeIds[i]);
-        }
 
-        // create worker threads
-        int nrOfWorker = nThreads - 1;
-        thread threads[nrOfWorker];
+        Mat parentPSF, psf;
+        estimateChildPSF(kernel, psf, masks, 0);
 
-        for (int id = 0; id < nrOfWorker; id++) {
-            // each worker gets the deconvolveRegion method with the regionStack
-            threads[id] = thread(&DepthDeblur::midLevelKernelEstimationNode, this);
-        }
+        deconvolveFFT(floatImages[LEFT], dst, psf);
+        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        dst.convertTo(dst, CV_8U, 255);
+        imwrite("deconv-estimate-fft.png", dst);
 
-        midLevelKernelEstimationNode();
+        // deconvolveIRLS(floatImages[LEFT], dst, psf, masks[LEFT]);
+        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        // dst.convertTo(dst, CV_8U, 255);
+        // imwrite("deconv-estimate-irls.png", dst);
+        
+        // deconvolveFFT(floatImages[LEFT], dst, kernel);
+        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        // dst.convertTo(dst, CV_8U, 255);
+        // imwrite("deconv-original-fft.png", dst);
 
-        // wait for all threads to finish
-        for (int id = 0; id < nrOfWorker; id++) {
-            threads[id].join();
-        }
+        deconvolveIRLS(floatImages[LEFT], dst, kernel, masks[LEFT]);
+        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        dst.convertTo(dst, CV_8U, 255);
+        imwrite("deconv-original-irls.png", dst);
+
+        // // end debug ----------------------------------------------------------------
+
+
+
+        // visitedLeafs = 0;
+
+        // // we can compute the gradients for each blurred image only ones
+        // computeBlurredGradients();
+
+        // // go through all nodes of the region tree in a top-down manner
+        // // 
+        // // the current node is responsible for the PSF computation of its children
+        // // because later the information from the parent and the children are needed for 
+        // // PSF candidate selection
+        // // 
+        // // for storing the future "current nodes" a queue is used (FIFO) this fits the
+        // // levelwise computation of the paper
+        
+        // // init queue with the top-level node IDs
+        // for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+        //     remainingNodes.push(regionTree.topLevelNodeIds[i]);
+        // }
+
+        // // create worker threads
+        // int nrOfWorker = nThreads - 1;
+        // thread threads[nrOfWorker];
+
+        // for (int id = 0; id < nrOfWorker; id++) {
+        //     // each worker gets the deconvolveRegion method with the regionStack
+        //     threads[id] = thread(&DepthDeblur::midLevelKernelEstimationNode, this);
+        // }
+
+        // midLevelKernelEstimationNode();
+
+        // // wait for all threads to finish
+        // for (int id = 0; id < nrOfWorker; id++) {
+        //     threads[id].join();
+        // }
     }
 
 
