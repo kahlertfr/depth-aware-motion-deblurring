@@ -5,7 +5,6 @@
 #include <time.h>
 #include <cstring>  // std::memcpy
 #include <cassert>  // assert
-#include <iostream>
 #include "match.h"
 
 /************************************************************/
@@ -165,8 +164,8 @@ Match::~Match()
 
 	if (im_left) imFree(im_left);
 	if (im_right) imFree(im_right);
-	if (im_color_left) imFree(im_color_left);
-	if (im_color_right) imFree(im_color_right);
+	 if (im_color_left) imFree(im_color_left);
+	 if (im_color_right) imFree(im_color_right);
 
 	if (im_left_min) imFree(im_left_min);
 	if (im_left_max) imFree(im_left_max);
@@ -478,6 +477,7 @@ void Match::SWAP_IMAGES()
 	disp_base = -disp_max;
 	disp_max = -c_tmp;
 
+	// Grayscale images
 	if (im_left)
 	{
 		g_tmp = im_left;
@@ -491,7 +491,12 @@ void Match::SWAP_IMAGES()
 		g_tmp = im_left_max;
 		im_left_max = im_right_max;
 		im_right_max = g_tmp;
+
+		g_tmp = segm_left;
+		segm_left = segm_right;
+		segm_right = g_tmp;
 	}
+	// Color images
 	else
 	{
 		r_tmp = im_color_left;
@@ -505,6 +510,10 @@ void Match::SWAP_IMAGES()
 		r_tmp = im_color_left_max;
 		im_color_left_max = im_color_right_max;
 		im_color_right_max = r_tmp;
+
+		r_tmp = segm_color_left;
+		segm_color_left = segm_color_right;
+		segm_color_right = r_tmp;
 	}
 
 	l_tmp = x_left;
