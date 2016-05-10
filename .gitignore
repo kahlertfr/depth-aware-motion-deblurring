@@ -11,3 +11,5 @@ __pycache__/
 *Makefile
 *cmake_install.cmake
 bin/
+
+results/

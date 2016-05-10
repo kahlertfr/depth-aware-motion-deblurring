@@ -46,9 +46,9 @@ namespace deblur {
             // #ifdef IMWRITE
             //     // save masks
             //     string filename = "mask-left-" + to_string(l) + ".png";
-            //     imwrite(filename, maskLeft);
+            //     imwrite(filename, maskLeft * 255);
             //     filename = "mask-right-" + to_string(l) + ".png";
-            //     imwrite(filename, maskRight);
+            //     imwrite(filename, maskRight * 255);
             // #endif
 
             // store leaf node in tree

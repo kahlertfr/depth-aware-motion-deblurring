@@ -1,9 +1,11 @@
 #include <iostream>                     // cout, cerr, endl
 #include <opencv2/imgproc/imgproc.hpp>  // convert
+
 #include <opencv2/calib3d/calib3d.hpp>  // sgbm
+#include "match.h"                      // match algorithm
 
 #include "disparity_estimation.hpp"
-
+#include "utils.hpp"                    // LEFT RIGHT fillPixel
 
 using namespace cv;
 using namespace std;
@@ -11,20 +13,104 @@ using namespace std;
 
 namespace deblur {
 
-    /**
-     * Fills pixel in a given range with a given uchar.
-     * 
-     * @param image image to work on
-     * @param start starting point
-     * @param end   end point
-     * @param color color for filling
-     */
-    static void fillPixel(Mat &image, const Point start, const Point end, const uchar color) {
-        for (int row = start.y; row <= end.y; row++) {
-            for (int col = start.x; col <= end.x; col++) {
-                image.at<uchar>(row, col) = color;
-            }
+    void disparityFilledMatch(const array<Mat, 2>& images, array<Mat, 2>& dMaps,
+                              int maxDisparity) {
+
+        bool color = (images[LEFT].type() == CV_8UC3);
+
+        Mat left, right;
+
+        if (color) {
+            // OpenCV stores colorimages as BGR so we have to convert them
+            cvtColor(images[LEFT], left, COLOR_BGR2RGB);
+            cvtColor(images[RIGHT], right, COLOR_BGR2RGB);
+        } else {
+            left = images[LEFT];
+            right = images[RIGHT];
         }
+
+        // create new Match object
+        Match match(left.data, right.data, Coord(left.cols, left.rows), color);
+
+        // parameters
+        int lambda = 20;
+
+        // disparity range
+        Coord disp_base(-1 * maxDisparity, 0); // min disparity
+        Coord disp_max(0, 0);                  // max disparity
+
+        Match::Parameters kz2_params = {
+            true,                  // subpixel
+            Match::Parameters::L2, // data_cost
+            1,                     // denominator
+
+            // Smoothness
+            // ----------
+            5,          // I_threshold, default: 5
+            15,         // I_threshold2, default: 8
+            20,         // interaction_radius
+            3 * lambda, // lambda1
+            lambda,     // lambda2
+            5 * lambda, // K
+
+            MATCH_INFINITY,  // occlusion_penalty
+            1,               // iter_max
+            false,           // randomize_every_iteration
+            25               // w_size
+        };
+
+        match.SetParameters(&kz2_params);
+        match.SetDispRange(disp_base, disp_max);
+
+        // using the "Computing Visual Correspondence with Occlusions using Graph Cuts" algorithm from
+        // Vladimir Kolmogorov and Ramin Zabih
+        match.KZ2();
+
+        // doing cross-checking afterwards
+        match.CROSS_CHECK();
+
+        // fill occlusions
+        match.FILL_OCCLUSIONS();
+
+        // transfer the results to OpenCV (left-rigth)
+        Mat disparity_left(left.size(), CV_8U);
+        match.SaveXLeft(disparity_left.data, false);
+        disparity_left.copyTo(dMaps[LEFT]);
+
+        // to get the results for right-left disparity
+        // we have to swap the images
+        match.SWAP_IMAGES();
+        // save the image with inverted colors
+        Mat disparity_right(right.size(), CV_8U);
+        match.SaveXLeft(disparity_right.data, true);
+        disparity_right.copyTo(dMaps[RIGHT]);
+    }
+
+
+    void disparityFilledSGBM(const array<Mat, 2>& images, array<Mat, 2>& dMaps) {
+        // disparity map for left-right
+        semiGlobalBlockMatching(images[LEFT], images[RIGHT], dMaps[LEFT]);
+
+        // disparity map from right to left
+        // therfore flip the images because otherwise SGBM will not work
+        Mat smallLeftFlipped, smallRightFlipped;
+        flip(images[LEFT], smallLeftFlipped, 1);
+        flip(images[RIGHT], smallRightFlipped, 1);
+        smallLeftFlipped.copyTo(images[LEFT]);
+        smallRightFlipped.copyTo(images[RIGHT]);
+
+        // disparity map for left-right
+        semiGlobalBlockMatching(images[RIGHT], images[LEFT], dMaps[RIGHT]);
+
+        // flip disparity map back
+        Mat disparityFlipped;
+        flip(dMaps[RIGHT], disparityFlipped, 1);
+        disparityFlipped.copyTo(dMaps[RIGHT]);
+
+
+        // fill occlusion regions (= value < 10)
+        fillOcclusionRegions(dMaps[LEFT], 10);
+        fillOcclusionRegions(dMaps[RIGHT], 10);
     }
 
 

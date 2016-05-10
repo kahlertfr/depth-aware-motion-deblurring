@@ -18,6 +18,31 @@
 namespace deblur {
 
     /**
+     * Enumeration for conviniend call of different disparity algorithms
+     */
+    enum disparityAlgo { SGBM, MATCH };
+
+    /**
+     * Disparity estimation algorithm using "Computing Visual Correspondence with Occlusions
+     * using Graph Cuts" algorithm from Vladimir Kolmogorov and Ramin Zabih
+     * 
+     * @param images       left and right image gray value
+     * @param dMaps        resulting maps for left-right and right-left disparity
+     * @param maxDisparity estimated maximum disparity
+     */
+    void disparityFilledMatch(const std::array<cv::Mat, 2>& images, std::array<cv::Mat, 2>& dMaps,
+                              int maxDisparity);
+
+    /**
+     * Disparity estimation using the SGBM algorithm and filling the occlusions 
+     * with the smallest disparity value of the neighborhood (on the line)
+     * 
+     * @param images left and right image gray value
+     * @param dMaps  resulting maps for left-right and right-left disparity
+     */
+    void disparityFilledSGBM(const std::array<cv::Mat, 2>& images, std::array<cv::Mat, 2>& dMaps);
+
+    /**
      * Fills occlusion regions (where the value is smaller than a given threshold) 
      * with smallest neighborhood disparity (in a row) because just relatively small 
      * disparities can be occluded.
