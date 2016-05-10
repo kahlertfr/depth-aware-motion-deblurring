@@ -74,7 +74,7 @@ SET disp_range <x_min> <y_min> <x_max> <y_max>
 ###################################################
 
 # Maximum number of iterations for KZ and BVZ algorithms
-# Default is INFINITY
+# Default is MATCH_INFINITY
 SET iter_max <value>
 
 # Randomization method for KZ and BVZ algorithms
@@ -191,7 +191,7 @@ SET K             <value>
 # 'Is' denotes intensity of the left segmentation image.
 #
 # Default values depend on one parameter 'lambda':
-# occlusion_penalty = INFINITY
+# occlusion_penalty = MATCH_INFINITY
 # I_threshold       = 5
 # lambda1           = 2*lambda
 # lambda2           = lambda

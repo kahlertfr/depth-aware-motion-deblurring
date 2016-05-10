@@ -3,11 +3,80 @@
 
 #include <stdio.h>
 #include <time.h>
+#include <cstring>  // std::memcpy
+#include <cassert>  // assert
+#include <iostream>
 #include "match.h"
 
 /************************************************************/
 /************************************************************/
 /************************************************************/
+
+Match::Match(const unsigned char *left, const char unsigned *right, const Coord size, bool color) :
+	im_size(size),
+	disp_base(0, 0),
+	disp_max (0, 0),
+	disp_size(1, 1),
+	unique_flag(true),
+	im_left_min(nullptr),
+	im_left_max(nullptr),
+	im_right_min(nullptr),
+	im_right_max(nullptr),
+	im_color_left_min(nullptr),
+	im_color_right_min(nullptr),
+	im_color_left_max(nullptr),
+	im_color_right_max(nullptr)
+{
+	size_t channel_size = size.x * size.y * sizeof(unsigned char);
+
+	if (!color) {
+		im_color_left = im_color_right = nullptr;
+
+		im_left  = (GrayImage) imNew(IMAGE_GRAY, size.x, size.y);
+		im_right = (GrayImage) imNew(IMAGE_GRAY, size.x, size.y);
+
+		std::memcpy(im_left->data, left, channel_size);
+		std::memcpy(im_right->data, right, channel_size);
+	} else {
+		im_left = im_right = nullptr;
+
+		im_color_left  = (RGBImage) imNew(IMAGE_RGB, size.x, size.y);
+		im_color_right = (RGBImage) imNew(IMAGE_RGB, size.x, size.y);
+
+		std::memcpy(im_color_left->data, left, 3 * channel_size);
+		std::memcpy(im_color_right->data, right, 3 * channel_size);
+	}
+
+	x_left  = (LongImage) imNew(IMAGE_LONG, im_size.x, im_size.y);
+	y_left  = (LongImage) imNew(IMAGE_LONG, im_size.x, im_size.y);
+	x_right = (LongImage) imNew(IMAGE_LONG, im_size.x, im_size.y);
+	y_right = (LongImage) imNew(IMAGE_LONG, im_size.x, im_size.y);
+
+	if (!x_left || !y_left || !x_right || !y_right) {
+		fprintf(stderr, "Not enough memory!\n");
+		exit(1);
+	}
+
+	Coord p;
+	for (p.y=0; p.y<im_size.y; p.y++) {
+		for (p.x=0; p.x<im_size.x; p.x++) {
+			IMREF(x_left, p) = IMREF(x_right, p) = OCCLUDED;
+		}
+	}
+
+	ptr_im1 = (PtrImage) imNew(IMAGE_PTR, im_size.x, im_size.y);
+	ptr_im2 = (PtrImage) imNew(IMAGE_PTR, im_size.x, im_size.y);
+
+	if (!ptr_im1 || !ptr_im2) {
+		fprintf(stderr, "Not enough memory!\n");
+		exit(1);
+	}
+
+	segm_left = im_left;
+	segm_right = im_right;
+	segm_color_left = im_color_left;
+	segm_color_right = im_color_right;
+}
 
 Match::Match(char *name_left, char *name_right, bool color)
 {
@@ -185,6 +254,27 @@ void Match::SaveXLeft(char *file_name, bool flag)
 	imFree(im);
 }
 
+void Match::SaveXLeft(unsigned char *dst, bool inverse)
+{
+	assert(dst != nullptr && "Destination must not be a nullptr");
+
+	Coord p;
+
+	for (p.y=0; p.y<im_size.y; p.y++)
+	{
+		for (p.x = 0; p.x < im_size.x; p.x++)
+		{
+			long d = IMREF(x_left, p), c;
+			if (d == OCCLUDED) dst[p.y * im_size.x + p.x] = (unsigned char) 255;
+			else {
+				if (inverse) c = d - disp_base.x;
+				else c = disp_max.x - d;
+				dst[p.y * im_size.x + p.x] = (unsigned char) c;
+			}
+		}
+	}
+}
+
 void Match::SaveYLeft(char *file_name, bool flag)
 {
 	Coord p;
@@ -233,6 +323,27 @@ void Match::SaveScaledXLeft(char *file_name, bool flag)
 
 	imSave(im, file_name);
 	imFree(im);
+}
+
+void Match::SaveScaledXLeft(unsigned char *dst, bool inverse)
+{
+	Coord p;
+
+	for (p.y=0; p.y<im_size.y; p.y++)
+	{
+		for (p.x=0; p.x<im_size.x; p.x++)
+		{
+			long d = IMREF(x_left, p), c;
+			if (d==OCCLUDED) {
+				dst[p.y * im_size.x + p.x] = OCCLUDED;
+			} else {
+				if (disp_size.x == 0) c = 255;
+				else if (inverse)     c = 255 - (255-64)*(disp_max.x - d)/disp_size.x;
+				else                  c = 255 - (255-64)*(d - disp_base.x)/disp_size.x;
+				dst[p.y * im_size.x + p.x] = (unsigned char) c;
+			}
+		}
+	}
 }
 
 void Match::SaveScaledYLeft(char *file_name, bool flag)
@@ -487,6 +598,7 @@ void Match::FILL_OCCLUSIONS()
 
 	printf("FILL_OCCLUSIONS\n\n");
 
+	// Left image
 	for (p.y=0; p.y<im_size.y; p.y++)
 	{
 		for (p.x=0; p.x<im_size.x; p.x++)
@@ -512,6 +624,36 @@ void Match::FILL_OCCLUSIONS()
 			{
 				d.x = IMREF(x_left, p);
 				d.y = IMREF(y_left, p);
+			}
+		}
+	}
+
+	// Right image
+	for (p.y=im_size.y-1; p.y>=0; p.y--)
+	{
+		for (p.x=im_size.x-1; p.x>=0; p.x--)
+		{
+			d.x = IMREF(x_right, p);
+			if (d.x != OCCLUDED) { d.y = IMREF(y_right, p); break; }
+		}
+		if (p.x == im_size.x) continue;
+		for (q.x=im_size.x-1, q.y=p.y; q.x>p.x; q.x--)
+		{
+			IMREF(x_right, q) = d.x;
+			IMREF(y_right, q) = d.y;
+		}
+
+		for (; p.x>=0; p.x--)
+		{
+			if (IMREF(x_right, p) == OCCLUDED)
+			{
+				IMREF(x_right, p) = d.x;
+				IMREF(y_right, p) = d.y;
+			}
+			else
+			{
+				d.x = IMREF(x_right, p);
+				d.y = IMREF(y_right, p);
 			}
 		}
 	}
@@ -681,7 +823,7 @@ void Match::Run_KZ_BVZ(Method method)
 	srand(seed);
 
 	label_num = disp_size.x * disp_size.y;
-	if (method==METHOD_BVZ && params.occlusion_penalty<INFINITY) label_num ++;
+	if (method==METHOD_BVZ && params.occlusion_penalty<MATCH_INFINITY) label_num ++;
 	permutation = new int[label_num];
 	buf = new bool[label_num];
 	if (!permutation || !buf) { fprintf(stderr, "Not enough memory!\n"); exit(1); }

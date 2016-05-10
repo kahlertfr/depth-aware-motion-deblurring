@@ -40,11 +40,19 @@ const struct Coord NEIGHBORS[] = { Coord(1, 0), Coord(0, -1) };
 class Match
 {
 public:
+	Match(const unsigned char *left, const char unsigned *right, const Coord size, bool color = false);
 	Match(char *name_left, char *name_right, bool color = false);
 	~Match();
 
 	/* load segmentation images */
 	void LoadSegm(char *name_left, char *name_right, bool color);
+	/* Low-level copy of the underlaying disparity map as unsigned char array */
+	void SaveXLeft(unsigned char *dst, bool inverse); /* if flag is TRUE then larger */
+	/*
+	 * Save scaled disparity map as grayscaled image. If inverse is set to true, the
+	 * disparity values will be inverted
+	 */
+	void SaveScaledXLeft(unsigned char *dst, bool inverse);
 	/* save disparity maps as .pgm images */
 	void SaveXLeft(char *file_name, bool flag); /* if flag is TRUE then larger */
 	void SaveYLeft(char *file_name, bool flag); /* disparities are brighter    */
@@ -89,7 +97,7 @@ public:
 		/********** penalty for an assignment being inactive for KZ1, KZ2 **********/
 		int				K;
 
-		/********** occlusion penalty for BVZ (usually INFINITY) **********/
+		/********** occlusion penalty for BVZ (usually MATCH_INFINITY) **********/
 		int				occlusion_penalty;
 
 		/********** iteration parameters for KZ1, KZ2, BVZ **********/
@@ -225,6 +233,6 @@ private:
 	void		BVZ_Expand(Coord a);			/* computes the minimum a-expansion configuration */
 };
 
-#define INFINITY 10000		/* infinite capacity */
+#define MATCH_INFINITY 10000		/* infinite capacity */
 
 #endif

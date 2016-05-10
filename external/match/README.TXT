@@ -107,7 +107,7 @@ should be set differently for different images. An automatic method
 for choosing this parameter for algorithms KZ1 and KZ2 is also supported.
 It is based on some heuristic for estimating noise in the images.
 
-While the default number of iterations is INFINITY (i.e., algorithms
+While the default number of iterations is MATCH_INFINITY (i.e., algorithms
 run until convergence), it is reasonable to set it to 2 or 3;
 results after the first two iterations are very close to final
 results. 
@@ -188,7 +188,7 @@ Other parameters are described in the file 'match.txt'.
 
 BVZ method implemented here allows for pixels to have the special
 label 'OCCLUDED'. There is a fixed penalty for having this label.
-If this penalty is INFINITY then the algorithm is equivalent
+If this penalty is MATCH_INFINITY then the algorithm is equivalent
 to the method described in the original paper.
 
 A graph construction also differs from the original publication.

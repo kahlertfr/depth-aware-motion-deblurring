@@ -134,7 +134,7 @@ int GetNumber()
 	int n;
 
 	ptr = GetWord(true);
-	if (!cmp(ptr, "INFINITY")) return INFINITY;
+	if (!cmp(ptr, "MATCH_INFINITY")) return MATCH_INFINITY;
 	if (sscanf(ptr, "%d", &n) != 1) Error("wrong parameter\n");
 	return n;
 }
@@ -144,7 +144,7 @@ void GetFraction(int *nominator, int *denominator)
 	char *ptr;
 
 	ptr = GetWord(true);
-	if (!cmp(ptr, "INFINITY")) { *nominator = INFINITY; *denominator = 1; return; }
+	if (!cmp(ptr, "MATCH_INFINITY")) { *nominator = MATCH_INFINITY; *denominator = 1; return; }
 	if (!cmp(ptr, "AUTO")) { *nominator = -1; *denominator = 1; return; }
 	if (sscanf(ptr, "%d/%d", nominator, denominator) != 2)
 	{
@@ -166,7 +166,7 @@ void GetNonnegativeFraction(int *nominator, int *denominator)
 	char *ptr;
 
 	ptr = GetWord(true);
-	if (!cmp(ptr, "INFINITY")) { *nominator = INFINITY; *denominator = 1; return; }
+	if (!cmp(ptr, "MATCH_INFINITY")) { *nominator = MATCH_INFINITY; *denominator = 1; return; }
 	if (sscanf(ptr, "%d/%d", nominator, denominator) != 2)
 	{
 		if (sscanf(ptr, "%d", nominator) != 1) Error("wrong parameter\n");
@@ -255,8 +255,8 @@ int main(int argc, char *argv[])
 		true, Match::Parameters::L2, 1, /* subpixel, data_cost, denominator */
 		5, 8, 1, -1, -1,       /* I_threshold, I_threshold2, interaction_radius, lambda1, lambda2 */
 		-1,                 /* K */
-		INFINITY,           /* occlusion_penalty */
-		INFINITY, false,    /* iter_max, randomize_every_iteration */
+		MATCH_INFINITY,           /* occlusion_penalty */
+		MATCH_INFINITY, false,    /* iter_max, randomize_every_iteration */
 		5                   /* w_size */
 	};
 	int lambda = -1, denom = 1;

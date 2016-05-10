@@ -190,7 +190,7 @@ void Match::KZ2_Expand(Coord a)
 
 		/* adding hard constraints in the left image */
 		if (IS_VAR(var_0) && var_a!=VAR_NONPRESENT)
-			e -> ADD_TERM2(var_0, var_a, 0, INFINITY, 0, 0);
+			e -> ADD_TERM2(var_0, var_a, 0, MATCH_INFINITY, 0, 0);
 
 		/* adding hard constraints in the right image */
 		d = Coord(IMREF(x_right, p), IMREF(y_right, p));
@@ -203,7 +203,7 @@ void Match::KZ2_Expand(Coord a)
 				if (pa>=Coord(0,0) && pa<im_size)
 				{
 					var_a = (Energy::Var) IMREF(node_vars_a, pa);
-					e -> ADD_TERM2(var_0, var_a, 0, INFINITY, 0, 0);
+					e -> ADD_TERM2(var_0, var_a, 0, MATCH_INFINITY, 0, 0);
 				}
 			}
 		}

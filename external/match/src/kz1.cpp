@@ -204,12 +204,12 @@ void Match::KZ1_Expand(Coord a)
 				dq = Coord(IMREF(x_right, q), IMREF(y_right, q));
 				if (d == -dq)
 				{
-					delta = (is_blocked(a, d)) ? INFINITY : 0;
+					delta = (is_blocked(a, d)) ? MATCH_INFINITY : 0;
 					e -> ADD_TERM2(var, qvar, KZ1_data_penalty(p, q), delta, delta, 0);
 				}
 				else if (is_blocked(a, d))
 				{
-					e -> ADD_TERM2(var, qvar, 0, INFINITY, 0, 0);
+					e -> ADD_TERM2(var, qvar, 0, MATCH_INFINITY, 0, 0);
 				}
 			}
 		}
@@ -220,8 +220,8 @@ void Match::KZ1_Expand(Coord a)
 			qvar = (Energy::Var) IMREF(node_vars_right, q);
 			dq = Coord(IMREF(x_right, q), IMREF(y_right, q));
 
-			E0a = (is_blocked(d, a)) ? INFINITY : 0;
-			Ea0 = (is_blocked(-dq, a)) ? INFINITY : 0;
+			E0a = (is_blocked(d, a)) ? MATCH_INFINITY : 0;
+			Ea0 = (is_blocked(-dq, a)) ? MATCH_INFINITY : 0;
 			Eaa = KZ1_data_penalty(p, q);
 
 			if (var != VAR_ACTIVE)
@@ -300,7 +300,7 @@ void Match::KZ1_Expand(Coord a)
 			{
 				if (d.x != -IMREF(x_left, q) || d.y != -IMREF(y_left, q))
 					e -> ADD_TERM2(var, (Energy::Var) IMREF(node_vars_left, q),
-					               0, INFINITY, 0, 0);
+					               0, MATCH_INFINITY, 0, 0);
 			}
 		}
 	}
