@@ -4,11 +4,26 @@ My study thesis (Belegarbeit) in computer vision based on the paper ["Depth-Awar
 
 They use spatially-varying point spread functions to deblur the image depending on the depth layer. The results can be found here: [website][Xu-website].
 
+**conclusion:** It wasn't possible to reconstruct the results from the paper. :( The estimated PSFs are too blurry. The second pass isn't possible because the disparity map ins't refined but downgraded.
+
+
+## Structure of the code
+
+**motion-deblurring** contains the depth-aware motion deblurring algorithm together with the a disparity estimation, region tree and edge map implementation. The top-level PSF estimation isn't working (see used two-phase kernel estimation) so there is a work-around. And the mid-level PSF estimation produces very blurry kernel.
+
+**two-phase-kernel** contains the first phase of the two phase kernel estimation. This algorithm is used for the top-level PSF estimation. Due to errors a work-around with sample top-level kernel is used. So this code isn't finished yet.
+
+**utils** contains useful matlab conversion like the deconvolution with FFT and the spatial deconvolution from [Levin][Levin] and an implementation of the coherence shock filter from Weickert.
+
+**synthetic-image** can be used to blur an image with a kernel
+
+**external** contains the source code for the match disparity algorithm from Kolmogorov which is slightly changed to fit my needs to work with OpenCV (the image data can be copied directly from OpenCV to the match algorithm).
+
+
 
 ## Building
 
-The project structure is modular. It contains the depth-aware motion deblurring algorithm and the two-phase kernel estimation algorithm which can be used independently. You can build all components from the toplevel following the next steps.
-
+You can build all components from the toplevel following the next steps.
 
 ### Requirements
 
@@ -43,7 +58,8 @@ This is the main algorithm. Some tasks can be done in parallel so the number of 
 make motion-deblurring
 
 # Executable can be found in build/bin
-bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--threads <n>] [--max-top-nodes <n>] [--help]
+# the default values can be used together with the mouse images
+bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--threads <n>] [--max-top-nodes <n>] [--max-disparity <n>] [--help]
 ```
 
 #### two-phase-kernel  !! deferred !!
@@ -57,7 +73,7 @@ make two-phase-kernel
 bin/two-phase-kernel../images/mouse-left.jpg
 ```
 
-Work-around: use the sample top-level kernels - place them in the folder where you starts the algorithm (they will be loaded automatically).
+**Work-around**: use the sample top-level kernels - place them in the folder where you starts the algorithm (they will be loaded automatically).
 
 
 ## Literature on Motion Deblurring
@@ -124,6 +140,7 @@ Work-around: use the sample top-level kernels - place them in the folder where y
 [Whyte10]: http://www.di.ens.fr/willow/pdfs/cvpr10d.pdf
 [Xu10]: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.170.6990&rep=rep1&type=pdf
 [Xu12]: http://www.cse.cuhk.edu.hk/leojia/papers/depth_deblur_iccp12.pdf
+[Levin]: http://groups.csail.mit.edu/graphics/CodedAperture/
 
 [Xu-website]: https://appsrv.cse.cuhk.edu.hk/~leojia/projects/nonuniform_deblur/index.html
 
