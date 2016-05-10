@@ -9,3 +9,5 @@ build/
 *Makefile
 *cmake_install.cmake
 bin/
+
+results/
