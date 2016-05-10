@@ -38,8 +38,9 @@ namespace deblur {
          * @param imageLeft  blurred left view
          * @param imageRight blurred right view
          * @param width      approximate PSF width
+         * @param _layers    number of different disparity layers/ regions
          */
-        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width);
+        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width, const int _layers);
 
         /**
          * Disparity estimation of two blurred images

@@ -20,10 +20,9 @@ using namespace std;
 
 namespace deblur {
 
-    DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width)
-                            : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
-                            // FIXME: set correct parameter
-                            , layers(10) //((width < 24) ? ((width % 2 == 0) ? width : width - 1) : 24)  // psf width should be larger - even layer number needed
+    DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width, const int _layers)
+                            : psfWidth((width % 2 == 0) ? width - 1 : width)       // odd psf-width needed
+                            , layers((_layers % 2 == 0) ? _layers : _layers - 1)   // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");

@@ -59,7 +59,7 @@ make motion-deblurring
 
 # Executable can be found in build/bin
 # the default values can be used together with the mouse images
-bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--threads <n>] [--max-top-nodes <n>] [--max-disparity <n>] [--help]
+bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--layers <n>] [--threads <n>] [--max-top-nodes <n>] [--max-disparity <n>] [--help]
 ```
 
 #### two-phase-kernel  !! deferred !!

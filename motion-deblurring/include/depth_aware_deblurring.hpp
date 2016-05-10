@@ -42,12 +42,14 @@ namespace deblur {
      * @param deblurredLeft     result left
      * @param deblurredRight    result right
      * @param psfWidth          approximate PSF width
+     * @param layers            number of regions / disparity layers
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
      * @param maxDisparity      maximum disparity between left and right view
      */
     void runDepthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
                         cv::Mat& deblurredLeft, cv::Mat& deblurredRight, const int threads = 1,
-                        int psfWidth = 35, const int maxTopLevelNodes = 3, const int maxDisparity = 80);
+                        int psfWidth = 35, const int layers = 10, const int maxTopLevelNodes = 3,
+                        const int maxDisparity = 80);
 
     /**
      * Loads images from given filenames and then starts the depth-aware motion 
@@ -56,14 +58,15 @@ namespace deblur {
      * @param filenameLeft        relative or absolute path to blurred left image
      * @param filenameRight       relative or absolute path to blurred right image
      * @param psfWidth            approximate PSF width
+     * @param layers            number of regions / disparity layers
      * @param maxTopLevelNodes    maximum of top level nodes in region tree construction
      * @param maxDisparity        maximum disparity between left and right view
      * @param filenameDeblurLeft  filename for result left
      * @param filenameDeblurRight filename for result right
      */
     void runDepthDeblur(const std::string filenameLeft, const std::string filenameRight,
-                        const int threads = 1, int psfWidth = 35, const int maxTopLevelNodes = 3,
-                        const int maxDisparity = 80, 
+                        const int threads = 1, int psfWidth = 35, const int layers = 10,
+                        const int maxTopLevelNodes = 3, const int maxDisparity = 80, 
                         const std::string filenameDeblurLeft = "deblur-left.png",
                         const std::string filenameDeblurRight = "deblur-right.png");
 
