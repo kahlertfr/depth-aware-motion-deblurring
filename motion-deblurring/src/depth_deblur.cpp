@@ -43,11 +43,12 @@ namespace deblur {
     }
 
 
-    void DepthDeblur::disparityEstimation(const array<Mat, 2>& input) {
+    void DepthDeblur::disparityEstimation(const array<Mat, 2>& input, const disparityAlgo algorithm,
+                                          const int maxDisparity) {
         array<Mat, 2> views;
 
-        // use gray values for disparity estimation
-        if (input[LEFT].type() == CV_8UC3) {
+        // use gray values for disparity estimation for SGBM
+        if (algorithm == SGBM && input[LEFT].type() == CV_8UC3) {
             cvtColor(input[LEFT], views[LEFT], CV_BGR2GRAY);
             cvtColor(input[RIGHT], views[RIGHT], CV_BGR2GRAY);
         } else {
@@ -67,44 +68,26 @@ namespace deblur {
         pyrDown(views[LEFT], small[LEFT], downsampledSize);
         pyrDown(views[RIGHT], small[RIGHT], downsampledSize);
 
+        array<Mat, 2> smallDMaps = { Mat::zeros(small[LEFT].size(), CV_8U),
+                                     Mat::zeros(small[RIGHT].size(), CV_8U)};
 
-        // disparity map with occlusions as black regions
-        // 
-        // here a different algorithm as the paper approach is used
-        // because it is more convenient to use a OpenCV implementation.
-        array<Mat, 2> smallDMaps;
+        imshow("initialized", smallDMaps[LEFT]);
+        waitKey(0);
         
-        // disparity map for left-right
-        semiGlobalBlockMatching(small[LEFT], small[RIGHT], smallDMaps[LEFT]);
+        if (algorithm == SGBM) {
+            // disparity map with occlusions as black regions
+            // here a different algorithm as the paper approach is used
+            // because it is more convenient to use a OpenCV implementation.
+            disparityFilledSGBM(small, smallDMaps);
+        } else if (algorithm == MATCH) {
+            // disparity estimation algorithm from the paper
+            disparityFilledMatch(small, smallDMaps, 10); // FIXME: debug disparity
+        } else {
+            throw runtime_error("Invalid disparity algorithm");
+        }
 
-        // disparity map from right to left
-        // therfore flip the images because otherwise SGBM will not work
-        Mat smallLeftFlipped, smallRightFlipped;
-        flip(small[LEFT], smallLeftFlipped, 1);
-        flip(small[RIGHT], smallRightFlipped, 1);
-        smallLeftFlipped.copyTo(small[LEFT]);
-        smallRightFlipped.copyTo(small[RIGHT]);
-
-        // disparity map for left-right
-        semiGlobalBlockMatching(small[RIGHT], small[LEFT], smallDMaps[RIGHT]);
-
-        // flip disparity map back
-        Mat disparityFlipped;
-        flip(smallDMaps[RIGHT], disparityFlipped, 1);
-        disparityFlipped.copyTo(smallDMaps[RIGHT]);
-
-
-        // fill occlusion regions (= value < 10)
-        fillOcclusionRegions(smallDMaps[LEFT], 10);
-        fillOcclusionRegions(smallDMaps[RIGHT], 10);
-
-        // median filter
-        Mat median;
-        medianBlur(smallDMaps[LEFT], median, 9);
-        median.copyTo(smallDMaps[LEFT]);
-        medianBlur(smallDMaps[RIGHT], median, 9);
-        median.copyTo(smallDMaps[RIGHT]);
-
+        imshow("Disparity filled", smallDMaps[LEFT]);
+        waitKey(0);
 
         // quantize the image
         array<Mat, 2> quantizedDMaps;
