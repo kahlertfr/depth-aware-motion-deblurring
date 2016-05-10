@@ -43,7 +43,7 @@ target_link_libraries(libmdeblur ${OpenCV_LIBS} lib2psfest)
 # separation you can use the library functions independently of the 
 # executable
 add_executable(motion-deblurring src/main.cpp)
-target_link_libraries(motion-deblurring libmdeblur libargtable)
+target_link_libraries(motion-deblurring libmdeblur libargtable libmatch)
 
 add_executable(disparity src/disparity.cpp)
 target_link_libraries(disparity ${OpenCV_LIBS} libmatch)
