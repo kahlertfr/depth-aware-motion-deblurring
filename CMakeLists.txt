@@ -17,12 +17,14 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 include_directories(motion-deblurring/include
                     two-phase-kernel/include
-                    external/
+                    external/argtable
+                    external/match/src
                     utils/
                     synthetic-images/)
 
 add_subdirectory(motion-deblurring/)
 add_subdirectory(two-phase-kernel/)
-add_subdirectory(external/)
+add_subdirectory(external/argtable/)
+add_subdirectory(external/match/)
 add_subdirectory(utils/)
 add_subdirectory(synthetic-images/)

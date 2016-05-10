@@ -5,6 +5,7 @@
 
 #include "depth_deblur.hpp"             // for one step of the depth-aware deblurring
 #include "utils.hpp"                    // convertFloatToUchar
+#include "disparity_estimation.hpp"     // SGBM MATCH
 
 #include "depth_aware_deblurring.hpp"
 
@@ -17,7 +18,8 @@ namespace deblur {
 
     void runDepthDeblur(const Mat& blurredLeft, const Mat& blurredRight,
                         Mat& deblurredLeft, Mat& deblurredRight, const int threads,
-                        int psfWidth, const int maxTopLevelNodes) {
+                        int psfWidth, const int layers, const int maxTopLevelNodes,
+                        const int maxDisparity) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("Images aren't of same size!");
@@ -45,13 +47,14 @@ namespace deblur {
             cout << i + 1 << ". Pass Estimation" << endl;
 
             // this class holds everything needed for one step of the depth-aware deblurring
-            DepthDeblur depthDeblur(blurredLeft, blurredRight, psfWidth);
+            DepthDeblur depthDeblur(blurredLeft, blurredRight, psfWidth, layers);
 
             // initial disparity estimation of blurred images
             // here: left image is matching image and right image is reference image
             //       I_m(x) = I_r(x + d_m(x))
             cout << " Step 1: disparity estimation" << endl;
-            depthDeblur.disparityEstimation(deblurViews);
+            // FIXME: parameter for max disparity
+            depthDeblur.disparityEstimation(deblurViews, MATCH, maxDisparity);
             
 
             cout << " Step 2: region tree reconstruction" << endl;
@@ -86,8 +89,8 @@ namespace deblur {
                 // FIXME: deblur color images
             }
 
-            // FIXME: just for debugging
-            waitKey();
+            // FIXME: skip second pass because the result is of the first is too bad :(
+            i++;
         }
 
         deblurViews[LEFT].copyTo(deblurredLeft);
@@ -98,7 +101,8 @@ namespace deblur {
 
 
     void runDepthDeblur(const string filenameLeft, const string filenameRight,
-                        const int threads, const int psfWidth, const int maxTopLevelNodes,
+                        const int threads, const int psfWidth, const int layers,
+                        const int maxTopLevelNodes, const int maxDisparity,
                         const string filenameResultLeft, const string filenameResultRight) {
 
         // load images
@@ -111,7 +115,8 @@ namespace deblur {
         }
 
         Mat left, right;
-        runDepthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, maxTopLevelNodes);
+        runDepthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, layers, maxTopLevelNodes,
+                       maxDisparity);
 
         imwrite(filenameResultLeft, left);
         imwrite(filenameResultRight, right);

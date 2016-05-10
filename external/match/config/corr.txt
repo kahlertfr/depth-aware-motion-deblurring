@@ -1,0 +1,16 @@
+LOAD_COLOR images/scene_l.ppm images/scene_r.ppm
+SET disp_range -15 0 0 0         # x_min y_min x_max y_max
+
+# Size of correlation window
+SET corr_size 5   # the actual size is (2*corr_size+1)x(2*corr_size+1)
+
+UNSET sub_pixel
+
+# Running the algorithm
+CORR
+
+# Saving results
+SAVE_X corr.pgm
+SAVE_X_SCALED corr.ppm
+
+

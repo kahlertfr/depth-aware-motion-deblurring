@@ -23,6 +23,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "region_tree.hpp"
+#include "disparity_estimation.hpp"
 
 
 namespace deblur {
@@ -37,17 +38,22 @@ namespace deblur {
          * @param imageLeft  blurred left view
          * @param imageRight blurred right view
          * @param width      approximate PSF width
+         * @param _layers    number of different disparity layers/ regions
          */
-        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width);
+        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width, const int _layers);
 
         /**
          * Disparity estimation of two blurred images
          * where occluded regions are filled and where the disparity map is 
          * quantized to l regions.
          * 
-         * @param inverse  determine if the disparity is calculated from right to left
+         * @param views         left and right image
+         * @param disparityAlgo algorithm: SGBM, MATCH
+         * @param maxDisparity  estimated maximum disparity
          */
-        void disparityEstimation(const std::array<cv::Mat, 2>& views);
+        void disparityEstimation(const std::array<cv::Mat, 2>& views,
+                                 const deblur::disparityAlgo disparityAlgo = deblur::MATCH,
+                                 const int maxDisparity = 50);
 
         /**
          * Creates a region tree from disparity maps
