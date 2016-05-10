@@ -23,7 +23,7 @@ using namespace std;
 struct arg_lit *help;
 struct arg_file *left_image, *right_image;
 struct arg_end *end_args;
-struct arg_int *psf_width, *max_toplevel_nodes, *mythreads;
+struct arg_int *psf_width, *max_toplevel_nodes, *mythreads, *max_disparity;
 
 
 /**
@@ -32,15 +32,16 @@ struct arg_int *psf_width, *max_toplevel_nodes, *mythreads;
  */
 static bool parse_commandline_args(int argc, char** argv, 
                                    string &left, string &right, int &nThreads,
-                                   int &psfWidth, int &maxTopLevelNodes,
+                                   int &psfWidth, int &maxTopLevelNodes, int &maxDisparity,
                                    int &exitcode) {
     
     // command line options
     // the global arg_xxx structs are initialized within the argtable
     void *argtable[] = {
         help        = arg_litn("h", "help",                        0, 1, "display this help and exit"),
-        psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 24"),
-        mythreads     = arg_intn ("t", "threads", "<n>",             0, 1, "number of threads. Default: 1"),
+        psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 35"),
+        mythreads   = arg_intn ("t", "threads", "<n>",             0, 1, "number of threads. Default: 1"),
+        max_disparity        = arg_intn ("d", "max-disparity", "<n>", 0, 1, "estimated maximum disparity. Default: 80"),
         max_toplevel_nodes   = arg_intn ("m", "max-top-nodes", "<n>", 0, 1, "max top level nodes in region tree. Default: 3"),
         left_image  = arg_filen(nullptr, nullptr, "<left image>",  1, 1, "left image"),
         right_image = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
@@ -48,9 +49,10 @@ static bool parse_commandline_args(int argc, char** argv,
     };
 
     // default values (they weren't set if there is a value given)
-    psf_width->ival[0] = 24;
+    psf_width->ival[0] = 35;
     mythreads->ival[0] = 1;
     max_toplevel_nodes->ival[0] = 3;
+    max_disparity->ival[0] = 80;
 
     // parsing arguments
     int nerrors = arg_parse(argc,argv,argtable);
@@ -87,6 +89,7 @@ static bool parse_commandline_args(int argc, char** argv,
     right = right_image->filename[0];
     psfWidth = psf_width->ival[0];
     nThreads = mythreads->ival[0];
+    maxDisparity = max_disparity->ival[0];
     maxTopLevelNodes = max_toplevel_nodes->ival[0];
 
     // deallocate each non-null entry in argtable[]
@@ -103,11 +106,12 @@ int main(int argc, char** argv) {
     int psfWidth;
     int nThreads;
     int maxTopLevelNodes;
+    int maxDisparity;
 
     // parse command line arguments
     int exitcode = 0;
     bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, nThreads,
-                                          psfWidth, maxTopLevelNodes, exitcode);
+                                          psfWidth, maxTopLevelNodes, maxDisparity, exitcode);
 
     if (success == false) {
         return exitcode;
@@ -117,13 +121,14 @@ int main(int argc, char** argv) {
     cout << "Start Depth-Aware Motion Deblurring with" << endl;
     cout << "   image left:          " << imageLeft << endl;
     cout << "   image right:         " << imageRight << endl;
+    cout << "   max disparity:       " << maxDisparity << endl;
     cout << "   approx. PSF width:   " << psfWidth << endl;
     cout << "   max top level nodes: " << maxTopLevelNodes << endl;
     cout << "   threads:             " << nThreads << endl;
     cout << endl;
 
     try {
-        deblur::runDepthDeblur(imageLeft, imageRight, nThreads, psfWidth, maxTopLevelNodes);
+        deblur::runDepthDeblur(imageLeft, imageRight, nThreads, psfWidth, maxTopLevelNodes, maxDisparity);
     }
     catch(const exception& e) {
         cerr << "ERROR: " << e.what() << endl;

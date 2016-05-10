@@ -24,10 +24,10 @@ include_directories(include/)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(LIB_SOURCES src/depth_aware_deblurring.cpp
-                src/disparity_estimation.cpp
                 src/region_tree.cpp
                 src/edge_map.cpp
-                src/depth_deblur.cpp)
+                src/depth_deblur.cpp
+                src/disparity_estimation.cpp)
 add_library(libmdeblur SHARED ${LIB_SOURCES} $<TARGET_OBJECTS:utils>)
 set_target_properties(libmdeblur PROPERTIES
                                  OUTPUT_NAME "mdeblur")
@@ -37,16 +37,13 @@ if(IMWRITE)
                                    COMPILE_FLAGS "-DIMWRITE")
 endif()
 
-target_link_libraries(libmdeblur ${OpenCV_LIBS} lib2psfest)
+target_link_libraries(libmdeblur ${OpenCV_LIBS} lib2psfest libmatch)
 
 # The main.cc is just the command line interface for the library. Using this
 # separation you can use the library functions independently of the 
 # executable
 add_executable(motion-deblurring src/main.cpp)
 target_link_libraries(motion-deblurring libmdeblur libargtable libmatch)
-
-add_executable(disparity src/disparity.cpp)
-target_link_libraries(disparity ${OpenCV_LIBS} libmatch)
 
 # ------------
 # Installation

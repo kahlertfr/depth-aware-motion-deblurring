@@ -18,7 +18,7 @@ namespace deblur {
 
     void runDepthDeblur(const Mat& blurredLeft, const Mat& blurredRight,
                         Mat& deblurredLeft, Mat& deblurredRight, const int threads,
-                        int psfWidth, const int maxTopLevelNodes) {
+                        int psfWidth, const int maxTopLevelNodes, const int maxDisparity) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("Images aren't of same size!");
@@ -53,7 +53,6 @@ namespace deblur {
             //       I_m(x) = I_r(x + d_m(x))
             cout << " Step 1: disparity estimation" << endl;
             // FIXME: parameter for max disparity
-            int maxDisparity = 80;
             depthDeblur.disparityEstimation(deblurViews, MATCH, maxDisparity);
             
 
@@ -102,6 +101,7 @@ namespace deblur {
 
     void runDepthDeblur(const string filenameLeft, const string filenameRight,
                         const int threads, const int psfWidth, const int maxTopLevelNodes,
+                        const int maxDisparity,
                         const string filenameResultLeft, const string filenameResultRight) {
 
         // load images
@@ -114,7 +114,8 @@ namespace deblur {
         }
 
         Mat left, right;
-        runDepthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, maxTopLevelNodes);
+        runDepthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, maxTopLevelNodes,
+                       maxDisparity);
 
         imwrite(filenameResultLeft, left);
         imwrite(filenameResultRight, right);
