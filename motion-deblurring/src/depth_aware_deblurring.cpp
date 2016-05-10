@@ -5,6 +5,7 @@
 
 #include "depth_deblur.hpp"             // for one step of the depth-aware deblurring
 #include "utils.hpp"                    // convertFloatToUchar
+#include "disparity_estimation.hpp"     // SGBM MATCH
 
 #include "depth_aware_deblurring.hpp"
 
@@ -51,7 +52,9 @@ namespace deblur {
             // here: left image is matching image and right image is reference image
             //       I_m(x) = I_r(x + d_m(x))
             cout << " Step 1: disparity estimation" << endl;
-            depthDeblur.disparityEstimation(deblurViews);
+            // FIXME: parameter for max disparity
+            int maxDisparity = 80;
+            depthDeblur.disparityEstimation(deblurViews, MATCH, maxDisparity);
             
 
             cout << " Step 2: region tree reconstruction" << endl;
@@ -86,8 +89,8 @@ namespace deblur {
                 // FIXME: deblur color images
             }
 
-            // FIXME: just for debugging
-            waitKey();
+            // FIXME: skip second pass because the result is of the first is too bad :(
+            i++;
         }
 
         deblurViews[LEFT].copyTo(deblurredLeft);

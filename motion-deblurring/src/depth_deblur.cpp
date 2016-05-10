@@ -22,8 +22,8 @@ namespace deblur {
 
     DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)                      // odd psf-width needed
-                            // FIXME: only for debugging
-                            , layers(10)// (width < 10) ? 10 : ((width % 2 == 0) ? width : width - 1))  // psf width should be larger - even layer number needed
+                            // FIXME: set correct parameter
+                            , layers(10) //((width < 24) ? ((width % 2 == 0) ? width : width - 1) : 24)  // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
@@ -70,10 +70,7 @@ namespace deblur {
 
         array<Mat, 2> smallDMaps = { Mat::zeros(small[LEFT].size(), CV_8U),
                                      Mat::zeros(small[RIGHT].size(), CV_8U)};
-
-        imshow("initialized", smallDMaps[LEFT]);
-        waitKey(0);
-        
+      
         if (algorithm == SGBM) {
             // disparity map with occlusions as black regions
             // here a different algorithm as the paper approach is used
@@ -81,13 +78,29 @@ namespace deblur {
             disparityFilledSGBM(small, smallDMaps);
         } else if (algorithm == MATCH) {
             // disparity estimation algorithm from the paper
-            disparityFilledMatch(small, smallDMaps, 10); // FIXME: debug disparity
+            disparityFilledMatch(small, smallDMaps, maxDisparity);
         } else {
             throw runtime_error("Invalid disparity algorithm");
         }
 
-        imshow("Disparity filled", smallDMaps[LEFT]);
-        waitKey(0);
+        // #ifdef IMWRITE
+        //     // convert quantized image to be displayable
+        //     Mat disparityViewableAlgo;
+        //     double min1; double max1;
+        //     minMaxLoc(smallDMaps[LEFT], &min1, &max1);
+        //     cout << "min: " << min1 << " max: " << max1 << endl;
+        //     smallDMaps[LEFT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
+
+        //     string filenameAlgo = "dmap-algo-left.png";
+        //     imwrite(filenameAlgo, disparityViewableAlgo);
+        // #endif
+
+        // median filter to remove small outliers from disparity map
+        Mat median;
+        medianBlur(smallDMaps[LEFT], median, 9);
+        median.copyTo(smallDMaps[LEFT]);
+        medianBlur(smallDMaps[RIGHT], median, 9);
+        median.copyTo(smallDMaps[RIGHT]);
 
         // quantize the image
         array<Mat, 2> quantizedDMaps;
@@ -175,16 +188,17 @@ namespace deblur {
             // Mat region, mask;
             // regionTree.getRegionImage(id, region, mask, RIGHT);
             // string name = "mask-right" + to_string(i) + ".jpg";
-            // imwrite(name, mask);
+            // imwrite(name, mask * 255);
 
-            // regionTree.getRegionImage(id, region, mask, LEFT);
+            // Mat regionLeft, maskLeft;
+            // regionTree.getRegionImage(id, regionLeft, maskLeft, LEFT);
             // name = "mask-left" + to_string(i) + ".jpg";
-            // imwrite(name, mask);
+            // imwrite(name, maskLeft * 255);
             
             // // edge tapering to remove high frequencies at the border of the region
             // Mat regionUchar, taperedRegion;
-            // region.convertTo(regionUchar, CV_8U);
-            // edgeTaper(regionUchar, taperedRegion, mask, grayImages[LEFT]);
+            // regionLeft.convertTo(regionUchar, CV_8U);
+            // edgeTaper(regionUchar, taperedRegion, maskLeft, grayImages[LEFT]);
 
             // // use this images for example for the .exe of the two-phase kernel estimation
             // name = "tapered" + to_string(i) + ".jpg";
@@ -206,6 +220,14 @@ namespace deblur {
 
             // save the psf
             kernelImage.copyTo(regionTree[id].psf);
+
+            #ifdef IMWRITE
+                Mat region, mask, regionUchar;
+                regionTree.getRegionImage(id, region, mask, LEFT);
+                region.convertTo(regionUchar, CV_8U);
+                string name = "top-" + to_string(i) + "-left.jpg";
+                imwrite(name, regionUchar);
+            #endif
         }
     }
 

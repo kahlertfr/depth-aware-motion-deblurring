@@ -46,17 +46,17 @@ namespace deblur {
 
             // Smoothness
             // ----------
-            5,          // I_threshold
-            8,          // I_threshold2
+            5,          // I_threshold, default: 5
+            15,         // I_threshold2, default: 8
             20,         // interaction_radius
             3 * lambda, // lambda1
             lambda,     // lambda2
             5 * lambda, // K
 
             MATCH_INFINITY,  // occlusion_penalty
-            1,               // iter_max // FIXME: for edbug
+            1,               // iter_max
             false,           // randomize_every_iteration
-            5                // w_size
+            25               // w_size
         };
 
         match.SetParameters(&kz2_params);
@@ -74,7 +74,7 @@ namespace deblur {
 
         // transfer the results to OpenCV (left-rigth)
         Mat disparity_left(left.size(), CV_8U);
-        match.SaveScaledXLeft(disparity_left.data, false);
+        match.SaveXLeft(disparity_left.data, false);
         disparity_left.copyTo(dMaps[LEFT]);
 
         // to get the results for right-left disparity
@@ -82,11 +82,8 @@ namespace deblur {
         match.SWAP_IMAGES();
         // save the image with inverted colors
         Mat disparity_right(right.size(), CV_8U);
-        match.SaveScaledXLeft(disparity_right.data, true);
+        match.SaveXLeft(disparity_right.data, true);
         disparity_right.copyTo(dMaps[RIGHT]);
-
-        imshow("Disparity filled in method", dMaps[RIGHT]);
-        waitKey(0);
     }
 
 
@@ -114,13 +111,6 @@ namespace deblur {
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(dMaps[LEFT], 10);
         fillOcclusionRegions(dMaps[RIGHT], 10);
-
-        // median filter
-        Mat median;
-        medianBlur(dMaps[LEFT], median, 9);
-        median.copyTo(dMaps[LEFT]);
-        medianBlur(dMaps[RIGHT], median, 9);
-        median.copyTo(dMaps[RIGHT]);
     }
 
 
