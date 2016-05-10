@@ -9,5 +9,10 @@ The edge tapered top-level regions (region max set to 3) were saved and used as 
 convert kernel0.png -background black -gravity center -extent 55x55 kernel0.png
 ```
 
+## parameters for the calls
+
+**mouse** psf-width is 35 and layers are 10
+
+
 
 [Xu10]: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.170.6990&rep=rep1&type=pdf
