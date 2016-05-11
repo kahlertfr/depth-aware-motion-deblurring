@@ -48,7 +48,7 @@ namespace deblur {
      */
     void runDepthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
                         cv::Mat& deblurredLeft, cv::Mat& deblurredRight, const int threads = 1,
-                        int psfWidth = 35, const int layers = 10, const int maxTopLevelNodes = 3,
+                        int psfWidth = 35, const int layers = 12, const int maxTopLevelNodes = 3,
                         const int maxDisparity = 80);
 
     /**
@@ -65,7 +65,7 @@ namespace deblur {
      * @param filenameDeblurRight filename for result right
      */
     void runDepthDeblur(const std::string filenameLeft, const std::string filenameRight,
-                        const int threads = 1, int psfWidth = 35, const int layers = 10,
+                        const int threads = 1, int psfWidth = 35, const int layers = 12,
                         const int maxTopLevelNodes = 3, const int maxDisparity = 80, 
                         const std::string filenameDeblurLeft = "deblur-left.png",
                         const std::string filenameDeblurRight = "deblur-right.png");
