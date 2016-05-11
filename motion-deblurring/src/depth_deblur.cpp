@@ -94,13 +94,6 @@ namespace deblur {
         //     imwrite(filenameAlgo, disparityViewableAlgo);
         // #endif
 
-        // median filter to remove small outliers from disparity map
-        Mat median;
-        medianBlur(smallDMaps[LEFT], median, 9);
-        median.copyTo(smallDMaps[LEFT]);
-        medianBlur(smallDMaps[RIGHT], median, 9);
-        median.copyTo(smallDMaps[RIGHT]);
-
         // quantize the image
         array<Mat, 2> quantizedDMaps;
         quantizeImage(smallDMaps, layers, quantizedDMaps);
@@ -365,13 +358,8 @@ namespace deblur {
 
         // threshold kernel to erease negative values
         // this is done because otherwise the resulting kernel is very grayish
+        // the negative results are noise
         threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
-        // FIXME: is this really necessary? can a kernel have negative values?
-
-        // // alternative thresholding idea:
-        // double min; double max;
-        // minMaxLoc(kernel, &min, &max);
-        // threshold(kernel, kernel, max / 5, -1, THRESH_TOZERO);
 
         // swap slices of the result
         // because the image is shifted to the upper-left corner
@@ -409,6 +397,11 @@ namespace deblur {
         // will be used (we don't want this behavior)
         kernelROI.copyTo(psf);
 
+        // alternative thresholding idea:
+        double min; double max;
+        minMaxLoc(psf, &min, &max);
+        threshold(psf, psf, max / 7, -1, THRESH_TOZERO); 
+            
         // kernel has to be energy preserving
         // this means: sum(kernel) = 1
         psf /= sum(psf)[0];
@@ -987,9 +980,9 @@ namespace deblur {
         threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
         dst.convertTo(dst, CV_8U, 255);
 
-        #ifdef IMWRITE
-            string filename = "deconv-" + to_string(view) + ".png";
-            imwrite(filename, dst);
-        #endif
+        // #ifdef IMWRITE
+        //     string filename = "deconv-" + to_string(view) + ".png";
+        //     imwrite(filename, dst);
+        // #endif
     }
 }
