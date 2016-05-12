@@ -20,7 +20,8 @@ include_directories(motion-deblurring/include
                     external/argtable
                     external/match/src
                     utils/
-                    synthetic-images/)
+                    synthetic-images/
+                    iterative-support-detection/)
 
 add_subdirectory(motion-deblurring/)
 add_subdirectory(two-phase-kernel/)
@@ -28,3 +29,4 @@ add_subdirectory(external/argtable/)
 add_subdirectory(external/match/)
 add_subdirectory(utils/)
 add_subdirectory(synthetic-images/)
+add_subdirectory(iterative-support-detection/)
