@@ -979,10 +979,5 @@ namespace deblur {
         threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
         threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
         dst.convertTo(dst, CV_8U, 255);
-
-        // #ifdef IMWRITE
-        //     string filename = "deconv-" + to_string(view) + ".png";
-        //     imwrite(filename, dst);
-        // #endif
     }
 }

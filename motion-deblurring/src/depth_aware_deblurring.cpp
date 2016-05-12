@@ -89,8 +89,15 @@ namespace deblur {
                 // FIXME: deblur color images
             }
 
+            #ifdef IMWRITE
+                string filename = "deconv-" + to_string(i + 1) + "-left.png";
+                imwrite(filename, deblurViews[LEFT]);
+                filename = "deconv-" + to_string(i + 1) + "-right.png";
+                imwrite(filename, deblurViews[LEFT]);
+            #endif
+
             // FIXME: skip second pass because the result is of the first is too bad :(
-            i++;
+            // i++;
         }
 
         deblurViews[LEFT].copyTo(deblurredLeft);
