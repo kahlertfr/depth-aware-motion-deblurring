@@ -16,9 +16,11 @@
 #include <opencv2/imgproc/imgproc.hpp>  // convert
 
 #include "deconvolution.hpp"
+#include "isd.hpp"
 
 using namespace std;
 using namespace cv;
+using namespace deblur;
 
 
 int main(int argc, char** argv) {
@@ -56,12 +58,13 @@ int main(int argc, char** argv) {
 
 
     // refine kernel
-    
-    imwrite("kernel-refined.png", kernel);
+    Mat rkernel;
+    isd(kernel, rkernel);
+    imwrite("kernel-refined.png", rkernel);
 
 
     // show deconv with refined kernel
-    deblur::deconvolveFFT(src, dst, kernel);
+    deconvolveFFT(src, dst, rkernel);
     threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
     threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
     dst.convertTo(dst, CV_8U, 255);
