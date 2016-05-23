@@ -25,11 +25,60 @@ namespace deblur {
      * Enumeration for conviniend call of two views
      */
     enum view { LEFT, RIGHT };
+
+    /**
+     * Flags for convolution like matlab
+     */
+    enum ConvShape {
+        FULL,
+        SAME,
+        VALID,
+    };
+
+    /**
+     * storage for derivation filter in x and y direction
+     * for first and second order derivations
+     * plus the flipped filters
+     */
+    struct derivationFilter {
+        cv::Mat x;
+        cv::Mat y;
+        cv::Mat xx;
+        cv::Mat yy;
+        cv::Mat xy;
+
+        // flipped derivations
+        cv::Mat xf;
+        cv::Mat yf;
+        cv::Mat xxf;
+        cv::Mat yyf;
+        cv::Mat xyf;
+    };
     
 
     inline float norm(float a, float b) {
         return sqrt(a * a + b * b);
     }
+
+    /**
+     * Works like matlab conv2
+     *
+     * The shape parameter controls the result matrix size:
+     * 
+     *  - FULL  Returns the full two-dimensional convolution
+     *  - SAME  Returns the central part of the convolution of the same size as A
+     *  - VALID Returns only those parts of the convolution that are computed without
+     *          the zero-padded edges
+     */
+    void conv2(const cv::Mat& src, cv::Mat& dst, const cv::Mat& kernel, ConvShape shape = FULL);
+
+    /**
+     * First and second order derivations in x and y direction
+     * as sobel filter
+     * 
+     * @param df   filter of first and second order derivations
+     */
+    void sobelDerivations(derivationFilter& df);
 
     /**
      * Applies DFT after expanding input image to optimal size for Fourier transformation

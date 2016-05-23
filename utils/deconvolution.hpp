@@ -21,26 +21,6 @@
 namespace deblur {
 
     /**
-     * storage for derivation filter in x and y direction
-     * for first and second order derivations
-     * plus the flipped filters
-     */
-    struct derivationFilter {
-        cv::Mat x;
-        cv::Mat y;
-        cv::Mat xx;
-        cv::Mat yy;
-        cv::Mat xy;
-
-        // flipped derivations
-        cv::Mat xf;
-        cv::Mat yf;
-        cv::Mat xxf;
-        cv::Mat yyf;
-        cv::Mat xyf;
-    };
-
-    /**
      * weights for derivation filter
      */
     struct weights {
