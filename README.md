@@ -11,26 +11,26 @@ They use spatially-varying point spread functions to deblur the image depending 
 
 **motion-deblurring** contains the depth-aware motion deblurring algorithm together with the a disparity estimation, region tree and edge map implementation. The top-level PSF estimation isn't working (see used two-phase kernel estimation) so there is a work-around. And the mid-level PSF estimation produces very blurry kernel.
 
-**two-phase-kernel** contains the first phase of the two phase kernel estimation. This algorithm is used for the top-level PSF estimation. So this code isn't finished yet.
+**two-phase-kernel** This code isn't finished! Until now it contains the first phase of the two phase kernel estimation. This algorithm would be used for the top-level PSF estimation.
 
-**utils** contains useful matlab conversion like the deconvolution with FFT and the spatial deconvolution from [Levin][Levin] and an implementation of the coherence shock filter from Weickert.
+**utils** contains useful matlab conversion like conv2, the deconvolution with FFT and the spatial deconvolution from [Levin][Levin] and an implementation of the coherence shock filter from Weickert.
 
-**synthetic-image** can be used to blur an image with a kernel
+**tools** provides small programs to use same parts of the motion-deblurring algorithm like convolution, deconvolution and other to show their correctness.
 
 **external** contains the source code for the match disparity algorithm from Kolmogorov which is slightly changed to fit my needs to work with OpenCV (the image data can be copied directly from OpenCV to the match algorithm).
 
 
 
-## Building
+# Building
 
 You can build all components from the toplevel following the next steps.
 
-### Requirements
+## Requirements
 
 - [OpenCV 3.0](http://opencv.org/). [Installation guide][OpenCV-install]
 
 
-### CMake configuration
+## CMake configuration
 
 [CMake](http://cmake.org/) is the used build tool. Use an additional build folder to have clean source folders.
 
@@ -48,9 +48,9 @@ make
 ```
 
 
-### Make targets
+## Make targets
 
-#### motion-deblurring
+### motion-deblurring
 
 This is the main algorithm. Some tasks can be done in parallel so the number of threads can be specified.
 
@@ -62,35 +62,25 @@ make motion-deblurring
 bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--layers <n>] [--threads <n>] [--max-top-nodes <n>] [--max-disparity <n>] [--help]
 ```
 
-#### two-phase-kernel  !! deferred !!
-
-This part of the Depth-Aware Motion Deblurring Algorithm can be used completely independent of the whole algorithm
-
-```bash
-make two-phase-kernel
-
-# Executable can be found in build/bin
-bin/two-phase-kernel../images/mouse-left.jpg
-```
-
-**Work-around**: use the sample top-level kernels - place them in the folder where you starts the algorithm (they will be loaded automatically).
+**Work-around for missing top-level psf estimation**: top-level kernels will be loaded instead of computed. So use the sample top-level kernels - place them in the folder where you starts the algorithm.
 
 
-## Literature on Motion Deblurring
 
-### Books
+# Literature on Motion Deblurring
+
+## Books
 
 - A. N. Rajagopalan, Rama Chellappa - Motion Deblurring: Algorithms and Systems (ISBN 9781107044364)
 
 
 
-### Paper (sorted by relevance)
+## Paper (sorted by relevance)
 
 - L. Xu, J. Jia. [Depth-Aware Motion Deblurring, IEEE 2012][Xu12]
 
 
 
-#### Main Referemces of "Depth-Aware Motion Deblurring"
+### Main Referemces of "Depth-Aware Motion Deblurring"
 
 - L. Xu, J. Jia. [Two-phase Kernel Estimation for Robust Motion Deblurring, ECCV 2010][Xu10]
     - technique used for top level PSF computation
@@ -109,7 +99,7 @@ bin/two-phase-kernel../images/mouse-left.jpg
 
 
 
-#### Additional Papers
+### Additional Papers
 
 - H. Qiu. [State-of-the-Art Image Motion Deblurring Technique][Qiu]
     - conclusion on several single image and stereo image, blind and non-blind deblurring algorithms
