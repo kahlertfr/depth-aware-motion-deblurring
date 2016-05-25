@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     Mat src, kernel, mask, conv;
 
     if (argc < 3) {
-        cerr << "usage: conv <image> <kernel>" << endl;
+        cerr << "usage: conv2 <image> <kernel>" << endl;
         return 1;
     }
 
@@ -41,13 +41,6 @@ int main(int argc, char** argv) {
 
     kernel.convertTo(kernel, CV_32F);
     kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
-
-    // // create mask
-    // int border = 50;
-    // Mat tmpmask = Mat::ones(src.rows - border * 2, src.cols - border * 2, CV_8U);
-    // copyMakeBorder(tmpmask, mask, border, border, border, border,
-    //                BORDER_CONSTANT, Scalar::all(0));
-    // mask *= 255;
 
     deblur::conv2(src, conv, kernel, deblur::VALID);
     imwrite("conv-" + image, conv);
