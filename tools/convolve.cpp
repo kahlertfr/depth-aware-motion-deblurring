@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
     kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
 
     deblur::conv2(src, conv, kernel, deblur::VALID);
-    imwrite("conv-" + image, conv);
+    imwrite("conv.png", conv);
 
     return 0;
 }
