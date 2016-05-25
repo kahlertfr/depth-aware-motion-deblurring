@@ -97,7 +97,7 @@ namespace deblur {
             #endif
 
             // FIXME: skip second pass because the result is of the first is too bad :(
-            // i++;
+            i++;
         }
 
         deblurViews[LEFT].copyTo(deblurredLeft);
