@@ -7,6 +7,151 @@ using namespace std;
 
 namespace deblur {
 
+    void conv2(const Mat& src, Mat& dst, const Mat& kernel, ConvShape shape) {
+        int padSizeX = kernel.cols - 1;
+        int padSizeY = kernel.rows - 1;
+
+        Mat zeroPadded;
+        copyMakeBorder(src, zeroPadded, padSizeY, padSizeY, padSizeX, padSizeX,
+                       BORDER_CONSTANT, Scalar::all(0));
+        
+        Point anchor(0, 0);
+
+        // // openCV is doing a correlation in their filter2D function ...
+        // Mat kernel;
+        // flip(kernel, fkernel, -1);
+
+        Mat tmp;
+        filter2D(zeroPadded, tmp, -1, kernel, anchor);
+
+        // src =
+        //     1 2 3 4
+        //     1 2 3 4
+        //     1 2 3 4
+        // 
+        // zeroPadded =
+        //     0 0 1 2 3 4 0 0
+        //     0 0 1 2 3 4 0 0
+        //     0 0 1 2 3 4 0 0
+        // 
+        // kernel =
+        //     0.5 0 0.5
+        // 
+        // tmp =
+        //     0.5 1 2 3 1.5 2 0 2
+        //     0.5 1 2 3 1.5 2 0 2
+        //     0.5 1 2 3 1.5 2 0 2
+        //     |<----------->|      full
+        //         |<---->|         same
+        //           |-|            valid
+        // 
+        // the last column is complete rubbish, because openCV's
+        // filter2D uses reflected borders (101) by default.
+        
+        // crop padding
+        Mat cropped;
+
+        // variables cannot be declared in case statements
+        int width  = -1;
+        int height = -1;
+
+        switch(shape) {
+            case FULL:
+                cropped = tmp(Rect(0, 0,
+                                   tmp.cols - padSizeX,
+                                   tmp.rows - padSizeY));
+                break;
+
+            case SAME:
+                cropped = tmp(Rect((tmp.cols - padSizeX - src.cols + 1) / 2,  // +1 for ceil
+                                   (tmp.rows - padSizeY - src.rows + 1) / 2,  // +1 for ceil
+                                   src.cols,
+                                   src.rows));
+                break;
+
+            case VALID:
+                width  = src.cols - kernel.cols + 1;
+                height = src.rows - kernel.rows + 1;
+                cropped = tmp(Rect((tmp.cols - padSizeX - width) / 2,
+                                   (tmp.rows - padSizeY - height) / 2,
+                                   width,
+                                   height));
+                break;
+
+            default:
+                throw runtime_error("Invalid shape");
+                break;
+        }
+
+        cropped.copyTo(dst);
+    }
+
+
+    /**
+     * Just for debugging.
+     *
+     */
+    void test() {
+        Mat I = (Mat_<float>(3,4) << 1,2,3,4,1,2,3,4,1,2,3,4);
+        cout << endl << "I: " << endl;
+        for (int row = 0; row < I.rows; row++) {
+            for (int col = 0; col < I.cols; col++) {
+                cout << " " << I.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        Mat k = (Mat_<float>(1,3) << 0.3, 0, 0.7);
+        // Mat k = (Mat_<float>(1,4) << 0.5, 0, 0, 0.5);
+        cout << endl << "k: " << endl;
+        for (int row = 0; row < k.rows; row++) {
+            for (int col = 0; col < k.cols; col++) {
+                cout << " " << k.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        Mat normal;
+        filter2D(I, normal, -1, k);
+        cout << endl << "normal (reflected border): " << endl;
+        for (int row = 0; row < normal.rows; row++) {
+            for (int col = 0; col < normal.cols; col++) {
+                cout << " " << normal.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        Mat full, same, valid;
+
+        conv2(I, full, k, FULL);
+        cout << endl << "full: " << endl;
+        for (int row = 0; row < full.rows; row++) {
+            for (int col = 0; col < full.cols; col++) {
+                cout << " " << full.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        conv2(I, same, k, SAME);
+        cout << endl << "same: " << endl;
+        for (int row = 0; row < same.rows; row++) {
+            for (int col = 0; col < same.cols; col++) {
+                cout << " " << same.at<float>(row, col);
+            }
+            cout << endl;
+        }
+
+        conv2(I, valid, k, VALID);
+        cout << endl << "valid: " << endl;
+        for (int row = 0; row < valid.rows; row++) {
+            for (int col = 0; col < valid.cols; col++) {
+                cout << " " << valid.at<float>(row, col);
+            }
+            cout << endl;
+        }
+    }
+
+
     void fft(const Mat& src, Mat& dst) {
         if (src.type() == CV_32F) {
             // for fast DFT expand image to optimal size
