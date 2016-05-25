@@ -11,7 +11,7 @@ They use spatially-varying point spread functions to deblur the image depending 
 
 **motion-deblurring** contains the depth-aware motion deblurring algorithm together with the a disparity estimation, region tree and edge map implementation. The top-level PSF estimation isn't working (see used two-phase kernel estimation) so there is a work-around. And the mid-level PSF estimation produces very blurry kernel.
 
-**two-phase-kernel** contains the first phase of the two phase kernel estimation. This algorithm is used for the top-level PSF estimation. Due to errors a work-around with sample top-level kernel is used. So this code isn't finished yet.
+**two-phase-kernel** contains the first phase of the two phase kernel estimation. This algorithm is used for the top-level PSF estimation. So this code isn't finished yet.
 
 **utils** contains useful matlab conversion like the deconvolution with FFT and the spatial deconvolution from [Levin][Levin] and an implementation of the coherence shock filter from Weickert.
 
