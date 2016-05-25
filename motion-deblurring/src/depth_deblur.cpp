@@ -470,6 +470,8 @@ namespace deblur {
         
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
+        deconv[LEFT] *= 255;
+        deconv[RIGHT] *= 255;
         computeSalientEdgeMap(deconv[LEFT], salientEdgesLeft, psfWidth, masks[LEFT]);
         computeSalientEdgeMap(deconv[RIGHT], salientEdgesRight, psfWidth, masks[RIGHT]);
 
@@ -570,6 +572,7 @@ namespace deblur {
             
             // shock filtered
             Mat shockFiltered;
+            latent *= 255;
             coherenceFilter(smoothed, shockFiltered);
             
             // compute correlation of the latent image and the shockfiltered image
