@@ -359,9 +359,13 @@ namespace deblur {
         weights.yy = Mat::ones(n - 2, m, CV_32F);
         weights.xy = Mat::ones(n - 1, m - 1, CV_32F);
 
+        // flip kernel
+        Mat fkernel;
+        flip(kernel, fkernel, -1);
+
         // first deconvolution of the src image
         Mat x;
-        deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
+        deconvL2w(src, x, fkernel, mask, weights, df, we, maxIt);
 
         for (int i = 0; i < 2; i++) {
             // compute first and second order gradients
@@ -378,7 +382,7 @@ namespace deblur {
             updateWeight(weights.yy, dyy, boundaries, 0.25);
             updateWeight(weights.xy, dxy, boundaries, 0.25);
 
-            deconvL2w(src, x, kernel, mask, weights, df, we, maxIt);
+            deconvL2w(src, x, fkernel, mask, weights, df, we, maxIt);
         }
 
         // crop result

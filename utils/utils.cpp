@@ -17,12 +17,12 @@ namespace deblur {
         
         Point anchor(0, 0);
 
-        // // openCV is doing a correlation in their filter2D function ...
-        // Mat kernel;
-        // flip(kernel, fkernel, -1);
+        // openCV is doing a correlation in their filter2D function ...
+        Mat fkernel;
+        flip(kernel, fkernel, -1);
 
         Mat tmp;
-        filter2D(zeroPadded, tmp, -1, kernel, anchor);
+        filter2D(zeroPadded, tmp, -1, fkernel, anchor);
 
         // src =
         //     1 2 3 4
