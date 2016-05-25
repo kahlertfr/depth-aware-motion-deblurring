@@ -985,4 +985,59 @@ namespace deblur {
             imwrite(filename, dst);
         #endif
     }
+
+
+    void DepthDeblur::deconvolveTopLevel(Mat& dst, view view, int nThreads, bool color) {
+        // deconvolve in parallel
+        // reset storage for deconvolved images
+        regionDeconv.resize(regionTree.size());
+
+        // set up stack with regions that have to be calculated
+        // store leaf node region index
+        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+            int nr = regionTree.topLevelNodeIds[i];
+            regionStack.push(nr);
+        }
+
+        // create worker threads
+        int nrOfWorker = nThreads - 1;
+        thread threads[nrOfWorker];
+
+        for (int id = 0; id < nrOfWorker; id++) {
+            // each worker gets the deconvolveRegion method with the regionStack
+            threads[id] = thread(&DepthDeblur::deconvolveRegion, this, view, color);
+        }
+
+        // let the main thread do some work too
+        deconvolveRegion(view, color);
+
+        // wait for all threads to finish
+        for (int id = 0; id < nrOfWorker; id++) {
+            threads[id].join();
+        }
+
+        // add all region deconvs
+        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+            int id = regionTree.topLevelNodeIds[i];
+
+            Mat mask;
+            // the index of the region in regionDeconv and regionTree are the same
+            regionTree.getMask(id, mask, view);
+
+            regionDeconv[id].copyTo(dst, mask);
+        }
+
+        // show and save the deblurred image
+        //
+        // threshold the result because it has large negative and positive values
+        // which would result in a very grayish image
+        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        dst.convertTo(dst, CV_8U, 255);
+
+        #ifdef IMWRITE
+            string filename = "deconv-" + to_string(view) + ".png";
+            imwrite(filename, dst);
+        #endif
+    }
 }

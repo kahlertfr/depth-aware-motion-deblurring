@@ -89,6 +89,16 @@ namespace deblur {
          */
         void deconvolve(cv::Mat& dst, view view, int nThreads = 1, bool color = false);
 
+        /**
+         * Deconvolves the two views just for the top-level regions.
+         * 
+         * @param dst     deconvolved image
+         * @param view    determine which view is deconvolved
+         * @param threads number of threads for parallel deconvolution
+         * @param color   use color image
+         */
+        void deconvolveTopLevel(cv::Mat& dst, view view, int nThreads = 1, bool color = false);
+
 
       private:
 
