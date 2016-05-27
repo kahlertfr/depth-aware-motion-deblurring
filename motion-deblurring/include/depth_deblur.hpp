@@ -208,10 +208,11 @@ namespace deblur {
         /**
          * Selects a suitable PSF for the given Node
          *
-         * @param candiates possible PSFs
-         * @param id        node ID
+         * @param candidates possible PSFs
+         * @param winnerPSF  winner of selection process
+         * @param id         node ID
          */
-        void psfSelection(std::vector<cv::Mat>& candiates, int id);
+        void psfSelection(std::vector<cv::Mat>& candidates, cv::Mat& winnerPSF, int id);
 
         /**
          * Computed the correlation of gradient magnitudes inside the same region

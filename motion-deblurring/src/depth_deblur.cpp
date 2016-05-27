@@ -551,11 +551,15 @@ namespace deblur {
     }
 
 
-    void DepthDeblur::psfSelection(vector<Mat>& candiates, int id) {
+    void DepthDeblur::psfSelection(vector<Mat>& candidates, Mat& winnerPSF, int id) {
         float minEnergy = 2;
         int winner = 0;
+
+        #ifdef IMWRITE
+            cout << "psf selection for " << id << " with " << candidates.size() << " candidates" << endl;
+        #endif
         
-        for (int i = 0; i < candiates.size(); i++) {
+        for (int i = 0; i < candidates.size(); i++) {
             // get mask of this region
             Mat mask;
             regionTree.getMask(id, mask, LEFT);
@@ -563,7 +567,7 @@ namespace deblur {
             // compute latent image
             Mat latent;
             // FIXME: latent image just of one view?
-            deconvolveFFT(floatImages[LEFT], latent, candiates[i]);
+            deconvolveFFT(floatImages[LEFT], latent, candidates[i]);
 
             // slightly Gaussian smoothed
             // use the complete image to avoid unwanted effects at the borders
@@ -578,22 +582,24 @@ namespace deblur {
             // compute correlation of the latent image and the shockfiltered image
             float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
 
-            // #ifdef IMWRITE
-            //     cout << "    energy for " << i << ": " << energy << endl;
-            // #endif
+            #ifdef IMWRITE
+                cout << "    energy for " << i << ": " << energy << endl;
+            #endif
 
             if (energy < minEnergy) {
+                minEnergy = energy;
                 winner = i;
             }
         }
 
-        // save the winner of the psf selection in the current node
-        candiates[winner].copyTo(regionTree[id].psf);
+        candidates[winner].copyTo(winnerPSF);
             
         #ifdef IMWRITE
+            cout << "    winner: " << winner << " (0: self, 1: parent, 2: sibbling)" << endl;
+
             // kernels
             Mat tmp;
-            regionTree[id].psf.copyTo(tmp);
+            candidates[winner].copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
             string filename = "mid-" + to_string(id) + "-kernel-selection.png";
@@ -772,14 +778,24 @@ namespace deblur {
                     regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
                     regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
+                    #ifdef IMWRITE
+                        cout << "entropy for " << cid1 << ": " << regionTree[cid1].entropy << endl;
+                        cout << "entropy for " << cid2 << ": " << regionTree[cid2].entropy << endl;
+                    #endif
+
                     // candiate selection
                     vector<Mat> candiates1, candiates2;
                     candidateSelection(candiates1, cid1, cid2);
                     candidateSelection(candiates2, cid2, cid1);
 
                     // final psf selection
-                    psfSelection(candiates1, cid1);
-                    psfSelection(candiates2, cid2);
+                    // save the winner of the psf selection not in the current node because
+                    // its sibbling would use this kernel (maybe its own twice)
+                    array<Mat, 2> winners;
+                    psfSelection(candiates1, winners[0], cid1);
+                    psfSelection(candiates2, winners[1], cid2);
+                    winners[0].copyTo(regionTree[cid1].psf);
+                    winners[1].copyTo(regionTree[cid2].psf);
 
 
                     // add children ids to the back of the queue (this has to be thread save)
