@@ -100,7 +100,7 @@ namespace deblur {
         void deconvolveTopLevel(cv::Mat& dst, view view, int nThreads = 1, bool color = false);
 
 
-      private:
+      protected:
 
         /**
          * both views as CV_8UC3
@@ -238,8 +238,12 @@ namespace deblur {
         float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask);
 
 
-    // methods and variables used for parallel computation ++++++++++++++++++++++++++++++++++++++++++
-        
+    //--------------------------------------------------------------------------------------------
+    //
+    // methods and variables used for parallel computation
+    //
+    // --------------------------------------------------------------------------------------------
+      
         /**
          * mutex for queue or stack acces
          */

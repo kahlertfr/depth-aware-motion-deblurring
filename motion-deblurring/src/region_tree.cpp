@@ -56,7 +56,7 @@ namespace deblur {
             node n;
             n.layers = {l};
             n.children = {-1, -1};
-            tree.push_back(n);
+            _tree.push_back(n);
         }
 
 
@@ -72,9 +72,9 @@ namespace deblur {
             // can be caculated by: layers / (2^level)
             // where the leafs are at level 0
             if ((layers / pow(2, level)) <= maxTopLevelNodes) {
-                for (int i = startId; i < tree.size(); i++) {
+                for (int i = startId; i < _tree.size(); i++) {
                     topLevelNodeIds.push_back(i);
-                    tree[i].parent = -1;
+                    _tree[i].parent = -1;
                 }
 
                 break;
@@ -87,11 +87,11 @@ namespace deblur {
                 if (i + 1 >= endId) {
                     // found a top level node
                     topLevelNodeIds.push_back(i);
-                    tree[i].parent = -1;
+                    _tree[i].parent = -1;
                 } else {
                     // get two child nodes
-                    node child1 = tree[i];
-                    node child2 = tree[i + 1];
+                    node child1 = _tree[i];
+                    node child2 = _tree[i + 1];
 
                     node n;
 
@@ -103,12 +103,12 @@ namespace deblur {
                     // save child node ids
                     n.children = {i, i + 1};
 
-                    tree.push_back(n);
+                    _tree.push_back(n);
 
                     // save parent id of child nodes
-                    int parentId = tree.size() - 1;
-                    tree[i].parent = parentId;
-                    tree[i + 1].parent = parentId;
+                    int parentId = _tree.size() - 1;
+                    _tree[i].parent = parentId;
+                    _tree[i + 1].parent = parentId;
 
                     // jump over child2
                     i++;
@@ -118,14 +118,14 @@ namespace deblur {
             // update indices
             level ++;
             startId = endId;
-            endId = tree.size();
+            endId = _tree.size();
         };
 
 
         #ifdef IMWRITE
             // print tree
-            for(int i = 0; i < tree.size(); i++) {
-                node n = tree[i];
+            for(int i = 0; i < _tree.size(); i++) {
+                node n = _tree[i];
                 cout << "    n" << i << ": ";
                 for (int b = 0; b < n.layers.size(); b++) {
                     cout << n.layers[b] << " ";
@@ -149,10 +149,9 @@ namespace deblur {
 
     void RegionTree::getMask(const int nodeId, Mat& mask, const view view) const {
         // a region contains multiple layers
-        vector<int> region = tree[nodeId].layers;
+        const vector<int>& region = _tree[nodeId].layers;
 
         mask = Mat::zeros(images[view]->rows, images[view]->cols, CV_8U);
-
         // adding all masks contained by this node
         for (int i = 0; i < region.size(); i++) {
             add(mask, _masks[view][region[i]], mask);
