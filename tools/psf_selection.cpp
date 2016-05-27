@@ -33,7 +33,7 @@ class PSFSelection : public DepthDeblur {
         // do nothing constructor
     }
 
-    void run(Mat& image, vector<Mat>& candidates) {
+    void run(Mat& image, vector<Mat>& candidates, Mat& mask) {
         // mocking region tree
         regionTree.images[LEFT] = &image;
         regionTree.images[RIGHT] = &image;
@@ -44,7 +44,6 @@ class PSFSelection : public DepthDeblur {
             node n;
             n.layers = {0};
             regionTree._tree.push_back(n);
-            Mat mask = Mat::ones(image.size(), CV_8U);
             regionTree._masks[LEFT].push_back(mask);
             regionTree._masks[RIGHT].push_back(mask);
 
@@ -90,6 +89,16 @@ int main(int argc, char** argv) {
         throw runtime_error("Can not load images!");
     }
 
+    // load mask
+    Mat mask;
+    if (argc > 5) {
+        string maskName = argv[5];
+        mask = imread(maskName, CV_LOAD_IMAGE_GRAYSCALE);
+    } else {
+        // mask for whole image
+        mask = Mat::ones(src.size(), CV_8U);
+    }
+
     // energy preserving kernels
     psf1.convertTo(psf1, CV_32F);
     psf1 /= sum(psf1)[0];
@@ -105,7 +114,7 @@ int main(int argc, char** argv) {
     candidates.push_back(psf3);
 
     PSFSelection selection(src, src);
-    selection.run(src, candidates);
+    selection.run(src, candidates, mask);
 
     // deconvolve image with all kernels
     Mat floatSrc;
