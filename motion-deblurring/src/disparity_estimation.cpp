@@ -54,7 +54,7 @@ namespace deblur {
             5 * lambda, // K
 
             MATCH_INFINITY,  // occlusion_penalty
-            1,               // iter_max
+            3,               // iter_max
             false,           // randomize_every_iteration
             25               // w_size
         };
