@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
     Mat src, psf1, psf2, psf3;
 
     if (argc < 5) {
-        cerr << "usage: psf-selection <image> <psf1> <psf2> <psf3>" << endl;
+        cerr << "usage: psf-selection <image> <psf1> <psf2> <psf3> [<mask>]" << endl;
         return 1;
     }
 
