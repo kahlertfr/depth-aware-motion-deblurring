@@ -11,9 +11,24 @@ using namespace std;
 
 namespace deblur {
 
-    void deconvolveFFT(const Mat& src, Mat& dst, const Mat& kernel, const float weight){
+    void deconvolveFFT(const Mat& src, Mat& dst, const Mat& kernel, const cv::Mat& regionMask,
+                       const float weight) {
+
         assert(src.type() == CV_32F && "works on floating point images [0,1]");
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
+
+        Mat mask;
+        if (regionMask.empty()) {
+            // mask with ones of image size
+            mask = Mat::ones(src.size(), CV_8U);
+        } else {
+            mask = regionMask;
+        }
+
+        Mat region;
+        src.copyTo(region, mask);
+
+        // FIXME: the area outside the masked region should be tapered??
 
         // important: do not flipp the kernel
         // fill kernel with zeros to get to blurred image size
@@ -39,7 +54,7 @@ namespace deblur {
         dft(sobelx, Gx);
         dft(sobely, Gy);
         dft(pkernel, F);
-        dft(src, I);
+        dft(region, I);
 
         // FIXME
         // weight from paper
@@ -110,8 +125,10 @@ namespace deblur {
         hconcat(q1, q0, tmp);
         vconcat(deconvSwap, tmp, deconvSwap);
         deconvSwap.copyTo(deconv);
-      
-        deconv.copyTo(dst);
+
+        // add deconvolved region to original image
+        src.copyTo(dst);
+        deconv.copyTo(dst, mask);
     }
 
 

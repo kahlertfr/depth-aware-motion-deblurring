@@ -49,12 +49,13 @@ int main(int argc, char** argv) {
     if (argc > 3) {
         string maskName = argv[3];
         mask = imread(maskName, CV_LOAD_IMAGE_GRAYSCALE);
+        mask /= 255;
     } else {
         // mask for whole image
-        mask = Mat::ones(src.size(), CV_32F);
+        mask = Mat::ones(src.size(), CV_8U);
     }
 
-    deblur::deconvolveFFT(src, deconv, kernel);
+    deblur::deconvolveFFT(src, deconv, kernel, mask);
     // save like matlab imshow([deconv])
     threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
     threshold(deconv, deconv, 1.0, -1, THRESH_TRUNC);

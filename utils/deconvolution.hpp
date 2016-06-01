@@ -56,23 +56,26 @@ namespace deblur {
      * gaussian prior (which leads to convex optimization problem
      * with a closed form solution)
      * 
-     * @param src    blurred floating point image
-     * @param dst    latent image
-     * @param kernel energy preserving kernel
-     * @param we     weight
+     * @param src        blurred floating point image
+     * @param dst        latent image
+     * @param kernel     energy preserving kernel
+     * @param regionMask mask of region
+     * @param we         weight
      */
-    void deconvolveFFT(const cv::Mat& src, cv::Mat& dst, const cv::Mat& kernel, const float we = 0.001);
+    void deconvolveFFT(const cv::Mat& src, cv::Mat& dst, const cv::Mat& kernel, const cv::Mat& regionMask = cv::Mat(),
+                       const float we = 0.001);
 
     /**
      * Non-blind deconvolution in spatial domain using a
      * spatial prior (which leads to a non-convex optimization problem that's
      * why reweighted least squares (IRLS) is used)
      * 
-     * @param src    blurred floating point image
-     * @param dst    latent image
-     * @param kernel energy preserving kernel
-     * @param we     weight
-     * @param maxIt  number of iterations
+     * @param src        blurred floating point image
+     * @param dst        latent image
+     * @param kernel     energy preserving kernel
+     * @param regionMask mask of region
+     * @param we         weight
+     * @param maxIt      number of iterations
      */
     void deconvolveIRLS(const cv::Mat& src, cv::Mat& dst, cv::Mat& kernel, const cv::Mat& regionMask = cv::Mat(),
                         const float we = 0.001, const int maxIt = 200);
