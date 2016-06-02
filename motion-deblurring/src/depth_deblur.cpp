@@ -43,7 +43,7 @@ namespace deblur {
 
 
     void DepthDeblur::disparityEstimation(const array<Mat, 2>& input, const disparityAlgo algorithm,
-                                          const int maxDisparity) {
+                                          int maxDisparity) {
         array<Mat, 2> views;
 
         // use gray values for disparity estimation for SGBM
@@ -57,11 +57,12 @@ namespace deblur {
 
         // down sample images to roughly reduce blur for disparity estimation
         array<Mat, 2> small;
+        const int sampleRatio = 2;
 
         // because we checked that both images are of the same size
         // the new size is the same for both too
         // (down sampling ratio is 2)
-        Size downsampledSize = Size(views[LEFT].cols / 2, views[RIGHT].rows / 2);
+        Size downsampledSize = Size(views[LEFT].cols / sampleRatio, views[RIGHT].rows / sampleRatio);
 
         // down sample with Gaussian pyramid
         pyrDown(views[LEFT], small[LEFT], downsampledSize);
@@ -76,23 +77,30 @@ namespace deblur {
             // because it is more convenient to use a OpenCV implementation.
             disparityFilledSGBM(small, smallDMaps);
         } else if (algorithm == MATCH) {
+            // because the images are down sampled the max disparity from the user
+            // has to be downsampled too
+            maxDisparity /= sampleRatio;
+
             // disparity estimation algorithm from the paper
             disparityFilledMatch(small, smallDMaps, maxDisparity);
         } else {
             throw runtime_error("Invalid disparity algorithm");
         }
 
-        // #ifdef IMWRITE
-        //     // convert quantized image to be displayable
-        //     Mat disparityViewableAlgo;
-        //     double min1; double max1;
-        //     minMaxLoc(smallDMaps[LEFT], &min1, &max1);
-        //     cout << "min: " << min1 << " max: " << max1 << endl;
-        //     smallDMaps[LEFT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
+        #ifdef IMWRITE
+            // convert quantized image to be displayable
+            Mat disparityViewableAlgo;
+            double min1; double max1;
+            minMaxLoc(smallDMaps[LEFT], &min1, &max1);
+            smallDMaps[LEFT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
+            string filenameAlgo = "dmap-algo-left.png";
+            imwrite(filenameAlgo, disparityViewableAlgo);
 
-        //     string filenameAlgo = "dmap-algo-left.png";
-        //     imwrite(filenameAlgo, disparityViewableAlgo);
-        // #endif
+            minMaxLoc(smallDMaps[RIGHT], &min1, &max1);
+            smallDMaps[RIGHT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
+            filenameAlgo = "dmap-algo-right.png";
+            imwrite(filenameAlgo, disparityViewableAlgo);
+        #endif
 
         // quantize the image
         array<Mat, 2> quantizedDMaps;
@@ -106,14 +114,14 @@ namespace deblur {
             quantizedDMaps[LEFT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
             // imshow("quantized disparity map " + prefix, disparityViewable);
-            string filename = "dmap-left.png";
+            string filename = "dmap-final-left.png";
             imwrite(filename, disparityViewable);
 
             minMaxLoc(quantizedDMaps[RIGHT], &min, &max);
             quantizedDMaps[RIGHT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
             // imshow("quantized disparity map " + prefix, disparityViewable);
-            filename = "dmap-right.png";
+            filename = "dmap-final-right.png";
             imwrite(filename, disparityViewable);
         #endif
 

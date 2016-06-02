@@ -1,6 +1,5 @@
-My little intro (see text of task description)...
+A lot of pictures are taken with a mobile phone or a hand-held camera. So blur caused by the shaking of the camera during the exposure is a widely spread problem. There exists several algorithms for removing such blur from single images or stereo image pairs. The latter is interesting because most scenes have depth variations. In this case a near point is blurred more than a distant so. So each depth layer has its own blur kernel. It is hard to correctly deblur a depth scene without any depth information. Stereo image pairs can provide such information through stereo matching. Furthermore the necessary hardware to obtain stereo image pairs is more and more available – even in mobile phones.
 
-- :red:`relevance of motion deblurring`
-- :red:`challenge of depth varying scenes`
-- :red:`stereo possibility in smart phones`
-- :red:`briefly described algorithm from Xu and Jia`
+Even with the depth information deblurring of depth scenes isn't easy. Small-size regions lack necessary structural information for the blur kernel estimation. A approach to overcome this problem is presented in the paper from Xu and Jia :cite:`Xu2012`. They provide an iterative algorithm for motion deblurring with stereo images. It uses a spatially-varying point spread functions (PSF) to deblur the image on each depth level. They overcome the challenge for estimating the PSF in small-size regions with a hierarchical approach named region tree to guide this estimation. And they added a novel PSF selection scheme for each regions to rejected erroneous PSFs. 
+
+This study thesis provides a reference implementation of this depth-aware motion deblurring algorithm from Xu and Jia. After a theoretical introduction to deblurring this algorithm is presented in detail. Indeed we will focus on the challenges that had to be solved to be able to deblur a depth scene.
