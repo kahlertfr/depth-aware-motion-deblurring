@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     const int psfWidth = 35;
     const int layers = 12;
     const int maxTopLevelNodes = 3;
-    const int maxDisparity = 80;
+    const int maxDisparity = 160;
 
     Mat srcLeft, srcRight, dstLeft, dstRight;
 

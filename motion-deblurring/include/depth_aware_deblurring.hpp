@@ -49,7 +49,7 @@ namespace deblur {
     void runDepthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
                         cv::Mat& deblurredLeft, cv::Mat& deblurredRight, const int threads = 1,
                         int psfWidth = 35, const int layers = 12, const int maxTopLevelNodes = 3,
-                        const int maxDisparity = 80);
+                        const int maxDisparity = 160);
 
     /**
      * Loads images from given filenames and then starts the depth-aware motion 
@@ -66,7 +66,7 @@ namespace deblur {
      */
     void runDepthDeblur(const std::string filenameLeft, const std::string filenameRight,
                         const int threads = 1, int psfWidth = 35, const int layers = 12,
-                        const int maxTopLevelNodes = 3, const int maxDisparity = 80, 
+                        const int maxTopLevelNodes = 3, const int maxDisparity = 160, 
                         const std::string filenameDeblurLeft = "deblur-left.png",
                         const std::string filenameDeblurRight = "deblur-right.png");
 

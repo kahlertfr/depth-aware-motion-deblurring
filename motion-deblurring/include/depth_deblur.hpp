@@ -53,7 +53,7 @@ namespace deblur {
          */
         void disparityEstimation(const std::array<cv::Mat, 2>& views,
                                  const deblur::disparityAlgo disparityAlgo = deblur::MATCH,
-                                 const int maxDisparity = 50);
+                                 int maxDisparity = 160);
 
         /**
          * Creates a region tree from disparity maps

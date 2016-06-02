@@ -42,7 +42,7 @@ static bool parse_commandline_args(int argc, char** argv,
         psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 35"),
         d_layers    = arg_intn ("l", "layers", "<n>",              0, 1, "number of region/disparity layers. Default: 12"),
         mythreads   = arg_intn ("t", "threads", "<n>",             0, 1, "number of threads. Default: 1"),
-        max_disparity        = arg_intn ("d", "max-disparity", "<n>", 0, 1, "estimated maximum disparity. Default: 80"),
+        max_disparity        = arg_intn ("d", "max-disparity", "<n>", 0, 1, "estimated maximum disparity. Default: 160"),
         max_toplevel_nodes   = arg_intn ("m", "max-top-nodes", "<n>", 0, 1, "max top level nodes in region tree. Default: 3"),
         left_image  = arg_filen(nullptr, nullptr, "<left image>",  1, 1, "left image"),
         right_image = arg_filen(nullptr, nullptr, "<right image>", 1, 1, "right image"),
@@ -53,7 +53,7 @@ static bool parse_commandline_args(int argc, char** argv,
     psf_width->ival[0] = 35;
     mythreads->ival[0] = 1;
     max_toplevel_nodes->ival[0] = 3;
-    max_disparity->ival[0] = 80;
+    max_disparity->ival[0] = 160;
     d_layers->ival[0] = 12;
 
     // parsing arguments
