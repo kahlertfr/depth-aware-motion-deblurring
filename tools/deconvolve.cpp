@@ -55,12 +55,19 @@ int main(int argc, char** argv) {
         mask = Mat::ones(src.size(), CV_8U);
     }
 
+    deblur::deconvolveFFT(src, deconv, kernel);
+    // save like matlab imshow([deconv])
+    threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
+    threshold(deconv, deconv, 1.0, -1, THRESH_TRUNC);
+    deconv.convertTo(deconv, CV_8U, 255);
+    imwrite("deconvFFT-without-mask.png", deconv);
+
     deblur::deconvolveFFT(src, deconv, kernel, mask);
     // save like matlab imshow([deconv])
     threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
     threshold(deconv, deconv, 1.0, -1, THRESH_TRUNC);
     deconv.convertTo(deconv, CV_8U, 255);
-    imwrite("deconvFFT.png", deconv);
+    imwrite("deconvFFT-with-mask.png", deconv);
 
     deblur::deconvolveIRLS(src, deconv, kernel, mask);
     // save like matlab imshow([deconv])
