@@ -1,4 +1,15 @@
-The depth-aware motion deblurring algorithm was developed by Xu and Jia :cite:`Xu2012`. This algorithm operates on a stereo image pair and processes the images with the steps described below. For improving the result the process is done a second time with the deblurred images from the first run as input for the second one.
+**setup**
+
+- stereo image pair of a depth scene
+
+**challenges**
+
+- unkown motion of camera (parallel to scene)
+- depth -> spatially variant PSF
+- small number of pixels to estimate PSF from
+
+The depth-aware motion deblurring algorithm from Xu and Jia :cite:`Xu2012` deals with this challenging setup. The basic idea of this paper and the challenges of its algorithm will be presented in this chapter.
+
 
 .. raw:: LaTex
 
@@ -19,13 +30,25 @@ The depth-aware motion deblurring algorithm was developed by Xu and Jia :cite:`X
 
 
 
+Basic Idea
+++++++++++
+
+- depth information from stereo matching
+- estimate PSF for each depth level
+- constructing region tree to guide PSF estimation in small regions (similar PSFs for closeby depth levels)
+
+.. figure:: ../images/wip.png
+   :width: 200 pt
+   :alt: algorithm overview
+
+   algorithm overview
+
+
 Reference Implementation
 ++++++++++++++++++++++++
 
-The reference implementation for the depth-aware motion deblurring algorithm provides a command line interface and a C++ library. A OpenCV 3.0 installation is required for this project. For further information please read the *README* of this project. The source code can be found here: https://square-src.de/gitlab/franzi/study-thesis.git
+The reference implementation for the depth-aware motion deblurring algorithm provides a command line interface and a C++ library. A OpenCV 3.0 installation is required for this project. For further information please read the *README* of this project. The source code can be found online: https://square-src.de/gitlab/franzi/study-thesis.git
 
-The project contains two independent algorithms: the two-phase kernel estimation algorithm from Xu and Jia :cite:`Xu2010` and the depth-aware motion deblurring algorithm. The first one is used inside for the depth-aware deblurring. Because both algorithms are independent there is also a standalone command line interface and a C++ library for the two-phase kernel estimation algorithm.
-:red:`Unfortunately the two-phase kernel estimation algorithm could not be finished within the context of this study thesis.`
 
 
 Disparity Estimation
@@ -36,19 +59,20 @@ The main idea of the algorithm is the independent deblurring of each depth layer
 Disparity Map
 -------------
 
-- :red:`Find disparity maps of a blurred stereo image pair: left to right and right to left`
-- :red:`down-sampling for blur reducing`
-- :red:`different stereo algorithm as in paper. This shouldn't effect overall result.` Using SGBM :cite:`Hi2007`
-- :red:`comments on SGBM parameters: choose of regularization term for smoothing, min disparity?`
-- :red:`right to left: flip images such that SGBM works`
-- :red:`violation of stereo matching condition. handle boundary pixel separately`
+- Find disparity maps of a blurred stereo image pair: left to right and right to left
+- user has to estimate the max disparity
+- down-sampling for blur reducing
+- stereo algorithm: graph cut :cite:`Kolmogorov2001` -> their code is used
+- alternative stereo matching algorithm also implemented: SGBM :cite:`Hi2007` 
+
+- :red:`violation of stereo matching condition? handle boundary pixel separately -> how? not mentioned in paper`
 
 
 Occlusions
 ----------
 
-:red:`Cross-Checking to find occlusion regions.` In this implementation there is no cross checking
-because SGBM handles occluded regions already.
+- Cross-Checking to find occluded regions
+- using code from :cite:`Kolmogorov2001`
 
 Occlusions are filled with smallest neighbor disparity. Assumption: just objects with small
 disparity can be occluded.
@@ -59,33 +83,31 @@ disparity can be occluded.
         \centering
         \begin{subfigure}{.5\textwidth}
             \centering
-            \includegraphics[width=170pt]{../images/dmap_small.jpg}
-            \caption{with occlusions}
+            \includegraphics[width=170pt]{../images/dmap-algo-left.png}
+            \caption{left-right}
         \end{subfigure}%
         \begin{subfigure}{.5\textwidth}
             \centering
-            \includegraphics[width=170pt]{../images/dmap_small_filled.jpg}
-            \caption{with filled occlusions}
+            \includegraphics[width=170pt]{../images/dmap-algo-right.png}
+            \caption{right-left}
         \end{subfigure}
-        \caption{disparity map}
+        \caption{disparity maps with filled occlusions}
     \end{figure}
 
 
 Quantization
 ------------
 
-:red:`PSF estimation is less extensive if the disparity layers are reduced.` quantize disparity 
-values to l regions, where l is set to approximate PSF width or height. :red:`how to approximate
-the PSF width/height?`
+- PSF estimation is less extensive if the disparity layers are reduced
+- quantize disparity values to l regions, where l is set to approximate PSF width or height -> in practice 12 layers are enough (from paper)
+- using k-means for clustering (both maps together to get same clusters for same depth)
+- sort clusters for representing depth graduation
 
-- :red:`using k-means for clustering`
-- :red:`sort clusters for representing depth graduation`
-
-.. figure:: ../images/dmap_final.jpg
+.. figure:: ../images/dmap-final-left.png
    :width: 200 pt
    :alt: disparity map quantized
 
-   quantized disparity map with 25 regions
+   quantized disparity map with 12 regions (left view)
 
 
 
@@ -93,6 +115,12 @@ Region-Tree Construction
 ++++++++++++++++++++++++
 
 The regions of the different depth layer can be very small and therefore robust PSF estimation is not possible. The solution from Xu and Jia is a hierarchical estimation scheme where similar depth layers are merged to form larger regions. The structure for this is called region-tree and in the implementation it is the *RegionTree* class.
+
+.. figure:: ../images/wip.png
+   :width: 200 pt
+   :alt: region tree
+
+   region tree
 
 The region-tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and i = ⌊j/2⌋ * 2 which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached.
 
