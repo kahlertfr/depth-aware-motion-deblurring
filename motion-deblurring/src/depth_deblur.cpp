@@ -94,13 +94,6 @@ namespace deblur {
         //     imwrite(filenameAlgo, disparityViewableAlgo);
         // #endif
 
-        // median filter to remove small outliers from disparity map
-        Mat median;
-        medianBlur(smallDMaps[LEFT], median, 9);
-        median.copyTo(smallDMaps[LEFT]);
-        medianBlur(smallDMaps[RIGHT], median, 9);
-        median.copyTo(smallDMaps[RIGHT]);
-
         // quantize the image
         array<Mat, 2> quantizedDMaps;
         quantizeImage(smallDMaps, layers, quantizedDMaps);
@@ -365,13 +358,8 @@ namespace deblur {
 
         // threshold kernel to erease negative values
         // this is done because otherwise the resulting kernel is very grayish
+        // the negative results are noise
         threshold(kernel, kernel, 0.0, -1, THRESH_TOZERO);
-        // FIXME: is this really necessary? can a kernel have negative values?
-
-        // // alternative thresholding idea:
-        // double min; double max;
-        // minMaxLoc(kernel, &min, &max);
-        // threshold(kernel, kernel, max / 5, -1, THRESH_TOZERO);
 
         // swap slices of the result
         // because the image is shifted to the upper-left corner
@@ -409,6 +397,11 @@ namespace deblur {
         // will be used (we don't want this behavior)
         kernelROI.copyTo(psf);
 
+        // alternative thresholding idea:
+        double min; double max;
+        minMaxLoc(psf, &min, &max);
+        threshold(psf, psf, max / 7, -1, THRESH_TOZERO); 
+            
         // kernel has to be energy preserving
         // this means: sum(kernel) = 1
         psf /= sum(psf)[0];
@@ -477,6 +470,8 @@ namespace deblur {
         
         // compute a gradient image with salient edge (they are normalized to [-1, 1])
         array<Mat,2> salientEdgesLeft, salientEdgesRight;
+        deconv[LEFT] *= 255;
+        deconv[RIGHT] *= 255;
         computeSalientEdgeMap(deconv[LEFT], salientEdgesLeft, psfWidth, masks[LEFT]);
         computeSalientEdgeMap(deconv[RIGHT], salientEdgesRight, psfWidth, masks[RIGHT]);
 
@@ -556,11 +551,15 @@ namespace deblur {
     }
 
 
-    void DepthDeblur::psfSelection(vector<Mat>& candiates, int id) {
+    void DepthDeblur::psfSelection(vector<Mat>& candidates, Mat& winnerPSF, int id) {
         float minEnergy = 2;
         int winner = 0;
+
+        #ifdef IMWRITE
+            cout << "psf selection for " << id << " with " << candidates.size() << " candidates" << endl;
+        #endif
         
-        for (int i = 0; i < candiates.size(); i++) {
+        for (int i = 0; i < candidates.size(); i++) {
             // get mask of this region
             Mat mask;
             regionTree.getMask(id, mask, LEFT);
@@ -568,7 +567,7 @@ namespace deblur {
             // compute latent image
             Mat latent;
             // FIXME: latent image just of one view?
-            deconvolveFFT(floatImages[LEFT], latent, candiates[i]);
+            deconvolveFFT(floatImages[LEFT], latent, candidates[i]);
 
             // slightly Gaussian smoothed
             // use the complete image to avoid unwanted effects at the borders
@@ -577,27 +576,30 @@ namespace deblur {
             
             // shock filtered
             Mat shockFiltered;
+            latent *= 255;
             coherenceFilter(smoothed, shockFiltered);
             
             // compute correlation of the latent image and the shockfiltered image
             float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
 
-            // #ifdef IMWRITE
-            //     cout << "    energy for " << i << ": " << energy << endl;
-            // #endif
+            #ifdef IMWRITE
+                cout << "    energy for " << i << ": " << energy << endl;
+            #endif
 
             if (energy < minEnergy) {
+                minEnergy = energy;
                 winner = i;
             }
         }
 
-        // save the winner of the psf selection in the current node
-        candiates[winner].copyTo(regionTree[id].psf);
+        candidates[winner].copyTo(winnerPSF);
             
         #ifdef IMWRITE
+            cout << "    winner: " << winner << " (0: self, 1: parent, 2: sibbling)" << endl;
+
             // kernels
             Mat tmp;
-            regionTree[id].psf.copyTo(tmp);
+            candidates[winner].copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
             string filename = "mid-" + to_string(id) + "-kernel-selection.png";
@@ -776,14 +778,24 @@ namespace deblur {
                     regionTree[cid1].entropy = computeEntropy(regionTree[cid1].psf);
                     regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
+                    #ifdef IMWRITE
+                        cout << "entropy for " << cid1 << ": " << regionTree[cid1].entropy << endl;
+                        cout << "entropy for " << cid2 << ": " << regionTree[cid2].entropy << endl;
+                    #endif
+
                     // candiate selection
                     vector<Mat> candiates1, candiates2;
                     candidateSelection(candiates1, cid1, cid2);
                     candidateSelection(candiates2, cid2, cid1);
 
                     // final psf selection
-                    psfSelection(candiates1, cid1);
-                    psfSelection(candiates2, cid2);
+                    // save the winner of the psf selection not in the current node because
+                    // its sibbling would use this kernel (maybe its own twice)
+                    array<Mat, 2> winners;
+                    psfSelection(candiates1, winners[0], cid1);
+                    psfSelection(candiates2, winners[1], cid2);
+                    winners[0].copyTo(regionTree[cid1].psf);
+                    winners[1].copyTo(regionTree[cid2].psf);
 
 
                     // add children ids to the back of the queue (this has to be thread save)
@@ -977,6 +989,61 @@ namespace deblur {
             regionTree.getMask(i, mask, view);
 
             regionDeconv[i].copyTo(dst, mask);
+        }
+
+        // show and save the deblurred image
+        //
+        // threshold the result because it has large negative and positive values
+        // which would result in a very grayish image
+        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
+        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
+        dst.convertTo(dst, CV_8U, 255);
+
+        #ifdef IMWRITE
+            string filename = "deconv-" + to_string(view) + ".png";
+            imwrite(filename, dst);
+        #endif
+    }
+
+
+    void DepthDeblur::deconvolveTopLevel(Mat& dst, view view, int nThreads, bool color) {
+        // deconvolve in parallel
+        // reset storage for deconvolved images
+        regionDeconv.resize(regionTree.size());
+
+        // set up stack with regions that have to be calculated
+        // store leaf node region index
+        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+            int nr = regionTree.topLevelNodeIds[i];
+            regionStack.push(nr);
+        }
+
+        // create worker threads
+        int nrOfWorker = nThreads - 1;
+        thread threads[nrOfWorker];
+
+        for (int id = 0; id < nrOfWorker; id++) {
+            // each worker gets the deconvolveRegion method with the regionStack
+            threads[id] = thread(&DepthDeblur::deconvolveRegion, this, view, color);
+        }
+
+        // let the main thread do some work too
+        deconvolveRegion(view, color);
+
+        // wait for all threads to finish
+        for (int id = 0; id < nrOfWorker; id++) {
+            threads[id].join();
+        }
+
+        // add all region deconvs
+        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+            int id = regionTree.topLevelNodeIds[i];
+
+            Mat mask;
+            // the index of the region in regionDeconv and regionTree are the same
+            regionTree.getMask(id, mask, view);
+
+            regionDeconv[id].copyTo(dst, mask);
         }
 
         // show and save the deblurred image

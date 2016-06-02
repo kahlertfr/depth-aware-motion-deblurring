@@ -25,11 +25,32 @@ namespace deblur {
      * Enumeration for conviniend call of two views
      */
     enum view { LEFT, RIGHT };
+
+    /**
+     * Flags for matlabs conv2 method
+     */
+    enum ConvShape {
+        FULL,
+        SAME,
+        VALID,
+    };
     
 
     inline float norm(float a, float b) {
         return sqrt(a * a + b * b);
     }
+
+    /**
+     * Works like matlab conv2
+     *
+     * The shape parameter controls the result matrix size:
+     * 
+     *  - FULL  Returns the full two-dimensional convolution
+     *  - SAME  Returns the central part of the convolution of the same size as A
+     *  - VALID Returns only those parts of the convolution that are computed without
+     *          the zero-padded edges
+     */
+    void conv2(const cv::Mat& src, cv::Mat& dst, const cv::Mat& kernel, ConvShape shape = FULL);
 
     /**
      * Applies DFT after expanding input image to optimal size for Fourier transformation

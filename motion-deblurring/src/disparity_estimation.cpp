@@ -54,7 +54,7 @@ namespace deblur {
             5 * lambda, // K
 
             MATCH_INFINITY,  // occlusion_penalty
-            1,               // iter_max
+            3,               // iter_max
             false,           // randomize_every_iteration
             25               // w_size
         };
@@ -111,6 +111,13 @@ namespace deblur {
         // fill occlusion regions (= value < 10)
         fillOcclusionRegions(dMaps[LEFT], 10);
         fillOcclusionRegions(dMaps[RIGHT], 10);
+
+        // median filter to remove small outliers from disparity map
+        Mat median;
+        medianBlur(dMaps[LEFT], median, 9);
+        median.copyTo(dMaps[LEFT]);
+        medianBlur(dMaps[RIGHT], median, 9);
+        median.copyTo(dMaps[RIGHT]);
     }
 
 

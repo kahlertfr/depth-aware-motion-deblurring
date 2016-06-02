@@ -89,8 +89,18 @@ namespace deblur {
          */
         void deconvolve(cv::Mat& dst, view view, int nThreads = 1, bool color = false);
 
+        /**
+         * Deconvolves the two views just for the top-level regions.
+         * 
+         * @param dst     deconvolved image
+         * @param view    determine which view is deconvolved
+         * @param threads number of threads for parallel deconvolution
+         * @param color   use color image
+         */
+        void deconvolveTopLevel(cv::Mat& dst, view view, int nThreads = 1, bool color = false);
 
-      private:
+
+      protected:
 
         /**
          * both views as CV_8UC3
@@ -198,10 +208,11 @@ namespace deblur {
         /**
          * Selects a suitable PSF for the given Node
          *
-         * @param candiates possible PSFs
-         * @param id        node ID
+         * @param candidates possible PSFs
+         * @param winnerPSF  winner of selection process
+         * @param id         node ID
          */
-        void psfSelection(std::vector<cv::Mat>& candiates, int id);
+        void psfSelection(std::vector<cv::Mat>& candidates, cv::Mat& winnerPSF, int id);
 
         /**
          * Computed the correlation of gradient magnitudes inside the same region
@@ -227,8 +238,12 @@ namespace deblur {
         float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask);
 
 
-    // methods and variables used for parallel computation ++++++++++++++++++++++++++++++++++++++++++
-        
+    //--------------------------------------------------------------------------------------------
+    //
+    // methods and variables used for parallel computation
+    //
+    // --------------------------------------------------------------------------------------------
+      
         /**
          * mutex for queue or stack acces
          */

@@ -68,13 +68,24 @@ namespace deblur {
         std::array<cv::Mat*, 2> images;
 
         /**
+         * Stores nodes with their containing layers and the node ids
+         * of the children and the parent node.
+         */
+        std::vector<node> _tree;
+
+        /**
+         * Binary masks of each disparity layer for each view
+         */
+        std::array<std::vector<cv::Mat>, 2> _masks;
+
+        /**
          * Access the nodes stored in the tree with their index.
          * 
          * @param  i index
          * @return   corresponding node
          */
         inline node &operator[](int i) {
-            return tree[i];
+            return _tree[i];
         }
 
         /**
@@ -125,21 +136,7 @@ namespace deblur {
         /**
          * Returns total number of nodes in this region tree
          */
-        inline int size() { return tree.size(); }
-
-
-      private:
-        /**
-         * Stores nodes with their containing layers and the node ids
-         * of the children and the parent node.
-         */
-        std::vector<node> tree;
-
-        /**
-         * Binary masks of each disparity layer for each view
-         */
-        std::array<std::vector<cv::Mat>, 2> _masks;
-
+        inline int size() { return _tree.size(); }
     };
 }
 

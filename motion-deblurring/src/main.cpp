@@ -40,7 +40,7 @@ static bool parse_commandline_args(int argc, char** argv,
     void *argtable[] = {
         help        = arg_litn("h", "help",                        0, 1, "display this help and exit"),
         psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 35"),
-        d_layers    = arg_intn ("l", "layers", "<n>",              0, 1, "number of region/disparity layers. Default: 10"),
+        d_layers    = arg_intn ("l", "layers", "<n>",              0, 1, "number of region/disparity layers. Default: 12"),
         mythreads   = arg_intn ("t", "threads", "<n>",             0, 1, "number of threads. Default: 1"),
         max_disparity        = arg_intn ("d", "max-disparity", "<n>", 0, 1, "estimated maximum disparity. Default: 80"),
         max_toplevel_nodes   = arg_intn ("m", "max-top-nodes", "<n>", 0, 1, "max top level nodes in region tree. Default: 3"),
@@ -54,7 +54,7 @@ static bool parse_commandline_args(int argc, char** argv,
     mythreads->ival[0] = 1;
     max_toplevel_nodes->ival[0] = 3;
     max_disparity->ival[0] = 80;
-    d_layers->ival[0] = 10;
+    d_layers->ival[0] = 12;
 
     // parsing arguments
     int nerrors = arg_parse(argc,argv,argtable);
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
     cout << "   image right:         " << imageRight << endl;
     cout << "   max disparity:       " << maxDisparity << endl;
     cout << "   approx. PSF width:   " << psfWidth << endl;
-    cout << "   öayers/regions:      " << layers << endl;
+    cout << "   layers/regions:      " << layers << endl;
     cout << "   max top level nodes: " << maxTopLevelNodes << endl;
     cout << "   threads:             " << nThreads << endl;
     cout << endl;

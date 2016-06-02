@@ -10,7 +10,10 @@ namespace deblur {
                          const int sigma, const int str_sigma,
                          const float blend, const int iter) {
         
-        assert(img.type() == CV_32F || img.type() == CV_32FC3 && "works on float images");
+        assert(img.type() == CV_32F && "works on float images");
+
+        // FIXME: color isn't working
+        // assert(img.type() == CV_32F || img.type() == CV_32FC3 && "works on float images");
 
         img.copyTo(shockImage);
 
@@ -18,8 +21,15 @@ namespace deblur {
         int width  = shockImage.cols;
 
         for(int i = 0;i <iter; i++) {
+            Mat gray;
+            if (shockImage.channels() == 3) {
+                cvtColor(shockImage, gray, COLOR_BGR2GRAY);
+            } else {
+                gray = shockImage;
+            }
+
             Mat eigen;
-            cornerEigenValsAndVecs(shockImage, eigen, str_sigma, 3);
+            cornerEigenValsAndVecs(gray, eigen, str_sigma, 3);
 
             vector<Mat> vec;
             split(eigen,vec);
