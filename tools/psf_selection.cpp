@@ -116,21 +116,21 @@ int main(int argc, char** argv) {
     PSFSelection selection(src, src);
     selection.run(src, candidates, mask);
 
-    // deconvolve image with all kernels
-    Mat floatSrc;
-    src.convertTo(floatSrc, CV_32F);
-    floatSrc /= 255;
+    // // deconvolve image with all kernels
+    // Mat floatSrc;
+    // src.convertTo(floatSrc, CV_32F);
+    // floatSrc /= 255;
 
-    Mat deconv;
-    for (int i = 0; i < candidates.size(); i++) {
-        deblur::deconvolveFFT(floatSrc, deconv, candidates[i]);
+    // Mat deconv;
+    // for (int i = 0; i < candidates.size(); i++) {
+    //     deblur::deconvolveFFT(floatSrc, deconv, candidates[i]);
 
-        // save like matlab imshow([deconv])
-        threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
-        threshold(deconv, deconv, 1.0, -1, THRESH_TRUNC);
-        deconv.convertTo(deconv, CV_8U, 255);
-        imwrite("deconv-psf" + to_string(i) + ".png", deconv);        
-    }
+    //     // save like matlab imshow([deconv])
+    //     threshold(deconv, deconv, 0.0, -1, THRESH_TOZERO);
+    //     threshold(deconv, deconv, 1.0, -1, THRESH_TRUNC);
+    //     deconv.convertTo(deconv, CV_8U, 255);
+    //     imwrite("deconv-psf" + to_string(i) + ".png", deconv);        
+    // }
 
     return 0;
 }

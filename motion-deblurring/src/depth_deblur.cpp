@@ -398,13 +398,6 @@ namespace deblur {
         // kernel has to be energy preserving
         // this means: sum(kernel) = 1
         psf /= sum(psf)[0];
-
-        // #ifndef NDEBUG
-        //     Mat kernelUchar;
-        //     convertFloatToUchar(kernel, kernelUchar);
-        //     imshow("full psf", kernelUchar);
-        //     waitKey(0);
-        // #endif
     }
 
 
@@ -548,7 +541,7 @@ namespace deblur {
         int winner = 0;
 
         #ifdef IMWRITE
-            cout << "psf selection for " << id << " with " << candidates.size() << " candidates" << endl;
+            cout << "psf selection for node " << id << " with " << candidates.size() << " candidates" << endl;
         #endif
         
         for (int i = 0; i < candidates.size(); i++) {
@@ -561,6 +554,11 @@ namespace deblur {
             // FIXME: latent image just of one view?
             deconvolveFFT(floatImages[LEFT], latent, candidates[i]);
 
+            // save like matlab imshow([deconv])
+            threshold(latent, latent, 0.0, -1, THRESH_TOZERO);
+            threshold(latent, latent, 1.0, -1, THRESH_TRUNC);
+            latent *= 255;
+
             // slightly Gaussian smoothed
             // use the complete image to avoid unwanted effects at the borders
             Mat smoothed;
@@ -568,14 +566,20 @@ namespace deblur {
             
             // shock filtered
             Mat shockFiltered;
-            latent *= 255;
             coherenceFilter(smoothed, shockFiltered);
-            
+
             // compute correlation of the latent image and the shockfiltered image
             float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
 
             #ifdef IMWRITE
-                cout << "    energy for " << i << ": " << energy << endl;
+                cout << "    corr-energy for candidate " << i << ": " << energy << endl;
+
+                Mat tmp;
+                latent.convertTo(tmp, CV_8U);
+                imwrite("mid-" + to_string(id) + "-deconv-" + to_string(i) + "-e" + to_string(energy) + ".png", tmp);
+
+                // shockFiltered.convertTo(tmp, CV_8U);
+                // imwrite("mid-" + to_string(id) + "-deconv-" + to_string(i) + "-shockf.png", tmp);
             #endif
 
             if (energy < minEnergy) {
@@ -601,12 +605,6 @@ namespace deblur {
 
     float DepthDeblur::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
         assert(mask.type() == CV_8U && "mask is uchar image with zeros and ones");
-
-        // #ifdef IMWRITE
-        //     imshow("image1", image1);
-        //     imshow("image2", image2);
-        //     waitKey();
-        // #endif
 
         // compute gradients
         // parameter for sobel filtering to obtain gradients
@@ -770,8 +768,8 @@ namespace deblur {
                     regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
                     #ifdef IMWRITE
-                        cout << "entropy for " << cid1 << ": " << regionTree[cid1].entropy << endl;
-                        cout << "entropy for " << cid2 << ": " << regionTree[cid2].entropy << endl;
+                        cout << "entropy of psf estimate for node " << cid1 << ": " << regionTree[cid1].entropy << endl;
+                        cout << "entropy of psf estimate for node " << cid2 << ": " << regionTree[cid2].entropy << endl;
                     #endif
 
                     // candiate selection
@@ -803,71 +801,9 @@ namespace deblur {
             }
         }
     }
-
+    
 
     void DepthDeblur::midLevelKernelEstimation(int nThreads) {
-        // // // debug --------------------------------------------------------------
-        // Mat src, kernel, dst;
-        // // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // // // src = imread("conv-texture-wall-ausschnitt.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // // src.convertTo(src, CV_32F);
-        // // src /= 255;
-
-        // kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel.convertTo(kernel, CV_32F);
-        // kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
-
-        // computeBlurredGradients();
-
-        // // get masks for regions of both views
-        // array<Mat, 2> masks;
-        // masks[LEFT] = imread("mask-left0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // masks[LEFT] /= 255;
-        // masks[RIGHT] = imread("mask-right0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // masks[RIGHT] /= 255;
-
-        // // masks[LEFT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
-        // // masks[RIGHT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
-        
-
-        // Mat parentPSF, psf;
-        // estimateChildPSF(kernel, psf, masks, 0);
-
-        // deconvolveFFT(floatImages[LEFT], dst, psf);
-        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // dst.convertTo(dst, CV_8U, 255);
-        // imwrite("deconv-estimate-fft.png", dst);
-
-        // deconvolveIRLS(floatImages[LEFT], dst, psf, masks[LEFT]);
-        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // dst.convertTo(dst, CV_8U, 255);
-        // imwrite("deconv-estimate-irls.png", dst);
-        
-        // // deconvolveFFT(floatImages[LEFT], dst, kernel);
-        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // // dst.convertTo(dst, CV_8U, 255);
-        // // imwrite("deconv-original-fft.png", dst);
-        
-        // // // add border with zeros to the mask
-        // // copyMakeBorder(floatImages[LEFT], floatImages[LEFT], 130, 130, 130, 130,
-        // //                BORDER_CONSTANT, Scalar::all(0));
-        // // // add border with zeros to the mask
-        // // copyMakeBorder(masks[LEFT], masks[LEFT], 130, 130, 130, 130,
-        // //                BORDER_CONSTANT, Scalar::all(0));
-
-        // // deconvolveIRLS(floatImages[LEFT], dst, kernel, masks[LEFT]);
-        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // // dst.convertTo(dst, CV_8U, 255);
-        // // imwrite("deconv-original-irls.png", dst);
-
-        // // // end debug ----------------------------------------------------------------
-
-
-
         visitedLeafs = 0;
 
         // we can compute the gradients for each blurred image only ones
