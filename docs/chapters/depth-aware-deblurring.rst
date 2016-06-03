@@ -18,12 +18,12 @@ The depth-aware motion deblurring algorithm from Xu and Jia :cite:`Xu2012` deals
         \begin{subfigure}{.5\textwidth}
             \centering
             \includegraphics[width=170pt]{../images/mouse_left.jpg}
-            \caption{left image}
+            \caption{left image (matching view)}
         \end{subfigure}%
         \begin{subfigure}{.5\textwidth}
             \centering
             \includegraphics[width=170pt]{../images/mouse_right.jpg}
-            \caption{right image}
+            \caption{right image (reference view)}
         \end{subfigure}
         \caption{Blurred input images}
     \end{figure}
@@ -55,7 +55,7 @@ The reference implementation for the depth-aware motion deblurring algorithm pro
 Disparity Estimation
 ++++++++++++++++++++
 
-- spatially variant kernel needed -> depth estimation with stereo matching
+- spatially variant kernel dependent on depth -> depth estimation with stereo matching
 
 The main idea of the algorithm is the independent deblurring of each depth layer to get an accurate result for scenes with high depth differences. So the first step is the disparity estimation from both views.
 
@@ -194,11 +194,70 @@ PSF Estimation for Top-Level Regions
 - region images have black pixel which do not belong to the region
 - high gradients at borders of region would affect PSF estimation
 - need for filling the pixel not belonging to the region in such a way that reduces high frequencies at the borders
+- :red:`edge tapering`
 
 
 
-PSF Propagation
-+++++++++++++++
+Iterative PSF Computation
++++++++++++++++++++++++++
+
+- for mid- and leaf level nodes
+- regions become smaller and smaller on the way from top to bottom in the region tree -> PSF estimation isn't robust
+- parent PSF estimate is available to guide child PSF estimation
+- because of erroneous estimates in very small regions a PSF selection scheme is provided
+- lack of texture is a problem too - handled by candidate selection
+- the two steps of iterative PSF computation for each node is described below
+
+
+Joint PSF Estimation
+--------------------
+
+- guide estimation with salient edge map :math:`\nabla S`
+    - parent PSF is used to compute the edge map
+    - same as P map from Fast Motion Deblurring :cite:`Cho2009` (deblur with parent, bilateral filter, shock filter, gradients)
+- Tikhonov regularization :red:`add explanation`
+- :red:`add variable explanation for comming formulas`
+- objective function is defined jointly on reference and matching view (more robust against noise)
+
+.. math:: :numbered:
+    
+    E(k) = \sum_{i \in \{r,m\}} \| \nabla S_i \otimes k - \nabla B_i \|^2 + \gamma_k \|k\|^2
+
+- closed-form solution using Fourier Transformations
+
+.. math:: :numbered:
+    
+    k = F^{-1} \frac
+        {\sum_i \overline{F_{\partial_x S_i}} F_{\partial_x B_i}  +  \sum_i \overline{F_{\partial_y S_i}} F_{\partial_ y B_i}} 
+        {\sum_i (\overline{F_{\partial_x S_i}} F_{\partial_x S_i} + \overline{F_{\partial_y S_i}} F_{\partial_y S_i} )  +  \gamma_k F_{1}^2}
+
+**problem**:
+
+- gradients of regions: border of region results in huge gradient therefore compute gradients always on the whole image and then cut the region
+- same problem appears if the gradient is calculated in Fourier domain -> vary formula of paper to compute gradients of region in spatial to domain to be able to cut of the region
+
+
+Candidate PSF Selection
+-----------------------
+
+- major novelty of this paper
+- PSF estimate can be erroneous -> detect incorrect PSFs (mostly very noisy and dense values)
+- PSF entropy
+
+.. math:: :numbered:
+
+    H(k) = - \sum_{x \in k} x \log x
+
+- mark PSF as unreliable if entropy is notably larger than it peers in the same level :red:`what excatly is the same level?`
+
+- candidates are: parent and own kernel and sibbling kernel if reliable
+
+- :red:`new PSF selection scheme: using shock filtering invariance nature of unblurred natural images (requires salient edges in latent image - easily satifiable)`
+- restore latent image *I^k* for each kernel candidate -> if correct should contain salient edges
+
+.. math:: :numbered:
+
+    E(I^k) = \| I^k \otimes k - B \|^2 +  \gamma \|\nabla I^k \|^2
 
 
 Blur Removal
