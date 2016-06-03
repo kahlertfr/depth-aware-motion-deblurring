@@ -90,10 +90,8 @@ namespace deblur {
             }
 
             #ifdef IMWRITE
-                string filename = "deconv-" + to_string(i + 1) + "-left.png";
-                imwrite(filename, deblurViews[LEFT]);
-                filename = "deconv-" + to_string(i + 1) + "-right.png";
-                imwrite(filename, deblurViews[RIGHT]);
+                imwrite("deconv-" + to_string(i + 1) + "-left.png", deblurViews[LEFT]);
+                imwrite("deconv-" + to_string(i + 1) + "-right.png", deblurViews[RIGHT]);
             #endif
 
             // FIXME: skip second pass because the result is of the first is too bad :(

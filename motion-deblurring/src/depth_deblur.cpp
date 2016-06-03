@@ -93,13 +93,11 @@ namespace deblur {
             double min1; double max1;
             minMaxLoc(smallDMaps[LEFT], &min1, &max1);
             smallDMaps[LEFT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
-            string filenameAlgo = "dmap-algo-left.png";
-            imwrite(filenameAlgo, disparityViewableAlgo);
+            imwrite("dmap-algo-left.png", disparityViewableAlgo);
 
             minMaxLoc(smallDMaps[RIGHT], &min1, &max1);
             smallDMaps[RIGHT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
-            filenameAlgo = "dmap-algo-right.png";
-            imwrite(filenameAlgo, disparityViewableAlgo);
+            imwrite("dmap-algo-right.png", disparityViewableAlgo);
         #endif
 
         // quantize the image
@@ -113,16 +111,12 @@ namespace deblur {
             minMaxLoc(quantizedDMaps[LEFT], &min, &max);
             quantizedDMaps[LEFT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
-            // imshow("quantized disparity map " + prefix, disparityViewable);
-            string filename = "dmap-final-left.png";
-            imwrite(filename, disparityViewable);
+            imwrite("dmap-final-left.png", disparityViewable);
 
             minMaxLoc(quantizedDMaps[RIGHT], &min, &max);
             quantizedDMaps[RIGHT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
-            // imshow("quantized disparity map " + prefix, disparityViewable);
-            filename = "dmap-final-right.png";
-            imwrite(filename, disparityViewable);
+            imwrite("dmap-final-right.png", disparityViewable);
         #endif
 
         // up sample disparity map to original resolution without interpolation
@@ -158,25 +152,21 @@ namespace deblur {
 
             // #ifdef IMWRITE
             //     // top-level region
-            //     string filename = "top-" + to_string(id) + "-mask.png";
-            //     imwrite(filename, mask);
+            //     imwrite("top-" + to_string(id) + "-mask.png", mask);
 
             //     // tapered image
-            //     filename = "top-" + to_string(id) + "-tapered.png";
-            //     imwrite(filename, taperedRegion);
+            //     imwrite("top-" + to_string(id) + "-tapered.png", taperedRegion);
 
             //     // top-level region
             //     grayImages[LEFT].copyTo(region, mask);
-            //     filename = "top-" + to_string(id) + ".png";
-            //     imwrite(filename, region);
+            //     imwrite("top-" + to_string(id) + ".png", region);
 
             //     // kernel
             //     Mat tmp;
             //     regionTree[id].psf.copyTo(tmp);
             //     tmp *= 1000;
             //     convertFloatToUchar(tmp, tmp);
-            //     filename = "top-" + to_string(id) + "-kernel.png";
-            //     imwrite(filename, tmp);
+            //     imwrite("top-" + to_string(id) + "-kernel.png";, tmp);
             // #endif
 
 
@@ -187,13 +177,11 @@ namespace deblur {
             // // get an image of the top-level region
             // Mat region, mask;
             // regionTree.getRegionImage(id, region, mask, RIGHT);
-            // string name = "mask-right" + to_string(i) + ".jpg";
-            // imwrite(name, mask * 255);
+            // imwrite("mask-right" + to_string(i) + ".jpg", mask * 255);
 
             // Mat regionLeft, maskLeft;
             // regionTree.getRegionImage(id, regionLeft, maskLeft, LEFT);
-            // name = "mask-left" + to_string(i) + ".jpg";
-            // imwrite(name, maskLeft * 255);
+            // imwrite("mask-left" + to_string(i) + ".jpg", maskLeft * 255);
             
             // // edge tapering to remove high frequencies at the border of the region
             // Mat regionUchar, taperedRegion;
@@ -201,14 +189,12 @@ namespace deblur {
             // edgeTaper(regionUchar, taperedRegion, maskLeft, grayImages[LEFT]);
 
             // // use this images for example for the .exe of the two-phase kernel estimation
-            // name = "tapered" + to_string(i) + ".jpg";
-            // imwrite(name, taperedRegion);
+            // imwrite("tapered" + to_string(i) + ".jpg", taperedRegion);
             
             // 2. load kernel images generated with the exe for toplevels
             // load the kernel images which should be named left/right-kerneli.png
             // they should be located in the folder where this algorithm is started
-            string filename = "kernel" + to_string(i) + ".png";
-            Mat kernelImage = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+            Mat kernelImage = imread("kernel" + to_string(i) + ".png", CV_LOAD_IMAGE_GRAYSCALE);
 
             if (!kernelImage.data) {
                 throw runtime_error("Can not load kernel!");
@@ -225,8 +211,7 @@ namespace deblur {
                 Mat region, mask, regionUchar;
                 regionTree.getRegionImage(id, region, mask, LEFT);
                 region.convertTo(regionUchar, CV_8U);
-                string name = "top-" + to_string(i) + "-left.jpg";
-                imwrite(name, regionUchar);
+                imwrite("top-" + to_string(i) + "-left.jpg", regionUchar);
             #endif
         }
     }
@@ -468,8 +453,6 @@ namespace deblur {
         array<Mat, 2> deconv;
         deconvolveFFT(floatImages[LEFT], deconv[LEFT], parentPSF);
         deconvolveFFT(floatImages[RIGHT], deconv[RIGHT], parentPSF);
-
-        // FIXME: strong ringing artifacts in deconvoled image (with fft)
     
         // #ifdef IMWRITE
         //     imshow("devonv left", deconv[LEFT]);
@@ -496,21 +479,22 @@ namespace deblur {
             // region images
             Mat region;
             grayImages[LEFT].copyTo(region, masks[LEFT]);
-            string filename = "mid-" + to_string(id) + "-left.png";
-            imwrite(filename, region);
+            imwrite("mid-" + to_string(id) + "region-left.png", region);
 
             Mat regionR;
             grayImages[RIGHT].copyTo(regionR, masks[RIGHT]);
-            filename = "mid-" + to_string(id) + "-right.png";
-            imwrite(filename, regionR);
+            imwrite("mid-" + to_string(id) + "region-right.png", regionR);
+
+            // masks
+            imwrite("mid-" + to_string(id) + "-mask-left.png", masks[LEFT] * 255);
+            imwrite("mid-" + to_string(id) + "-mask-right.png", masks[RIGHT] * 255);
 
             // kernels
             Mat tmp;
             psf.copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
-            filename = "mid-" + to_string(id) + "-kernel-init.png";
-            imwrite(filename, tmp);
+            imwrite("mid-" + to_string(id) + "-kernel-init.png", tmp);
         #endif
     }
 
@@ -610,8 +594,7 @@ namespace deblur {
             candidates[winner].copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
-            string filename = "mid-" + to_string(id) + "-kernel-selection.png";
-            imwrite(filename, tmp);
+            imwrite("mid-" + to_string(id) + "-kernel-selection.png", tmp);
         #endif
     }
 
@@ -1008,8 +991,7 @@ namespace deblur {
         dst.convertTo(dst, CV_8U, 255);
 
         #ifdef IMWRITE
-            string filename = "deconv-" + to_string(view) + ".png";
-            imwrite(filename, dst);
+            imwrite("deconv-" + to_string(view) + ".png", dst);
         #endif
     }
 
@@ -1063,8 +1045,7 @@ namespace deblur {
         dst.convertTo(dst, CV_8U, 255);
 
         #ifdef IMWRITE
-            string filename = "deconv-" + to_string(view) + ".png";
-            imwrite(filename, dst);
+            imwrite("deconv-" + to_string(view) + ".png", dst);
         #endif
     }
 }
