@@ -252,14 +252,38 @@ Candidate PSF Selection
 
 - candidates are: parent and own kernel and sibbling kernel if reliable
 
+
+.. figure:: ../images/wip.png
+   :width: 200 pt
+   :alt: psf selection
+
+   PSF selection scheme
+
+
 - :red:`new PSF selection scheme: using shock filtering invariance nature of unblurred natural images (requires salient edges in latent image - easily satifiable)`
-- restore latent image *I^k* for each kernel candidate -> if correct should contain salient edges
+- restore latent image :math:`I^k` for each kernel candidate
 
 .. math:: :numbered:
 
     E(I^k) = \| I^k \otimes k - B \|^2 +  \gamma \|\nabla I^k \|^2
 
+- :red:`TODO: add figure with candidates, latent images ..`
+- paper doesn't mention how they compute the latent image
+- using deconvolution in frequency domain -> results in some ringing artifacts in restored image (more accurat spatial IRLS-method would be very slow) -> :red:`affects?`
+- if :math:`I^k` is correct should contain salient edges -> compute :math:`\tilde{I^k}`: Gaussian smoothed (reduce noise) and shock filtered (significant edges)
+
+- correlation of gradient magnitudes between :math:`I^k` and :math:`\tilde{I^k}`
+- only salient edges will not be changed significantly: in blurred images almost all edges will alter through shock filtering and in images with ringing artifacts and other structural problems the edges are ruined too -> correlation value decreases
+
 
 Blur Removal
 ++++++++++++
 
+- deblurring of each depth layer
+
+.. math:: :numbered:
+
+    E(I) = \| I \otimes k^d - B \|^2 +  \gamma_f \|\nabla I \|^2
+
+**problem**:
+- region boundaries -> set :math:`\gamma_f` three times larger for pixel with distant to the boundary smaller than kernel size
