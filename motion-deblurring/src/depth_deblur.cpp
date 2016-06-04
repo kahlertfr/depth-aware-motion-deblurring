@@ -652,72 +652,12 @@ namespace deblur {
         minMaxLoc(gradients2, &min, &max);
         gradients2 /= max;
 
-        // cut of region
+        // cut regions
         Mat X, Y;
         gradients1.copyTo(X, mask);
         gradients2.copyTo(Y, mask);
 
-       
-        // compute correlation
-        //
-        // compute mean of the matrices
-        // use just the pixel inside the mask
-        float meanX = 0;
-        float meanY = 0;
-        float N = 0;
-
-        for (int row = 0; row < X.rows; row++) {
-            for (int col = 0; col < X.cols; col++) {
-                // compute if inside mask (0 - ouside, 255 -inside)
-                if (mask.at<uchar>(row, col) > 0) {
-                    // expected values                
-                    meanX += X.at<float>(row, col);
-                    meanY += Y.at<float>(row, col);
-                    N++;
-                }
-            }
-        }
-
-        meanX /= N;
-        meanY /= N;
-        
-        // expected value can be computed using the mean:
-        // E(X - μx) = 1/N * sum_x(x - μx) ... denoted as Ex
-
-        // FIXME: does the paper use the corr2 function of matlab? I think so
-        float E = 0;
-
-        // deviation = sqrt(1/N * sum_x(x - μx)²) -> do not use 1/N 
-        float deviationX = 0;
-        float deviationY = 0;
-
-        assert(X.size() == Y.size() && "images of same size");
-        
-        // go through each gradient map and
-        // compute the sums in the computation of expedted values and deviations
-        for (int row = 0; row < X.rows; row++) {
-            for (int col = 0; col < X.cols; col++) {
-                // compute if inside mask
-                if (mask.at<uchar>(row, col) > 0) {
-                    float valueX = X.at<float>(row, col) - meanX;
-                    float valueY = Y.at<float>(row, col) - meanY;
-
-                    // expected values (the way matlab calculates it)              
-                    E += valueX * valueY;
-
-                    // deviation
-                    deviationX += (valueX * valueX);
-                    deviationY += (valueY * valueY);
-                }
-            }
-        }
-           
-        deviationX = sqrt(deviationX);
-        deviationY = sqrt(deviationY);
-
-        float correlation = E / (deviationX * deviationY);
-
-        return correlation;
+        return crossCorrelation(X, Y, mask);
     }
 
 
