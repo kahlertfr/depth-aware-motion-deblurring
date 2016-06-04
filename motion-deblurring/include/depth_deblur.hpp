@@ -246,7 +246,7 @@ namespace deblur {
          * @param  mask   mask of the region
          * @return        correlation value
          */
-        float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask);
+        float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask, int id, int i);
 
 
     //--------------------------------------------------------------------------------------------

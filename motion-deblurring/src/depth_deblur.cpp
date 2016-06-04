@@ -589,7 +589,7 @@ namespace deblur {
             coherenceFilter(smoothed, shockFiltered);
 
             // compute correlation of the latent image and the shockfiltered image
-            float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
+            float energy = 1 - gradientCorrelation(latent, shockFiltered, mask, id, i);
 
             #ifdef IMWRITE
                 cout << "    corr-energy for candidate " << i << ": " << energy << endl;
@@ -623,7 +623,7 @@ namespace deblur {
     }
 
 
-    float DepthDeblur::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
+    float DepthDeblur::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask, int id, int i) {
         assert(mask.type() == CV_8U && "mask is uchar image with zeros and ones");
 
         // compute gradients
@@ -656,6 +656,16 @@ namespace deblur {
         Mat X, Y;
         gradients1.copyTo(X, mask);
         gradients2.copyTo(Y, mask);
+
+
+        #ifdef IMWRITE
+            // gradients
+            Mat tmp;
+            X.convertTo(tmp, CV_8U, 255);
+            imwrite("mid" + to_string(id) + "-gradients-" + to_string(i) + ".png", tmp);
+            Y.convertTo(tmp, CV_8U, 255);
+            imwrite("mid" + to_string(id) + "-gradients-" + to_string(i) + "-shockf.png", tmp);
+        #endif
 
         return crossCorrelation(X, Y, mask);
     }
