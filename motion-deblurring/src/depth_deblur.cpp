@@ -390,10 +390,10 @@ namespace deblur {
         // will be used (we don't want this behavior)
         kernelROI.copyTo(psf);
 
-        // alternative thresholding idea:
-        double min; double max;
-        minMaxLoc(psf, &min, &max);
-        threshold(psf, psf, max / 7, -1, THRESH_TOZERO); 
+        // // alternative thresholding idea:
+        // double min; double max;
+        // minMaxLoc(psf, &min, &max);
+        // threshold(psf, psf, max / 7, -1, THRESH_TOZERO); 
             
         // kernel has to be energy preserving
         // this means: sum(kernel) = 1
@@ -472,11 +472,11 @@ namespace deblur {
             // region images
             Mat region;
             grayImages[LEFT].copyTo(region, masks[LEFT]);
-            imwrite("mid-" + to_string(id) + "region-left.png", region);
+            imwrite("mid-" + to_string(id) + "-region-left.png", region);
 
             Mat regionR;
             grayImages[RIGHT].copyTo(regionR, masks[RIGHT]);
-            imwrite("mid-" + to_string(id) + "region-right.png", regionR);
+            imwrite("mid-" + to_string(id) + "-region-right.png", regionR);
 
             // masks
             imwrite("mid-" + to_string(id) + "-mask-left.png", masks[LEFT] * 255);
@@ -515,6 +515,32 @@ namespace deblur {
     }
 
 
+    bool DepthDeblur::isReliablePSF(int id) {
+        // psf is reliable if entropy - mean < threshold
+        // 
+        // get mean of whole level
+        vector<int> peers = regionTree.getLevelPeers(id);
+
+        float sum = 0;
+
+        for (int i = 0; i < peers.size(); i++) {
+            int nid = peers[i];
+            sum += regionTree[nid].entropy;
+        }
+
+        float mean = sum / peers.size();
+
+        // empirically choosen threshold
+        float threshold = 0.2 * mean;
+
+        if (regionTree[id].entropy - mean < threshold) {
+            return true;
+        }
+
+        return false;
+    }
+
+
     void DepthDeblur::candidateSelection(vector<Mat>& candiates, int id, int sid) {
         // own psf is added as candidate
         candiates.push_back(regionTree[id].psf);
@@ -524,13 +550,7 @@ namespace deblur {
         candiates.push_back(regionTree[pid].psf);
 
         // add sibbling psf just if it is reliable
-        // this means: entropy - mean < threshold
-        float mean = (regionTree[id].entropy + regionTree[sid].entropy) / 2.0;
-
-        // empirically choosen threshold
-        float threshold = 0.2 * mean;
-
-        if (regionTree[sid].entropy - mean < threshold) {
+        if (isReliablePSF(sid)) {
             candiates.push_back(regionTree[sid].psf);
         }
     }
@@ -598,7 +618,7 @@ namespace deblur {
             candidates[winner].copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
-            imwrite("mid-" + to_string(id) + "-kernel-selection.png", tmp);
+            imwrite("mid-" + to_string(id) + "-kernel-selection-" + to_string(winner) + ".png", tmp);
         #endif
     }
 
@@ -772,6 +792,49 @@ namespace deblur {
                         cout << "entropy of psf estimate for node " << cid2 << ": " << regionTree[cid2].entropy << endl;
                     #endif
 
+                    // // candiate selection
+                    // vector<Mat> candiates1, candiates2;
+                    // candidateSelection(candiates1, cid1, cid2);
+                    // candidateSelection(candiates2, cid2, cid1);
+
+                    // // final psf selection
+                    // // save the winner of the psf selection not in the current node because
+                    // // its sibbling would use this kernel (maybe its own twice)
+                    // array<Mat, 2> winners;
+                    // psfSelection(candiates1, winners[0], cid1);
+                    // psfSelection(candiates2, winners[1], cid2);
+                    // winners[0].copyTo(regionTree[cid1].psf);
+                    // winners[1].copyTo(regionTree[cid2].psf);
+
+
+                    // add children ids to the back of the queue (this has to be thread save)
+                    m.lock();
+                    remainingNodes.push(cid1);
+                    remainingNodes.push(cid2);
+                    m.unlock();
+
+                } else {
+                    mCounter.lock();
+                    visitedLeafs++;
+                    mCounter.unlock();
+                }
+            }
+        }
+    }
+
+
+    void DepthDeblur::midLevelKernelRefinement() {
+        int id;
+
+        while(visitedLeafs != layers) {
+            if (safeQueueAccess(&remainingNodes, id)) {
+                // get IDs of the child nodes
+                int cid1 = regionTree[id].children.first;
+                int cid2 = regionTree[id].children.second;
+
+                // do PSF computation for a middle node with its children
+                // (leaf nodes doesn't have any children)
+                if (cid1 != -1 && cid2 != -1) {
                     // candiate selection
                     vector<Mat> candiates1, candiates2;
                     candidateSelection(candiates1, cid1, cid2);
@@ -799,7 +862,7 @@ namespace deblur {
                     mCounter.unlock();
                 }
             }
-        }
+        }   
     }
     
 
@@ -833,6 +896,28 @@ namespace deblur {
         }
 
         midLevelKernelEstimationNode();
+
+        // wait for all threads to finish
+        for (int id = 0; id < nrOfWorker; id++) {
+            threads[id].join();
+        }
+
+
+        // candidate PSF selection
+        // (same process as before)
+        visitedLeafs = 0;
+
+        // init queue with the top-level node IDs
+        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+            remainingNodes.push(regionTree.topLevelNodeIds[i]);
+        }
+
+        for (int id = 0; id < nrOfWorker; id++) {
+            // each worker gets the deconvolveRegion method with the regionStack
+            threads[id] = thread(&DepthDeblur::midLevelKernelRefinement, this);
+        }
+
+        midLevelKernelRefinement();
 
         // wait for all threads to finish
         for (int id = 0; id < nrOfWorker; id++) {

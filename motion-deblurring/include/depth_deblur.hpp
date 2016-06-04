@@ -192,6 +192,17 @@ namespace deblur {
         float computeEntropy(cv::Mat& kernel);
 
         /**
+         * Determined if the PSF of the current node is reliable:
+         * entropy - mean < threshold
+         *
+         * where the mean of the whole level is used
+         * 
+         * @param  id current node
+         * @return    if the psf is reliable
+         */
+        bool isReliablePSF(int id);
+
+        /**
          * Selects candiates for psf selection
          * 
          * The following psfs are candidates:
@@ -295,6 +306,12 @@ namespace deblur {
          * 
          */
         void midLevelKernelEstimationNode();
+
+        /**
+         * This method is used by threads for parallel mid level psf refinement. It 
+         * uses a thread safe access to the remainingNodes queue.
+         */
+        void midLevelKernelRefinement();
 
         /**
          * Provides a mutex lock to safely get and pop the top item
