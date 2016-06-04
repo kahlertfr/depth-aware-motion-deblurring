@@ -248,7 +248,7 @@ Candidate PSF Selection
 
     H(k) = - \sum_{x \in k} x \log x
 
-- mark PSF as unreliable if entropy is notably larger than it peers in the same level :red:`what excatly is the same level?`
+- mark PSF as unreliable if entropy is notably larger than it peers in the same level (through all three sub-trees)
 
 - candidates are: parent and own kernel and sibbling kernel if reliable
 
@@ -259,8 +259,15 @@ Candidate PSF Selection
 
    PSF selection scheme
 
+**problem**:
 
-- :red:`new PSF selection scheme: using shock filtering invariance nature of unblurred natural images (requires salient edges in latent image - easily satifiable)`
+- PSF candidates available but how to determine what deconvolution has the best result
+- new PSF selection scheme proposed: a correct deblurred image should contain salient edges
+- salient edges are invariant to shock filtering that means they won't be affected -> compare deblurred image with its shock filtered version to check for salient edges
+- (the requirement of salient edges in latent image is mostly satisfied)
+
+**details of psf selection scheme**
+
 - restore latent image :math:`I^k` for each kernel candidate
 
 .. math:: :numbered:
@@ -272,7 +279,7 @@ Candidate PSF Selection
 - using deconvolution in frequency domain -> results in some ringing artifacts in restored image (more accurat spatial IRLS-method would be very slow) -> :red:`affects?`
 - if :math:`I^k` is correct should contain salient edges -> compute :math:`\tilde{I^k}`: Gaussian smoothed (reduce noise) and shock filtered (significant edges)
 
-- correlation of gradient magnitudes between :math:`I^k` and :math:`\tilde{I^k}`
+- cross correlation of gradient magnitudes between :math:`I^k` and :math:`\tilde{I^k}`
 - only salient edges will not be changed significantly: in blurred images almost all edges will alter through shock filtering and in images with ringing artifacts and other structural problems the edges are ruined too -> correlation value decreases
 
 
