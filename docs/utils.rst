@@ -15,3 +15,15 @@
 .. raw:: LaTex
 
     \providecommand*\DUrolered[1]{{\color{red} {#1}}}
+
+
+.. reference of figures
+
+.. role:: ref
+
+.. role:: label
+
+.. raw::  latex
+
+  \newcommand*{\docutilsroleref}{\ref}
+  \newcommand*{\docutilsrolelabel}{\label}
