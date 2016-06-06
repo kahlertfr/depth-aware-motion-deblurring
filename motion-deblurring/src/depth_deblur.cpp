@@ -20,10 +20,11 @@ using namespace std;
 
 namespace deblur {
 
-    DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width, const int _layers)
+    DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width, const int _layers, const deconvAlgo deconvAlgo)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)       // odd psf-width needed
                             , layers((_layers % 2 == 0) ? _layers : _layers - 1)   // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
+                            , deconvAlgoPSFSelection(deconvAlgo)
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
 
@@ -569,12 +570,17 @@ namespace deblur {
             Mat mask;
             regionTree.getMask(id, mask, LEFT);
 
-            // compute latent image
+            // compute latent image (only of one view - the other doesn't contain more information)
             Mat latent;
-            // FIXME: latent image just of one view?
-            deconvolveFFT(floatImages[LEFT], latent, candidates[i]);
+            if (deconvAlgoPSFSelection == FFT) {
+                // fast, but ringing artifacts
+                deconvolveFFT(floatImages[LEFT], latent, candidates[i]);
+            } else if (deconvAlgoPSFSelection == IRLS) {
+                // very slow, but better result
+                deconvolveIRLS(floatImages[LEFT], latent, candidates[i], mask);
+            }
 
-            // save like matlab imshow([deconv])
+            // convert like matlab imshow([latent])
             threshold(latent, latent, 0.0, -1, THRESH_TOZERO);
             threshold(latent, latent, 1.0, -1, THRESH_TRUNC);
             latent *= 255;
@@ -605,6 +611,11 @@ namespace deblur {
             if (energy < minEnergy) {
                 minEnergy = energy;
                 winner = i;
+
+                // save latent image of leaf nodes to save time for deblurring
+                if (regionTree[id].children.first == -1 && deconvAlgoPSFSelection == IRLS) {
+                    latent.copyTo(regionDeconv[id]);
+                }
             }
         }
 
@@ -742,21 +753,6 @@ namespace deblur {
                         cout << "entropy of psf estimate for node " << cid2 << ": " << regionTree[cid2].entropy << endl;
                     #endif
 
-                    // // candiate selection
-                    // vector<Mat> candiates1, candiates2;
-                    // candidateSelection(candiates1, cid1, cid2);
-                    // candidateSelection(candiates2, cid2, cid1);
-
-                    // // final psf selection
-                    // // save the winner of the psf selection not in the current node because
-                    // // its sibbling would use this kernel (maybe its own twice)
-                    // array<Mat, 2> winners;
-                    // psfSelection(candiates1, winners[0], cid1);
-                    // psfSelection(candiates2, winners[1], cid2);
-                    // winners[0].copyTo(regionTree[cid1].psf);
-                    // winners[1].copyTo(regionTree[cid2].psf);
-
-
                     // add children ids to the back of the queue (this has to be thread save)
                     m.lock();
                     remainingNodes.push(cid1);
@@ -775,6 +771,11 @@ namespace deblur {
 
     void DepthDeblur::midLevelKernelRefinement() {
         int id;
+
+        if (deconvAlgoPSFSelection == IRLS) {
+            // reset storage for deconvolved leaf nodes
+            regionDeconv.resize(layers);
+        }
 
         while(visitedLeafs != layers) {
             if (safeQueueAccess(&remainingNodes, id)) {
@@ -912,36 +913,47 @@ namespace deblur {
             }
 
             deconvolveIRLS(region, regionDeconv[i], regionTree[i].psf, mask);
+
+            // threshold the result because it has large negative and positive values
+            // which would result in a very grayish image
+            threshold(regionDeconv[i], regionDeconv[i], 0.0, -1, THRESH_TOZERO);
+            threshold(regionDeconv[i], regionDeconv[i], 1.0, -1, THRESH_TRUNC);
+            regionDeconv[i].convertTo(regionDeconv[i], CV_8U, 255);
         }
     }
 
 
     void DepthDeblur::deconvolve(Mat& dst, view view, int nThreads, bool color) {
-        // deconvolve in parallel
-        // reset storage for deconvolved images
-        regionDeconv.resize(layers);
+        // if the PSF selection were done with the fft deconvolution
+        // a deconvolution with IRLS (for better results) has to be done
+        // otherwise the deconvolved regions already exist for the left view
+        if (deconvAlgoPSFSelection == FFT || view == RIGHT) {
+            // deconvolve in parallel
+            // reset storage for deconvolved images
+            regionDeconv.resize(layers);
 
-        // set up stack with regions that have to be calculated
-        // store leaf node region index
-        for (int nr = 0; nr < layers; nr++) {
-            regionStack.push(nr);
-        }
+            // set up stack with regions that have to be calculated
+            // store leaf node region index
+            for (int nr = 0; nr < layers; nr++) {
+                regionStack.push(nr);
+            }
 
-        // create worker threads
-        int nrOfWorker = nThreads - 1;
-        thread threads[nrOfWorker];
+            // create worker threads
+            int nrOfWorker = nThreads - 1;
+            thread threads[nrOfWorker];
 
-        for (int id = 0; id < nrOfWorker; id++) {
-            // each worker gets the deconvolveRegion method with the regionStack
-            threads[id] = thread(&DepthDeblur::deconvolveRegion, this, view, color);
-        }
+            for (int id = 0; id < nrOfWorker; id++) {
+                // each worker gets the deconvolveRegion method with the regionStack
+                threads[id] = thread(&DepthDeblur::deconvolveRegion, this, view, color);
+            }
 
-        // let the main thread do some work too
-        deconvolveRegion(view, color);
+            // let the main thread do some work too
+            deconvolveRegion(view, color);
 
-        // wait for all threads to finish
-        for (int id = 0; id < nrOfWorker; id++) {
-            threads[id].join();
+            // wait for all threads to finish
+            for (int id = 0; id < nrOfWorker; id++) {
+                threads[id].join();
+            }
         }
 
         // add all region deconvs
@@ -949,17 +961,8 @@ namespace deblur {
             Mat mask;
             // the index of the region in regionDeconv and regionTree are the same
             regionTree.getMask(i, mask, view);
-
             regionDeconv[i].copyTo(dst, mask);
         }
-
-        // show and save the deblurred image
-        //
-        // threshold the result because it has large negative and positive values
-        // which would result in a very grayish image
-        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        dst.convertTo(dst, CV_8U, 255);
 
         #ifdef IMWRITE
             imwrite("deconv-" + to_string(view) + ".png", dst);
@@ -970,6 +973,7 @@ namespace deblur {
     void DepthDeblur::deconvolveTopLevel(Mat& dst, view view, int nThreads, bool color) {
         // deconvolve in parallel
         // reset storage for deconvolved images
+        // size of region tree is used because top-level regions have the highest indices
         regionDeconv.resize(regionTree.size());
 
         // set up stack with regions that have to be calculated

@@ -32,6 +32,8 @@ namespace deblur {
 
       public:
 
+        enum deconvAlgo { FFT, IRLS };
+
         /**
          * Constructor for depth-deblurring of stereo images
          * 
@@ -39,8 +41,10 @@ namespace deblur {
          * @param imageRight blurred right view
          * @param width      approximate PSF width
          * @param _layers    number of different disparity layers/ regions
+         * @param deconvAlgo deconvolution algortihm used in PSF selection (FFT - fast, but ringing, IRLS - slow, but better results)
          */
-        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width, const int _layers);
+        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width, const int _layers,
+                    const deconvAlgo deconvAlgo = IRLS);
 
         /**
          * Disparity estimation of two blurred images
@@ -130,6 +134,11 @@ namespace deblur {
          * this is an even number.
          */
         const int layers;
+
+        /**
+         * deconvolution algortihm used for PSF selection
+         */
+        const deconvAlgo deconvAlgoPSFSelection;
 
         /**
          * quantized disparity maps for left-right and right-left disparity
