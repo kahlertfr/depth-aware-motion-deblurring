@@ -76,7 +76,12 @@ Disparity Map
 - (result differs on same image because of random initialisation)
 - alternative stereo matching algorithm also implemented: SGBM :cite:`Hi2007`
 
-- :red:`violation of stereo matching condition? handle boundary pixel separately -> how? not mentioned in paper`
+
+**problems**
+
+- disparity map of blurred images hasn't correct object borders -> affects all following steps (mainly deblurring)
+- handle region boundariy pixels separately (e.g. in deblurring with adjusted weight)
+- finally second run to refine dmaps to get correct object boundaries
 
 
 Occlusions
@@ -126,11 +131,12 @@ Quantization
 Region-Tree Construction
 ++++++++++++++++++++++++
 
+
+The regions of the different depth layer can be very small and therefore robust PSF estimation is not possible. The solution from Xu and Jia is a hierarchical estimation scheme where similar depth layers are merged to form larger regions. The structure for this is called region-tree and in the implementation it is the *RegionTree* class.
+
 - top-down estimation (from huge to small regions)
 - in huge regions robust PSF estimation is possible
 - in small regions PSF estimation is not robust: use parent PSF to guide PSF estimation
-
-The regions of the different depth layer can be very small and therefore robust PSF estimation is not possible. The solution from Xu and Jia is a hierarchical estimation scheme where similar depth layers are merged to form larger regions. The structure for this is called region-tree and in the implementation it is the *RegionTree* class.
 
 .. figure:: ../images/wip.png
    :width: 200 pt
@@ -185,16 +191,15 @@ PSF Estimation for Top-Level Regions
             \includegraphics[width=35pt]{../images/kernel2.png}
             \caption{foreground}
         \end{subfigure}
-        \caption{top-level-regions (left view) and their PSFs}
+        \caption{top-level-regions (left view) and their PSFs (using two-phase kernel estimation executable)}
     \end{figure}
 
-**problem**:
+**problem (implementation)**:
 
 - regions are of arbitrary shape -> cannot crop image to get just the region
 - region images have black pixel which do not belong to the region
 - high gradients at borders of region would affect PSF estimation
-- need for filling the pixel not belonging to the region in such a way that reduces high frequencies at the borders
-- :red:`edge tapering`
+- two possibilities: mask support (only consider pixel inside region) or fill the pixel not belonging to the region in such a way that reduces high frequencies at the borders (edge tapering)
 
 
 
@@ -215,7 +220,7 @@ Joint PSF Estimation
 - guide estimation with salient edge map :math:`\nabla S`
     - parent PSF is used to compute the edge map
     - same as P map from Fast Motion Deblurring :cite:`Cho2009` (deblur with parent, bilateral filter, shock filter, gradients)
-- Tikhonov regularization :red:`add explanation`
+- Tikhonov regularization (here L2 regularization for k -> sparsity of kernel)
 - :red:`add variable explanation for comming formulas`
 - objective function is defined jointly on reference and matching view (more robust against noise)
 
@@ -293,4 +298,4 @@ Blur Removal
     E(I) = \| I \otimes k^d - B \|^2 +  \gamma_f \|\nabla I \|^2
 
 **problem**:
-- region boundaries -> set :math:`\gamma_f` three times larger for pixel with distant to the boundary smaller than kernel size
+- region boundaries (because dmaps haven't 100% correct boundaries) -> set :math:`\gamma_f` three times larger for pixel with distant to the boundary smaller than kernel size
