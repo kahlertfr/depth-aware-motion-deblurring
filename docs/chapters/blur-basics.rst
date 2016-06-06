@@ -1,6 +1,7 @@
-In the recent years, deblurring of motion blurred, or shaken, images has been intensively researched :red:`cites`. We here give a short introduction to the blur formation model and the commonly used notations.
-
 :red:`TODO: rework the this whole chapter`
+
+In the recent years, deblurring of motion blurred, or shaken, images has been intensively researched. We here give a short introduction to the blur formation model and the commonly used notations.
+
 
 Blur
 ++++

@@ -10,7 +10,7 @@ Study Thesis
 :Author: Franziska Krüger
 :Organization: TU Dresden
 :Contact: Franziska.Krueger1@tu-dresden.de
-:Date: 15/06/2016
+:Date: 20/06/2016
 :Supervisor: Dr.-Ing. Anita Sellent
 :Abstract:
   This study thesis provides a reference implementation of the depth-aware

@@ -1,6 +1,6 @@
 **setup**
 
-- stereo image pair of a depth scene
+- stereo image pair of a depth scene -> figure :ref:`input`
 
 **challenges**
 
@@ -26,6 +26,7 @@ The depth-aware motion deblurring algorithm from Xu and Jia :cite:`Xu2012` deals
             \caption{right image (reference view)}
         \end{subfigure}
         \caption{Blurred input images}
+        \label{input}
     \end{figure}
 
 
@@ -35,14 +36,14 @@ Basic Idea
 
 - depth information from stereo matching
 - estimate PSF for each depth level
-- constructing region tree to guide PSF estimation in small regions (similar PSFs for closeby depth levels)
-- algorithm overview: disparity estimation, region tree construction, top-level PSF estimation, mid-level PSF refinement, deconv per depth layer and second run with refined disparity map
+- constructing region tree to guide PSF estimation in small regions (similar PSFs for close by depth levels)
+- algorithm overview: disparity estimation, region tree construction, top-level PSF estimation, mid-level PSF refinement, deconv per depth layer and second run with refined disparity map -> figure :ref:`algo`
 
 .. figure:: ../images/wip.png
    :width: 200 pt
-   :alt: algorithm overview
 
-   algorithm overview
+   :label:`algo` algorithm overview
+
 
 
 Reference Implementation
@@ -80,7 +81,7 @@ Disparity Map
 **problems**
 
 - disparity map of blurred images hasn't correct object borders -> affects all following steps (mainly deblurring)
-- handle region boundariy pixels separately (e.g. in deblurring with adjusted weight)
+- handle region boundary pixels separately (e.g. in deblurring with adjusted weight)
 - finally second run to refine dmaps to get correct object boundaries
 
 
@@ -88,7 +89,7 @@ Occlusions
 ----------
 
 - Cross-Checking to find occluded regions
-- using code from :cite:`Kolmogorov2001`
+- using code from :cite:`Kolmogorov2001` -> result figure :ref:`dmap-algo`
 
 Occlusions are filled with smallest neighbor disparity. Assumption: just objects with small
 disparity can be occluded.
@@ -108,6 +109,7 @@ disparity can be occluded.
             \caption{right-left}
         \end{subfigure}
         \caption{disparity maps with filled occlusions}
+        \label{dmap-algo}
     \end{figure}
 
 
@@ -117,20 +119,18 @@ Quantization
 - PSF estimation is less extensive if the disparity layers are reduced
 - quantize disparity values to l regions, where l is set to approximate PSF width or height -> in practice 12 layers are enough (from paper)
 - using k-means for clustering (both maps together to get same clusters for same depth)
-- sort clusters for representing depth graduation
-- finally upsampled
+- sort clusters for representing depth graduation -> see figure :ref:`dmap-quant`
+- finally up-sampled
 
 .. figure:: ../images/dmap-final-left.png
    :width: 200 pt
-   :alt: disparity map quantized
 
-   quantized disparity map with 12 regions (left view)
+   :label:`dmap-quant` quantized disparity map with 12 regions (left view)
 
 
 
 Region-Tree Construction
 ++++++++++++++++++++++++
-
 
 The regions of the different depth layer can be very small and therefore robust PSF estimation is not possible. The solution from Xu and Jia is a hierarchical estimation scheme where similar depth layers are merged to form larger regions. The structure for this is called region-tree and in the implementation it is the *RegionTree* class.
 
@@ -140,13 +140,16 @@ The regions of the different depth layer can be very small and therefore robust 
 
 .. figure:: ../images/wip.png
    :width: 200 pt
-   :alt: region tree
 
-   12 quantized depth-layers result in 3 top-level regions
+   :label:`regiontree` 12 quantized depth-layers result in 3 top-level regions
 
-The region-tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and i = ⌊j/2⌋ * 2 which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached.
+The region-tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and i = ⌊j/2⌋ * 2 which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached. The result is shown in figure :ref:`regiontree`.
 
 The *RegionTree* class stores binary masks of all depth layer regions in the leaf nodes. The region of every other node can be computed by simply adding the masks of the regions that are contained in the current node.
+
+**problem**
+
+- some regions are very small and haven't any texture in them
 
 
 
@@ -155,6 +158,7 @@ PSF Estimation for Top-Level Regions
 
 - uses the two-phase kernel estimation algorithm of Xu :cite:`Xu2010`
 - isn't implemented, as work-around: use provided exe to generate top-level PSFs (or any other kernel estimation algorithm)
+- results of the two-phase kernel estimation algo for top-level regions see figure :ref:`top-level`
 
 .. raw:: LaTex
 
@@ -192,6 +196,7 @@ PSF Estimation for Top-Level Regions
             \caption{foreground}
         \end{subfigure}
         \caption{top-level-regions (left view) and their PSFs (using two-phase kernel estimation executable)}
+        \label{top-level}
     \end{figure}
 
 **problem (implementation)**:
@@ -221,7 +226,7 @@ Joint PSF Estimation
     - parent PSF is used to compute the edge map
     - same as P map from Fast Motion Deblurring :cite:`Cho2009` (deblur with parent, bilateral filter, shock filter, gradients)
 - Tikhonov regularization (here L2 regularization for k -> sparsity of kernel)
-- :red:`add variable explanation for comming formulas`
+- :red:`add variable explanation for coming formulas`
 - objective function is defined jointly on reference and matching view (more robust against noise)
 
 .. math:: :numbered:
@@ -255,14 +260,7 @@ Candidate PSF Selection
 
 - mark PSF as unreliable if entropy is notably larger than it peers in the same level (through all three sub-trees)
 
-- candidates are: parent and own kernel and sibbling kernel if reliable
-
-
-.. figure:: ../images/wip.png
-   :width: 200 pt
-   :alt: psf selection
-
-   PSF selection scheme
+- candidates are: parent and own kernel and sibling kernel if reliable
 
 **problem**:
 
@@ -279,13 +277,54 @@ Candidate PSF Selection
 
     E(I^k) = \| I^k \otimes k - B \|^2 +  \gamma \|\nabla I^k \|^2
 
-- :red:`TODO: add figure with candidates, latent images ..`
+
+.. raw:: LaTex
+
+    \begin{figure}[!ht]
+        \centering
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=35pt]{../images/mid-2-kernel-init.png}
+            \caption{ estimated PSF}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=35pt]{../images/kernel0.png}
+            \caption{ PSF from parent}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=35pt]{../images/mid-3-kernel-init.png}
+            \caption{ PSF from sibbling}
+        \end{subfigure}
+
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=100pt]{../images/mid-2-deconv-0.png}
+            \caption{energy 0.19057}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=100pt]{../images/mid-2-deconv-1.png}
+            \caption{energy 0.19255}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=100pt]{../images/mid-2-deconv-2.png}
+            \caption{energy 0.19733}
+        \end{subfigure}
+        \caption{candidate PSF selection for one node with 3 candidates and the deconvolved images. The candidate with the smallest energy is chosen}
+        \label{psf-select-example}
+    \end{figure}
+
 - paper doesn't mention how they compute the latent image
-- using deconvolution in frequency domain -> results in some ringing artifacts in restored image (more accurat spatial IRLS-method would be very slow) -> :red:`affects?`
+- fast deconvolution in frequency domain results in ringing artifacts in restored image -> this would affect candidate selection -> use more accurate spatial IRLS-method which is very slow
 - if :math:`I^k` is correct should contain salient edges -> compute :math:`\tilde{I^k}`: Gaussian smoothed (reduce noise) and shock filtered (significant edges)
 
 - cross correlation of gradient magnitudes between :math:`I^k` and :math:`\tilde{I^k}`
 - only salient edges will not be changed significantly: in blurred images almost all edges will alter through shock filtering and in images with ringing artifacts and other structural problems the edges are ruined too -> correlation value decreases
+- example for PSF selection see figure :ref:`psf-select-example`
+
 
 
 Blur Removal
@@ -298,4 +337,13 @@ Blur Removal
     E(I) = \| I \otimes k^d - B \|^2 +  \gamma_f \|\nabla I \|^2
 
 **problem**:
+
 - region boundaries (because dmaps haven't 100% correct boundaries) -> set :math:`\gamma_f` three times larger for pixel with distant to the boundary smaller than kernel size
+
+
+
+Second Run
+++++++++++
+
+- the deblurred images are used to refine the disparity map
+- then run the other steps again
