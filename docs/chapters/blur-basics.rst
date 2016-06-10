@@ -1,5 +1,3 @@
-:red:`TODO: rework the this whole chapter`
-
 We give a short introduction to the blur formation model and the commonly used notations in this chapter.
 
 Blur
@@ -25,7 +23,7 @@ Where *B* is the observation, *I* is the latent (sharp) image convolved with a b
         \centering
         \begin{subfigure}{.3\textwidth}
             \centering
-            \includegraphics[width=50pt]{../images/image.png}
+            \includegraphics[width=110pt]{../images/image.png}
             \caption{Object}
         \end{subfigure}%
         \begin{subfigure}{.3\textwidth}
@@ -35,10 +33,10 @@ Where *B* is the observation, *I* is the latent (sharp) image convolved with a b
         \end{subfigure}%
         \begin{subfigure}{.3\textwidth}
             \centering
-            \includegraphics[width=50pt]{../images/conv.png}
+            \includegraphics[width=110pt]{../images/conv.png}
             \caption{Image}
         \end{subfigure}
-        \caption{Point-shaped objects convolved with a PSF and the result}
+        \caption{Arbitrary objects convolved with a PSF and the result}
     \end{figure}
 
 
