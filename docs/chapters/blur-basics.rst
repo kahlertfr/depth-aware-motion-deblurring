@@ -3,18 +3,54 @@ We give a short introduction to the blur formation model and the commonly used n
 Blur
 ++++
 
-Blur is the result of averaged intensities from different real world points in one image point :cite:`Cho2009`.
+Blur is the result of averaged intensities from different real world points in one image point :cite:`Cho2009`. There are two major classes of blur: defocus blur and motion blur.
 
-There are two major classes of blur: the defocus blur and the motion blur. The first one is obviously caused because an object is out of focus. The second one is caused by the relative motion between the camera and the scene during the exposure time.
+**Defocus blur** is caused by the optics of the camera. Many factors such as lens focal length and camera-to-subject distance can affect the focus range wherein the objects are sharp. Objects that are out of focus are blurred as the background and the near foreground in figure :ref:`d-b`. The distance to the in-focus plane is related to the amount of blur. Objects further away to the in-focus plane are more blurred in the image.
 
-The **motion blur** can occur due to different reasons: moving objects in the scene (such as vehicles) or a moving camera. The camera could be moved freely in all directions of the room (including rotations) but we will focus on the camera movement parallel to the image plane because this is a common result of the shaking of the hands during the exposure. The result of such shift-invariant blur can be expressed in the following equation:
+.. raw:: LaTex
+
+    \begin{figure}[!htb]
+        \centering
+        \begin{subfigure}{.33\textwidth}
+            \centering
+            \includegraphics[height=85pt]{../images/defocus-office.jpg}
+            \caption{defocus blur}
+            \label{d-b}
+        \end{subfigure}%
+        \begin{subfigure}{.33\textwidth}
+            \centering
+            \includegraphics[height=85pt]{../images/motion-blur-object.jpg}
+            \caption{object motion}
+            \label{m-b-o}
+        \end{subfigure}%
+        \begin{subfigure}{.33\textwidth}
+            \centering
+            \includegraphics[height=85pt]{../images/mouse_right.jpg}
+            \caption{camera motion}
+            \label{m-b-c}
+        \end{subfigure}
+        \caption{Examples of blurred images}
+    \end{figure}
+
+**Motion blur** is caused by the relative motion between the camera and the scene during long exposure times. This motion can occur due to different reasons: object movement in the scene (such as vehicles or humans) or camera movement. In images blurred by *object motion* as figure :ref:`m-b-o` each object is affected by different blur. Hence segmentation of the objects is required for deblurring.
+
+Blur caused by *camera motion* depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations as figure :ref:`m-b-c` and an in-plane camera movement results in an image where each depth layer is affected by different blur. This blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
+
+The camera motion parallel to the scene is more significant to handle blur caused by shaking of the hands during the exposure. This is because in most cases the scene is sufficiently far away to be able to disregard the effect of rotational motion of the camera.
+
+
+
+Blur as Convolution
++++++++++++++++++++
+
+The result of such shift-invariant blur can be expressed in the following equation:
 
 .. math:: :numbered:
     
     B = I \otimes k + n
 
 
-Where *B* is the observation, *I* is the latent (sharp) image convolved with a blur kernel *k* and *n* is some additional noise. If the scene has different depths than there is a blur kernel for each depth layer :cite:`Xu2012`. The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system. So we can use it to describe the movement of a point on the image plane.
+Where *B* is the observation, *I* is the latent (sharp) image convolved with a blur kernel *k* and *n* is additive noise. If the scene has different depths than there is a blur kernel for each depth layer :cite:`Xu2012`. The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system. So we can use it to describe the movement of a point on the image plane.
 
 .. raw:: LaTex
 
@@ -34,15 +70,17 @@ Where *B* is the observation, *I* is the latent (sharp) image convolved with a b
         \begin{subfigure}{.3\textwidth}
             \centering
             \includegraphics[width=110pt]{../images/conv.png}
-            \caption{Image}
+            \caption{Result}
         \end{subfigure}
-        \caption{Arbitrary objects convolved with a PSF and the result}
+        \caption{Arbitrary objects convolved with a typical hand-shake PSF}
     \end{figure}
+
 
 
 Deconvolution
 +++++++++++++
 
+-inverse problem
 Deblurring is the task of finding the latent image if a blurred image is given. The technique used for this is called deconvolution.
 
 If the latent image and the blur kernel is unknown it is a blind deconvolution. In this case the PSF has to be estimated. Where as in the non-blind deconvolution the blur kernel is known or is assumed to be of an simple form.
