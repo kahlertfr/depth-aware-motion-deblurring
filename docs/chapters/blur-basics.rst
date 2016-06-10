@@ -34,7 +34,7 @@ Blur is the result of averaged intensities from different real world points in o
 
 **Motion blur** is caused by the relative motion between the camera and the scene during long exposure times. This motion can occur due to different reasons: object movement in the scene (such as vehicles or humans) or camera movement. In images blurred by *object motion* as figure :ref:`m-b-o` each object is affected by different blur. Hence segmentation of the objects is required for deblurring.
 
-Blur caused by *camera motion* depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations as figure :ref:`m-b-c` and an in-plane camera movement results in an image where each depth layer is affected by different blur. This blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
+Blur caused by *camera motion* depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations as figure :ref:`m-b-c` and an in-plane camera movement results in an image where each depth layer is affected by different blur :cite:`Xu2012`. This blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
 
 The camera motion parallel to the scene is more significant to handle blur caused by shaking of the hands during the exposure. This is because in most cases the scene is sufficiently far away to be able to disregard the effect of rotational motion of the camera.
 
@@ -43,14 +43,18 @@ The camera motion parallel to the scene is more significant to handle blur cause
 Blur as Convolution
 +++++++++++++++++++
 
-The result of such shift-invariant blur can be expressed in the following equation:
+The blurred image *B* of a flat scene can be expressed as a convolution of a sharp (latent) image *I* of this scene with a blur kernel *k*. Such that each pixel of the scene is blurred with the same spatially-invariant blur kernel. Some noise *n* have to be taken into account due camera related noise such as read-out noise and shot noise. Although the noise is often neglected due to simplification.
+
+This blur can be expressed by the following equation:
 
 .. math:: :numbered:
     
     B = I \otimes k + n
 
 
-Where *B* is the observation, *I* is the latent (sharp) image convolved with a blur kernel *k* and *n* is additive noise. If the scene has different depths than there is a blur kernel for each depth layer :cite:`Xu2012`. The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system. So we can use it to describe the movement of a point on the image plane.
+If the scene is not flat but has different depths than there is a blur kernel :math:`k^z` for each depth *z* thus this is a spatially-variant kernel.
+
+The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system. So we can use it to describe the movement of a point on the image plane. The figure :ref:`psf-exp` shows a convolution of a flat scene with a typical hand-shake blur kernel.
 
 .. raw:: LaTex
 
@@ -60,7 +64,7 @@ Where *B* is the observation, *I* is the latent (sharp) image convolved with a b
         \begin{subfigure}{.3\textwidth}
             \centering
             \includegraphics[width=110pt]{../images/image.png}
-            \caption{Object}
+            \caption{scene}
         \end{subfigure}%
         \begin{subfigure}{.3\textwidth}
             \centering
@@ -70,9 +74,10 @@ Where *B* is the observation, *I* is the latent (sharp) image convolved with a b
         \begin{subfigure}{.3\textwidth}
             \centering
             \includegraphics[width=110pt]{../images/conv.png}
-            \caption{Result}
+            \caption{result}
         \end{subfigure}
-        \caption{Arbitrary objects convolved with a typical hand-shake PSF}
+        \caption{Flat scene with arbitrary objects convolved with a typical hand-shake PSF}
+        \label{psf-exp}
     \end{figure}
 
 
