@@ -15,8 +15,8 @@ Study Thesis
 :Abstract:
   This study thesis provides a reference implementation of the depth-aware
   motion deblurring algorithm from Xu and Jia. The proposed algorithm deblurs scenes
-  with depth variations. For solving this task a spatially-varying blur kernel is needed
-  - one blur kernel for each depth layer. 
+  with depth variations using stereo images as input. For solving this task a spatially-varying
+  blur kernel is needed - one blur kernel for each depth layer. 
   These kernels can be obtained with depth information from a blurred stereo image pair.
   But small-size regions lack necessary information for the kernel estimation. So a hierarchically
   approach named region tree is used to overcome this problem.
