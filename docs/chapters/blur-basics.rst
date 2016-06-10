@@ -5,7 +5,10 @@ Blur
 
 Blur is the result of averaged intensities from different real world points in one image point :cite:`Cho2009`. There are two major classes of blur: defocus blur and motion blur.
 
-**Defocus blur** is caused by the optics of the camera. Many factors such as lens focal length and camera-to-subject distance can affect the focus range wherein the objects are sharp. Objects that are out of focus are blurred as the background and the near foreground in figure :ref:`d-b`. The distance to the in-focus plane is related to the amount of blur. Objects further away to the in-focus plane are more blurred in the image.
+Defocus blur
+------------
+
+Defocus blur is caused by the optics of the camera. Many factors such as lens focal length and camera-to-subject distance can affect the focus range wherein the objects are sharp. Objects that are out of focus are blurred as the background and the near foreground in figure :ref:`d-b`. The distance to the in-focus plane is related to the amount of blur. Objects further away to the in-focus plane are more blurred in the image.
 
 .. raw:: LaTex
 
@@ -32,9 +35,13 @@ Blur is the result of averaged intensities from different real world points in o
         \caption{Examples of blurred images}
     \end{figure}
 
-**Motion blur** is caused by the relative motion between the camera and the scene during long exposure times. This motion can occur due to different reasons: object movement in the scene (such as vehicles or humans) or camera movement. In images blurred by *object motion* as figure :ref:`m-b-o` each object is affected by different blur. Hence segmentation of the objects is required for deblurring.
 
-Blur caused by *camera motion* depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations as figure :ref:`m-b-c` and an in-plane camera movement results in an image where each depth layer is affected by different blur :cite:`Xu2012`. This blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
+Motion blur
+-----------
+
+Motion blur is caused by the relative motion between the camera and the scene during long exposure times. This motion can occur due to different reasons: object movement in the scene (such as vehicles or humans) or camera movement. In images blurred by **object motion** as figure :ref:`m-b-o` each object is affected by different blur. Hence segmentation of the objects is required for deblurring.
+
+Blur caused by **camera motion** depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations as figure :ref:`m-b-c` and an in-plane camera movement results in an image where each depth layer is affected by different blur :cite:`Xu2012`. This blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
 
 The camera motion parallel to the scene is more significant to handle blur caused by shaking of the hands during the exposure. This is because in most cases the scene is sufficiently far away to be able to disregard the effect of rotational motion of the camera.
 
@@ -82,30 +89,53 @@ The blur kernel is also known as point spread function (PSF) which describes how
 
 
 
-Deconvolution
-+++++++++++++
+Deblurring
+++++++++++
+Deblurring is the task of finding the sharp image of a blurred one. It is the inverse problem to the convolution of a sharp image with a blur kernel. Thus the technique used for this is called deconvolution. It can be distingu
 
--inverse problem
-Deblurring is the task of finding the latent image if a blurred image is given. The technique used for this is called deconvolution.
 
-If the latent image and the blur kernel is unknown it is a blind deconvolution. In this case the PSF has to be estimated. Where as in the non-blind deconvolution the blur kernel is known or is assumed to be of an simple form.
+Non-Blind Deconvolution
+-----------------------
 
-The properties of the blur kernel vary: there are spatial invariant kernels also known as uniform kernels. They are used if the kernel in the image is everywhere the same. On the other hand there are spatially varying kernels also called non-uniform kernels which means that the kernel differs inside the image. This is the case in blurred images of depth scenes where each depth layer has its own kernel.
+The blur kernel is known or is assumed to be of a simple form then the deconvolution is referred to as non-blind deconvolution.
 
-Deconvolution can be done in different ways: in the frequency domain or spatial domain.
+Due to the reason that mathematically there is no inverse operation to convolution some other techniques have to be used to perform a deconvolution. One approach is using the **convolution theorem** (see the corresponding chapter) which transforms the problem into the frequency domain where the deconvolution simply becomes a division. The Fourier Transformation *F* is used to transform the blurred image *B* and the kernel *k* into the frequency domain. The result is the sharp image in the frequency domain *F(I)*. To transform it back to the spatial domain the inverse Fourier Transformation is needed.
+
+.. math:: :numbered:
+    
+    F(I) = \frac{F(B)}{F(k)}
+
+This approach is very fast because of efficient Fast Fourier Transformation (FFT) algorithms but is limited to a uniform kernel.
+
+:red:`TODO: spatial approach`
+
+For spatially-variant kernels a segmentation into constant regions where each kernel has to be applied is necessary. This could be done using depth maps of stereo image pairs for motion blur. Then the methods for a uniform kernel can be applied to each region.
+
+
+Blind Deconvolution
+-------------------
+
+If the latent image and the blur kernel is unknown it is a blind deconvolution. In this case the PSF has to be estimated.
+
+:red:`TODO: write something`
+
+- estimate kernel and image iteratively
+- importance of texture
 
 
 Convolution Theorem
 -------------------
 
-The convolution theorem states that a convolution of in the spatial domain can be expressed as an point-wise multiplication in the frequency domain in the following way:
+The convolution theorem states that a convolution of an image *I* with a kernel *k* in the spatial domain can be expressed as an point-wise multiplication in the frequency domain. The transformation of the image and the kernel into the frequency domain is done by using the Fourier Transformation *F*. For the transformation back into the spatial domain the inverse Fourier Transformation *iF* is used.
+
+This theorem only holds for a uniform kernel and is expressed by the following equation where *x* is the point-wise multiplication:
 
 .. math:: :numbered:
     
     I \otimes k  = iF(F(I) \times F(k))
 
 
-Where an image *I* should be convolved with a kernel *k*. The transformation of the image and the kernel into the frequency domain is done by using the Fourier Transformation *F*. The transformed kernel *F(k)* has to be of the same size as the image to be able to perform a point-wise multiplication. This could be done e.g. by copying the kernel into a black image with the size of the image *I* before the Fourier transformation. The position of the kernel in the black image doesn't matter because the Fourier transformation is shift-invariant. To transform the result back into the spatial domain the inverse Fourier Transformation *iF* is used.
+The transformed kernel *F(k)* has to be of the same size as the image to be able to perform a point-wise multiplication.
 
 
 
