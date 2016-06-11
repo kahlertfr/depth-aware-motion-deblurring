@@ -108,9 +108,40 @@ Due to the reason that mathematically there is no inverse operation to convoluti
 
 This approach is very fast because of efficient Fast Fourier Transformation (FFT) algorithms but is limited to a uniform kernel. This simple equation produces a poor result because no noise is considered. Therefore there are algorithms like the Wiener deconvolution that works in the frequency domain but attempts to minimize the affect of deconvolved noise by attenuating frequencies depending on their signal-to-noise ratio :cite:`JAYA2009`.
 
-There exists also approaches restoring the latent image blurred by an uniform kernel in the spatial domain. Because the deconvolution is an ill-posed problem the latent image can not be computed directly. But iterative approaches like Richardson-Lucy deconvolution try to find the most likely solution for the latent image :cite:`CAMPISI2007`. 
+There exists also approaches restoring the latent image blurred by an uniform kernel in the spatial domain. Because the deconvolution is an ill-posed problem and the solution may not be unique the latent image can not be computed directly. But iterative approaches like Richardson-Lucy deconvolution try to find the most likely solution for the latent image :cite:`CAMPISI2007`.
 
-For spatially-variant kernels a segmentation into constant regions with the same blur kernel is necessary. For motion blur this could be done using depth maps of stereo image pairs. Then the methods for a uniform kernel can be applied to each region.
+.. raw:: LaTex
+
+
+    \begin{figure}[!htb]
+        \centering
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-original.jpg}
+            \caption{original image}
+        \end{subfigure}%
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-blurred.jpg}
+            \caption{blurred image}
+        \end{subfigure}%
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-w.jpg}
+            \caption{Wiener}
+        \end{subfigure}%
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-rl.jpg}
+            \caption{Richardson-Lucy}
+        \end{subfigure}
+        \caption{Results of non-blind deconvolution with Wiener Deconvolution and Richardson-Lucy Deconvolution}
+        \label{non-blind-deconv}
+    \end{figure}
+
+As shown in figure :ref:`non-blind-deconv` the restoration of a latent image is not an easy task and the results of these simple approaches are not satisfying. This motivates the research effort to find suitable models for a better deconvolution which was presented in the related work chapter.
+
+For spatially-variant kernels a segmentation into constant regions with the same blur kernel is necessary. For motion blur this could be done using the depth map of stereo image pairs. Then the methods for a uniform kernel can be applied to each region.
 
 
 Blind Deconvolution
@@ -118,9 +149,10 @@ Blind Deconvolution
 
 If the latent image and the blur kernel is unknown the deconvolution is referred to as blind deconvolution. In this case the PSF has to be estimated.
 
+The majority of blind deconvolution algorithm estimate the latent image and the blur kernel simultaneously. This is mostly done by alternating between kernel estimation and image estimation in an iterative way :cite:`CAMPISI2007`.
+
 :red:`TODO: write something`
 
-- estimate kernel and image iteratively
 - importance of texture
 
 
