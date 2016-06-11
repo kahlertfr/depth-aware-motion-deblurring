@@ -60,7 +60,7 @@ This blur can be expressed by the following equation:
 
 The amount of blur depends on the kernel size. An image convolved with a large blur kernel is blurred more than one convolved with a small kernel.
 
-The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system :cite:`SMITH2002`. So we can use it to describe the movement of a point on the image plane. The figure :ref:`psf-exp` shows a convolution of a flat scene with a typical hand-shake blur kernel.
+The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system :cite:`SMITH2002`. So we can use it to describe the movement of a point on the image plane. The figure :ref:`psf-exp` shows a convolution of a flat scene with a typical hand-shake blur kernel. These kernels are usually very sparse.
 
 .. raw:: LaTex
 
@@ -149,11 +149,17 @@ Blind Deconvolution
 
 If the latent image and the blur kernel is unknown the deconvolution is referred to as blind deconvolution. In this case the PSF has to be estimated.
 
-The majority of blind deconvolution algorithm estimate the latent image and the blur kernel simultaneously. This is mostly done by alternating between kernel estimation and image estimation in an iterative way :cite:`CAMPISI2007`.
+The majority of blind deconvolution algorithm estimate the latent image and the blur kernel simultaneously. For this a regulariuation framework is used where the blind deblurring problem can be formulated as follows where *B* is the blurred image, :math:`\tilde{I}` is the latent image, :math:`\tilde{k}` is the blur kernel and :math:`\rho(I)` and :math:`\varrho(k)` are regularization terms on the image and kernel :cite:`WANG2016`:
 
-:red:`TODO: write something`
+.. math:: :numbered:
+    
+    \{\tilde{I}, \tilde{k}\} = arg \min_{I,k} E(I,k) = arg \min_{I,k} ||I \otimes k - B ||_2^2 + \lambda \rho(I) + \gamma \varrho(k)
 
-- importance of texture
+This equation minimizes the difference between the blurred image and the latent image convolved with the blur kernel using the :math:`l2`-norm while considering assumption on the latent image and blur kernel expressed by regularization terms. This again only holds for a uniform kernel.
+
+The regularization terms are crucial to obtain better restoration results and have to be chosen carefully. The regularization for the kernel is typically an :math:`l2`-norm penalty because small values distributed over the kernel are preferred. Whereas the regularization term for the latent image is related to the properties of natural images such as the existence of salient edges.
+
+The equation finally is solved by alternating between kernel estimation and image estimation in an iterative way :cite:`CAMPISI2007`. Whereupon kernel estimation results depend heavily on the image texture. In regions of no texture any blur kernel is possible because blurring a homogeneous region do not affect the region at all.
 
 
 Convolution Theorem
