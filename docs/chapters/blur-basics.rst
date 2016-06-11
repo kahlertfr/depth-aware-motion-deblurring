@@ -106,9 +106,9 @@ Due to the reason that mathematically there is no inverse operation to convoluti
     
     F(I) = \frac{F(B)}{F(k)}
 
-This approach is very fast because of efficient Fast Fourier Transformation (FFT) algorithms but is limited to a uniform kernel.
+This approach is very fast because of efficient Fast Fourier Transformation (FFT) algorithms but is limited to a uniform kernel. This simple equation produces a poor result because no noise is considered. Therefore there are algorithms like the Wiener deconvolution that works in the frequency domain but attempts to minimize the affect of deconvolved noise by attenuating frequencies depending on their signal-to-noise ratio.
 
-:red:`TODO: spatial approach`
+There exists also approaches restoring the latent image blurred by an uniform kernel in the spatial domain. Because the deconvolution is an ill-posed problem the latent image can not be computed directly. But iterative approaches like Richardson-Lucy deconvolution try to find the most likely solution for the latent image. 
 
 For spatially-variant kernels a segmentation into constant regions with the same blur kernel is necessary. For motion blur this could be done using depth maps of stereo image pairs. Then the methods for a uniform kernel can be applied to each region.
 
