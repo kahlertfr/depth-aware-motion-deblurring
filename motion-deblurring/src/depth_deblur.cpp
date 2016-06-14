@@ -445,8 +445,16 @@ namespace deblur {
         // 
         // deblur the current views with psf from parent
         array<Mat, 2> deconv;
-        deconvolveFFT(floatImages[LEFT], deconv[LEFT], parentPSF);
-        deconvolveFFT(floatImages[RIGHT], deconv[RIGHT], parentPSF);
+        // compute latent image (only of one view - the other doesn't contain more information)
+        if (deconvAlgoPSFSelection == FFT) {
+            // fast, but ringing artifacts
+            deconvolveFFT(floatImages[LEFT], deconv[LEFT], parentPSF);
+            deconvolveFFT(floatImages[RIGHT], deconv[RIGHT], parentPSF);
+        } else if (deconvAlgoPSFSelection == IRLS) {
+            // slow, but better result
+            deconvolveIRLS(floatImages[LEFT], deconv[LEFT], parentPSF, masks[LEFT]);
+            deconvolveIRLS(floatImages[RIGHT], deconv[RIGHT], parentPSF, masks[RIGHT]);
+        }
     
         // #ifdef IMWRITE
         //     imshow("devonv left", deconv[LEFT]);
@@ -903,16 +911,17 @@ namespace deblur {
             Mat mask;
             regionTree.getMask(i, mask, view);
 
-            // get region image (color or grayvalue as float)
-            Mat region;
+            // using whole image with mask for deconv not just region because of
+            // artifacts at the region boundaries
+            Mat image;
 
             if (color) {
-                images[view].copyTo(region, mask);
+                image = images[view];
             } else {
-                floatImages[view].copyTo(region, mask);
+                image = floatImages[view];
             }
 
-            deconvolveIRLS(region, regionDeconv[i], regionTree[i].psf, mask);
+            deconvolveIRLS(image, regionDeconv[i], regionTree[i].psf, mask);
 
             // threshold the result because it has large negative and positive values
             // which would result in a very grayish image
@@ -924,36 +933,31 @@ namespace deblur {
 
 
     void DepthDeblur::deconvolve(Mat& dst, view view, int nThreads, bool color) {
-        // if the PSF selection were done with the fft deconvolution
-        // a deconvolution with IRLS (for better results) has to be done
-        // otherwise the deconvolved regions already exist for the left view
-        if (deconvAlgoPSFSelection == FFT || view == RIGHT) {
-            // deconvolve in parallel
-            // reset storage for deconvolved images
-            regionDeconv.resize(layers);
+        // deconvolve in parallel
+        // reset storage for deconvolved images
+        regionDeconv.resize(layers);
 
-            // set up stack with regions that have to be calculated
-            // store leaf node region index
-            for (int nr = 0; nr < layers; nr++) {
-                regionStack.push(nr);
-            }
+        // set up stack with regions that have to be calculated
+        // store leaf node region index
+        for (int nr = 0; nr < layers; nr++) {
+            regionStack.push(nr);
+        }
 
-            // create worker threads
-            int nrOfWorker = nThreads - 1;
-            thread threads[nrOfWorker];
+        // create worker threads
+        int nrOfWorker = nThreads - 1;
+        thread threads[nrOfWorker];
 
-            for (int id = 0; id < nrOfWorker; id++) {
-                // each worker gets the deconvolveRegion method with the regionStack
-                threads[id] = thread(&DepthDeblur::deconvolveRegion, this, view, color);
-            }
+        for (int id = 0; id < nrOfWorker; id++) {
+            // each worker gets the deconvolveRegion method with the regionStack
+            threads[id] = thread(&DepthDeblur::deconvolveRegion, this, view, color);
+        }
 
-            // let the main thread do some work too
-            deconvolveRegion(view, color);
+        // let the main thread do some work too
+        deconvolveRegion(view, color);
 
-            // wait for all threads to finish
-            for (int id = 0; id < nrOfWorker; id++) {
-                threads[id].join();
-            }
+        // wait for all threads to finish
+        for (int id = 0; id < nrOfWorker; id++) {
+            threads[id].join();
         }
 
         // add all region deconvs
@@ -1010,14 +1014,6 @@ namespace deblur {
 
             regionDeconv[id].copyTo(dst, mask);
         }
-
-        // show and save the deblurred image
-        //
-        // threshold the result because it has large negative and positive values
-        // which would result in a very grayish image
-        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        dst.convertTo(dst, CV_8U, 255);
 
         #ifdef IMWRITE
             imwrite("deconv-" + to_string(view) + ".png", dst);
