@@ -39,8 +39,8 @@ Basic Idea
 - constructing region tree to guide PSF estimation in small regions (similar PSFs for close by depth levels)
 - algorithm overview: disparity estimation, region tree construction, top-level PSF estimation, mid-level PSF refinement, deconv per depth layer and second run with refined disparity map -> figure :ref:`algo`
 
-.. figure:: ../images/wip.png
-   :width: 200 pt
+.. figure:: ../images/algo-overview.jpg
+   :width: 100%
 
    :label:`algo` algorithm overview
 
@@ -138,10 +138,10 @@ The regions of the different depth layer can be very small and therefore robust 
 - in huge regions robust PSF estimation is possible
 - in small regions PSF estimation is not robust: use parent PSF to guide PSF estimation
 
-.. figure:: ../images/wip.png
-   :width: 200 pt
+.. figure:: ../images/regiontree-detail.jpg
+   :width: 300 pt
 
-   :label:`regiontree` 12 quantized depth-layers result in 3 top-level regions
+   :label:`regiontree` one part of the regiontree where the depth layers 4-7 are merged together to one top-level node
 
 The region-tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and i = ⌊j/2⌋ * 2 which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached. The result is shown in figure :ref:`regiontree`.
 
@@ -217,6 +217,11 @@ Iterative PSF Computation
 - because of erroneous estimates in very small regions a PSF selection scheme is provided
 - lack of texture is a problem too - handled by candidate selection
 - the two steps of iterative PSF computation for each node is described below
+
+.. figure:: ../images/mid-level-estimation.jpg
+   :width: 170 pt
+
+   :label:`mid-est` A PSF selection process for the current mid/leaf-level node (yellow one) containing given parent PSF, intial PSF estimation for current node and sibbling node, candidate selection and finally PSF selection
 
 
 Joint PSF Estimation
@@ -313,7 +318,7 @@ Candidate PSF Selection
             \includegraphics[width=100pt]{../images/mid-2-deconv-2.png}
             \caption{energy 0.19733}
         \end{subfigure}
-        \caption{candidate PSF selection for one node with 3 candidates and the deconvolved images. The candidate with the smallest energy is chosen}
+        \caption{PSF selection for one node with 3 candidates and the deconvolved images. The candidate with the smallest energy is chosen}
         \label{psf-select-example}
     \end{figure}
 
