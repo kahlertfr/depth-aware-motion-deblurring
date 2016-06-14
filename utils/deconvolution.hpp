@@ -75,10 +75,10 @@ namespace deblur {
      * @param kernel     energy preserving kernel
      * @param regionMask mask of region
      * @param we         weight
-     * @param maxIt      number of iterations
+     * @param maxIt      number of iterations (levin uses 200)
      */
-    void deconvolveIRLS(const cv::Mat& src, cv::Mat& dst, cv::Mat& kernel, const cv::Mat& regionMask = cv::Mat(),
-                        const float we = 0.001, const int maxIt = 200);
+    void deconvolveIRLS(const cv::Mat& src, cv::Mat& dst, const cv::Mat& kernel, const cv::Mat& regionMask = cv::Mat(),
+                        const float we = 0.001, const int maxIt = 20);
 
 }
 

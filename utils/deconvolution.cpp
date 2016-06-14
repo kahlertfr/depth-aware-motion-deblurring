@@ -326,7 +326,7 @@ namespace deblur {
      * @param we     weight
      * @param maxIt  number of iterations
      */
-    void deconvolveChannelIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
+    void deconvolveChannelIRLS(const Mat& src, Mat& dst, const Mat& kernel, const Mat& regionMask,
                                const float we, const int maxIt) {
         assert(src.type() == CV_32F && "works on floating point images [0,1]");
 
@@ -414,7 +414,7 @@ namespace deblur {
     }
 
 
-    void deconvolveIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
+    void deconvolveIRLS(const Mat& src, Mat& dst, const Mat& kernel, const Mat& regionMask,
                         const float we, const int maxIt) {
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
         assert((src.type() == CV_32FC3 || src.type() == CV_32F) && "works with energy preserving kernel");
