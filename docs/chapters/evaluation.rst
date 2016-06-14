@@ -27,10 +27,63 @@
 
    :label:`dmap-2` disparity map of results of first run
 
+**influence deconvolution method**
+
+.. raw:: LaTex
+
+    \begin{figure}[!htb]
+        \centering
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/deblur-left-fft.png}
+            \caption{deconvolution using FFT}
+        \end{subfigure}%
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/deblur-left-irls.png}
+            \caption{deconvolution using IRLS}
+        \end{subfigure}
+        \caption{Influence of chosen deconvolution method (used within the algorithm process)}
+        \label{result-deconv}
+    \end{figure}
+
+- child psf estimation used image deconvolved with parent psf
+- psf selection deconvolves images
+- results depends on chosen method -> figure :ref:`result-deconv`
+- the paper doesn't mention how they do the deconvolution
 
 
 Problem Discussion
 ++++++++++++++++++
+
+**depth-layers**
+
+- very small layers -> see figure :ref:`small-layers`
+- :red:`some explanation`
+
+.. raw:: LaTex
+
+    \begin{figure}[!ht]
+        \centering
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=100pt]{../images/mid-0-region-left.png}
+            \caption{depth-layer 0}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=100pt]{../images/mid-3-region-left.png}
+            \caption{depth-layer 3}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=100pt]{../images/mid-11-region-left.png}
+            \caption{depth-layer 11}
+        \end{subfigure}
+        \caption{depth-layers with very small regions}
+        \label{small-layers}
+    \end{figure}
+
 
 **psf estimation**
 
