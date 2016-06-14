@@ -18,12 +18,12 @@ The depth-aware motion deblurring algorithm from Xu and Jia :cite:`Xu2012` deals
         \begin{subfigure}{.5\textwidth}
             \centering
             \includegraphics[width=170pt]{../images/mouse_left.jpg}
-            \caption{left image (matching view)}
+            \caption{left image (reference view)}
         \end{subfigure}%
         \begin{subfigure}{.5\textwidth}
             \centering
             \includegraphics[width=170pt]{../images/mouse_right.jpg}
-            \caption{right image (reference view)}
+            \caption{right image (matching view)}
         \end{subfigure}
         \caption{Blurred input images}
         \label{input}
@@ -64,7 +64,6 @@ Disparity Map
 -------------
 
 - Find disparity maps of a blurred stereo image pair: left to right and right to left
-- user has to estimate the max disparity
 - down-sampling for blur reducing
 - minimizing energy function for each view (:red:`add variable explanation`)
 
@@ -80,7 +79,7 @@ Disparity Map
 
 **problems**
 
-- disparity map of blurred images hasn't correct object borders -> affects all following steps (mainly deblurring)
+- general problem of occlusion (no correct object borders) -> affects all following steps (mainly deblurring)
 - handle region boundary pixels separately (e.g. in deblurring with adjusted weight)
 - finally second run to refine dmaps to get correct object boundaries
 
