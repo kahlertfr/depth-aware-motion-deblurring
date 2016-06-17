@@ -1,15 +1,6 @@
-**setup**
+The depth-aware motion deblurring algortihm from Xu and Jia :cite:`Xu2012` deblurs a stereo image pair of a scene with depth variations as shown in figure :ref:`input`. The challenge of this setup is the unkown camera motion restricted to be parallel to the scene. The depth variantions of the scene makes it necessary to estimate spatially-variant blur kernels - a PSF for each depth level. A great issue of this process is PSF estimation from depth levels with a small number of pixels.
 
-- stereo image pair of a depth scene -> figure :ref:`input`
-
-**challenges**
-
-- unkown motion of camera (parallel to scene)
-- depth -> spatially variant PSF
-- small number of pixels to estimate PSF from
-
-The depth-aware motion deblurring algorithm from Xu and Jia :cite:`Xu2012` deals with this challenging setup. The basic idea of this paper and the challenges of its algorithm will be presented in this chapter.
-
+The basic idea of the proposed method to deblur this challeging setup and the difficulties of this algorithm will be presented in this chapter.
 
 .. raw:: LaTex
 
