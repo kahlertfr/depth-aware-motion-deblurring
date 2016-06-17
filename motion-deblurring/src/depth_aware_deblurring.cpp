@@ -53,7 +53,6 @@ namespace deblur {
             // here: left image is matching image and right image is reference image
             //       I_m(x) = I_r(x + d_m(x))
             cout << " Step 1: disparity estimation" << endl;
-            // FIXME: parameter for max disparity
             depthDeblur.disparityEstimation(deblurViews, MATCH, maxDisparity);
             
 
