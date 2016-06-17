@@ -27,7 +27,7 @@ Basic Idea
 
 A stereo image pair is used to obtain the necessary depth information for depth-aware deblurring. Stereo matching has a long tradition and many well working algorithms like semi-global block matching or graph-cut approaches were proposed. Using stereo images to obtain depth information thus is a appropriate decision.
 
-A hierarchical approach is used to make the PSF estimation robust for each depth level, even for depth levels with a small number of pixels. Thus a region tree is constructed to guide PSF estimation in small regions. This tree holds all depth layers as leafs and merges them to larger regions. This is feasible due to the fact that the PSF is similar for close by depth levels. PSFs are estimated from larger regions to smaller ones.
+A hierarchical approach is used to make the PSF estimation robust for each depth level, even for depth levels with a small number of pixels. Thus a region tree is constructed to guide PSF estimation in small regions. This tree holds all depth layers as leafs and merges them to larger regions. This is feasible due to the fact that the PSF is similar for close by depth levels. PSFs are estimated from larger regions to smaller ones. Because PSF estimation can be still error prone the final PSF is selected from candidates containing parent PSF, estimated PSF and reliable sibbling PSF.
 
 In the end each depth layer is deconvolved with its PSF. This deblurred stereo image pair is used to refine the disparity estimation. Due to more accurate depth edges the PSF estimation is improved in a second run. This process is shown in figure :ref:`algo`.
 
@@ -48,42 +48,22 @@ The reference implementation for the depth-aware motion deblurring algorithm pro
 Disparity Estimation
 ++++++++++++++++++++
 
-- spatially variant kernel dependent on depth -> depth estimation with stereo matching
-
-The main idea of the algorithm is the independent deblurring of each depth layer to get an accurate result for scenes with high depth differences. So the first step is the disparity estimation from both views.
+The main idea of the algorithm is the independent deblurring of each depth layer (region of constant depth) since scenes with depth variations yield spatially-variant blur kernels. As stated before a stereo image pair is used to obtain depth information using stereo matching.
 
 Disparity Map
 -------------
 
-- Find disparity maps of a blurred stereo image pair: left to right and right to left
-- down-sampling for blur reducing
-- minimizing energy function for each view (:red:`add variable explanation`)
+Disparity maps :math:`d` are computed for the reference view :math:`B_r` and the matching view :math:`B_m` of the stereo image pair. This is done by minimizing the following energy function:
 
 .. math:: :numbered:
     
     E(d) = \| B_m(x - d(x)) - B_r(x)\|^2 + \gamma_d min(\nabla d^2, \tau)
 
-- stereo algorithm: graph cut :cite:`Kolmogorov2001` -> their code is used
-- used parameter values not mentioned, tuned by myself (max iterations set to 3)
-- (result differs on same image because of random initialisation)
-- alternative stereo matching algorithm also implemented: SGBM :cite:`Hi2007`
+The truncated smoothing function :math:`\gamma_d min(\nabla d^2, \tau)` is used for regularization (:red:`explain regularization and parameter tuning`). This energy minimization problem is solved by graph-cuts :cite:`Kolmogorov2001`. The source code of this stereo matching algorithm was available and is embedded in this reference implementation.
 
+It is easy to change the stereo matching algorithm to another one in the reference implementation. So semi global block matching (SGBM) :cite:`Hi2007` were also tested but the graph cut approach yields a better disparity.
 
-**problems**
-
-- general problem of occlusion (no correct object borders) -> affects all following steps (mainly deblurring)
-- handle region boundary pixels separately (e.g. in deblurring with adjusted weight)
-- finally second run to refine dmaps to get correct object boundaries
-
-
-Occlusions
-----------
-
-- Cross-Checking to find occluded regions
-- using code from :cite:`Kolmogorov2001` -> result figure :ref:`dmap-algo`
-
-Occlusions are filled with smallest neighbor disparity. Assumption: just objects with small
-disparity can be occluded.
+A general problem of stereo matching are occlusions which leads to errors at object borders. A pixel of an occluded region can not be matched because it is hidden in one view which is caused by objects near to the camera. The occluded regions are determined using cross-checking comparing disparity values of both disparity maps. Different disparity estimations for corresponding pixel indicate occlusion. It is appropriate to fill the occlusions with the smallest neighboring disparity since only objects with a small disparity - indicating they are further away from the camera - can be occluded. The disparity maps with filled occlusion are shown in figure :ref:`dmap-algo`.
 
 .. raw:: LaTex
 
@@ -102,6 +82,8 @@ disparity can be occluded.
         \caption{disparity maps with filled occlusions}
         \label{dmap-algo}
     \end{figure}
+
+Another problem are the blurred object boundaries which also yields bad depth egdes. This affects all following steps but mainly deblurring since pixel of different depth level are used to estimate a PSF which produces errors. So an separate handling for pixels of region boundaries is necessary. We will see that this is done for deblurring of each depth level. The deblurred images of the first algorithm run are used to improve the object boundaries of the disparity maps for a second run.
 
 
 Quantization
