@@ -59,7 +59,7 @@ make motion-deblurring
 
 # Executable can be found in build/bin
 # the default values can be used together with the mouse images
-bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--layers <n>] [--threads <n>] [--max-top-nodes <n>] [--max-disparity <n>] [--help]
+bin/motion-deblurring ../images/mouse-left.jpg ../images/mouse-right.jpg [--psf-width <n>] [--layers <n>] [--threads <n>] [--max-top-nodes <n>] [--max-disparity <n>] [--fft/--irls] [--help]
 ```
 
 **Work-around for missing top-level psf estimation**: top-level kernels will be loaded instead of computed. So use the sample top-level kernels - place them in the folder where you starts the algorithm.
