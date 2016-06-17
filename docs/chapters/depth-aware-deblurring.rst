@@ -25,10 +25,11 @@ The basic idea of the proposed method to deblur this challeging setup and the di
 Basic Idea
 ++++++++++
 
-- depth information from stereo matching
-- estimate PSF for each depth level
-- constructing region tree to guide PSF estimation in small regions (similar PSFs for close by depth levels)
-- algorithm overview: disparity estimation, region tree construction, top-level PSF estimation, mid-level PSF refinement, deconv per depth layer and second run with refined disparity map -> figure :ref:`algo`
+A stereo image pair is used to obtain the necessary depth information for depth-aware deblurring. Stereo matching has a long tradition and many well working algorithms like semi-global block matching or graph-cut approaches were proposed. Using stereo images to obtain depth information thus is a appropriate decision.
+
+A hierarchical approach is used to make the PSF estimation robust for each depth level, even for depth levels with a small number of pixels. Thus a region tree is constructed to guide PSF estimation in small regions. This tree holds all depth layers as leafs and merges them to larger regions. This is feasible due to the fact that the PSF is similar for close by depth levels. PSFs are estimated from larger regions to smaller ones.
+
+In the end each depth layer is deconvolved with its PSF. This deblurred stereo image pair is used to refine the disparity estimation. Due to more accurate depth edges the PSF estimation is improved in a second run. This process is shown in figure :ref:`algo`.
 
 .. figure:: ../images/algo-overview.jpg
    :width: 100%
@@ -40,7 +41,7 @@ Basic Idea
 Reference Implementation
 ++++++++++++++++++++++++
 
-The reference implementation for the depth-aware motion deblurring algorithm provides a command line interface and a C++ library. A OpenCV 3.0 installation is required for this project. For further information please read the *README* of this project. The source code can be found online: :red:`add github repo`
+The reference implementation for the depth-aware motion deblurring algorithm provides a command line interface and a C++ library. A OpenCV 3.0 installation is required for this project. For further information please read the *README* of this project. The source code can be found online: *github.com/kruegerfr/depth-aware-motion-deblurring*
 
 
 
