@@ -16,11 +16,12 @@
 
 #include "argtable3.h"  // cross platform command line parsing
 #include "depth_aware_deblurring.hpp"
+#include "depth_deblur.hpp"
 
 using namespace std;
 
 // global structs for command line parsing
-struct arg_lit *help;
+struct arg_lit *help, *fft, *irls;
 struct arg_file *left_image, *right_image;
 struct arg_end *end_args;
 struct arg_int *psf_width, *max_toplevel_nodes, *mythreads, *max_disparity, *d_layers;
@@ -33,12 +34,15 @@ struct arg_int *psf_width, *max_toplevel_nodes, *mythreads, *max_disparity, *d_l
 static bool parse_commandline_args(int argc, char** argv, 
                                    string &left, string &right, int &nThreads,
                                    int &psfWidth, int &dLayers, int &maxTopLevelNodes, int &maxDisparity,
+                                   deblur::DepthDeblur::deconvAlgo &deconvAlgo,
                                    int &exitcode) {
     
     // command line options
     // the global arg_xxx structs are initialized within the argtable
     void *argtable[] = {
         help        = arg_litn("h", "help",                        0, 1, "display this help and exit"),
+        fft         = arg_litn("f", "fft",                         0, 1, "deconvolution with FFT"),
+        irls        = arg_litn("i", "irls",                        0, 1, "deconvolution with IRLS"),
         psf_width   = arg_intn ("w", "psf-width", "<n>",           0, 1, "approximate PSF width. Default: 35"),
         d_layers    = arg_intn ("l", "layers", "<n>",              0, 1, "number of region/disparity layers. Default: 12"),
         mythreads   = arg_intn ("t", "threads", "<n>",             0, 1, "number of threads. Default: 1"),
@@ -85,6 +89,14 @@ static bool parse_commandline_args(int argc, char** argv,
         return false;
     }
 
+    if (fft->count > 0) {
+        deconvAlgo = deblur::DepthDeblur::FFT;
+    }
+
+    if (irls->count > 0) {
+        deconvAlgo = deblur::DepthDeblur::IRLS;
+    }
+
     // saving arguments in variables
     // path to input model
     left = left_image->filename[0];
@@ -111,11 +123,12 @@ int main(int argc, char** argv) {
     int maxTopLevelNodes;
     int maxDisparity;
     int layers;
+    deblur::DepthDeblur::deconvAlgo deconvAlgo;
 
     // parse command line arguments
     int exitcode = 0;
     bool success = parse_commandline_args(argc, argv, imageLeft, imageRight, nThreads,
-                                          psfWidth, layers, maxTopLevelNodes, maxDisparity, exitcode);
+                                          psfWidth, layers, maxTopLevelNodes, maxDisparity, deconvAlgo, exitcode);
 
     if (success == false) {
         return exitcode;
@@ -129,11 +142,12 @@ int main(int argc, char** argv) {
     cout << "   approx. PSF width:   " << psfWidth << endl;
     cout << "   layers/regions:      " << layers << endl;
     cout << "   max top level nodes: " << maxTopLevelNodes << endl;
+    cout << "   deconvolution algo:  " << ((deconvAlgo == deblur::DepthDeblur::FFT) ? "FFT" : "IRLS") << endl;
     cout << "   threads:             " << nThreads << endl;
     cout << endl;
 
     try {
-        deblur::runDepthDeblur(imageLeft, imageRight, nThreads, psfWidth, layers, maxTopLevelNodes, maxDisparity);
+        deblur::runDepthDeblur(imageLeft, imageRight, nThreads, psfWidth, layers, maxTopLevelNodes, deconvAlgo, maxDisparity);
     }
     catch(const exception& e) {
         cerr << "ERROR: " << e.what() << endl;

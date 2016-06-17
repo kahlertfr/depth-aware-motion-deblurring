@@ -19,7 +19,7 @@ namespace deblur {
     void runDepthDeblur(const Mat& blurredLeft, const Mat& blurredRight,
                         Mat& deblurredLeft, Mat& deblurredRight, const int threads,
                         int psfWidth, const int layers, const int maxTopLevelNodes,
-                        const int maxDisparity) {
+                        const DepthDeblur::deconvAlgo deconvAlgo, const int maxDisparity) {
         // check if images have the same size
         if (blurredLeft.cols != blurredRight.cols || blurredLeft.rows != blurredRight.rows) {
             throw runtime_error("Images aren't of same size!");
@@ -47,7 +47,7 @@ namespace deblur {
             cout << i + 1 << ". Pass Estimation" << endl;
 
             // this class holds everything needed for one step of the depth-aware deblurring
-            DepthDeblur depthDeblur(blurredLeft, blurredRight, psfWidth, layers, DepthDeblur::IRLS);
+            DepthDeblur depthDeblur(blurredLeft, blurredRight, psfWidth, layers, deconvAlgo);
 
             // initial disparity estimation of blurred images
             // here: left image is matching image and right image is reference image
@@ -106,7 +106,8 @@ namespace deblur {
 
     void runDepthDeblur(const string filenameLeft, const string filenameRight,
                         const int threads, const int psfWidth, const int layers,
-                        const int maxTopLevelNodes, const int maxDisparity,
+                        const int maxTopLevelNodes, const DepthDeblur::deconvAlgo deconvAlgo,
+                        const int maxDisparity,
                         const string filenameResultLeft, const string filenameResultRight) {
 
         // load images
@@ -120,7 +121,7 @@ namespace deblur {
 
         Mat left, right;
         runDepthDeblur(blurredLeft, blurredRight, left, right, threads, psfWidth, layers, maxTopLevelNodes,
-                       maxDisparity);
+                       deconvAlgo, maxDisparity);
 
         imwrite(filenameResultLeft, left);
         imwrite(filenameResultRight, right);
