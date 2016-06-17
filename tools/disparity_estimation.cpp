@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
     imwrite("dmap-sgbm-right.png", dmap);
 
 
-    deblur::disparityFilledMatch(views, dmaps, 80);
+    deblur::disparityFilledMatch(views, dmaps, views[0].cols / 4);
 
     minMaxLoc(dmaps[0], &min1, &max1);
     dmaps[0].convertTo(dmap, CV_8U, 255.0/(max1-min1));
