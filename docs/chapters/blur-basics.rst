@@ -41,7 +41,7 @@ Motion blur
 
 Motion blur is caused by relative motion between the camera and the scene during long exposure times. This motion can occur due to different reasons: object movement in the scene (such as vehicles or humans) or camera movement. In images blurred by **object motion** as figure :ref:`m-b-o` each object is affected by different blur. Hence segmentation of the objects is required for deblurring.
 
-Blur caused by **camera motion** depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations and an in-plane camera movement as figure :ref:`m-b-c` results in an image where each depth layer is affected by different blur :cite:`Xu2012`. Generally near objects are blurred more than distant ones. In the case of in-plane camera movement the blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
+Blur caused by **camera motion** depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations and an in-plane camera movement as figure :ref:`m-b-c` results in an image where each depth layer is affected by different blur :cite:`Xu2012`. Near objects are blurred more than distant ones. In the case of in-plane camera movement the blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
 
 The camera motion parallel to the scene is more significant to handle blur caused by shaking of hands during the exposure. This is because in most cases the scene is sufficiently far away to be able to disregard the effect of rotational motion of the camera.
 
@@ -60,7 +60,7 @@ This blur can be expressed by the following equation:
 
 The amount of blur depends on the kernel size. An image convolved with a large blur kernel is blurred more than one convolved with a small kernel.
 
-The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system :cite:`SMITH2002`. So we can use it to describe the movement of a point on the image plane. The figure :ref:`psf-exp` shows a convolution of a flat scene with a typical hand-shake blur kernel. These kernels are usually very sparse.
+The blur kernel is also known as Point Spread Function (PSF) which describes how an idealized point-shaped object is mapped through a system :cite:`SMITH2002`. So we can use it to describe the translational camera movement parallel to the scene. The figure :ref:`psf-exp` shows a convolution of a flat scene with a typical hand-shake blur kernel. These kernels are usually very sparse.
 
 .. raw:: LaTex
 
@@ -100,7 +100,7 @@ Non-Blind Deconvolution
 
 If the blur kernel is known or is assumed to be of a simple form then the deconvolution is referred to as non-blind deconvolution.
 
-Due to the reason that mathematically there is no inverse operation to convolution some other techniques have to be used to perform a deconvolution. One approach is using the **convolution theorem** (see the corresponding chapter) which transforms the problem into the frequency domain where the deconvolution simply becomes a division. The Fourier Transformation *F* is used to transform the blurred image *B* and the kernel *k* into the frequency domain. The result is the sharp image in the frequency domain *F(I)*. To transform it back to the spatial domain the inverse Fourier Transformation is needed.
+Due to the reason that mathematically there is no inverse operation to convolution some other techniques have to be used to perform a deconvolution. One approach is using the **convolution theorem** (see the corresponding chapter) which transforms the problem into the frequency domain where the deconvolution simply becomes a division. The Fourier Transformation *F* is used to transform the blurred image *B* and the kernel *k* into the frequency domain. The result is the sharp image in the frequency domain *F(I)*. To transform it back to the spatial domain the inverse Fourier Transformation is needed. The deconvolution in the frequency domain disregarding any noise is expressed in the following equation:
 
 .. math:: :numbered:
     
@@ -141,7 +141,7 @@ There exists also approaches restoring the latent image blurred by an uniform ke
 
 As shown in figure :ref:`non-blind-deconv` the restoration of a latent image is not an easy task and the results of these simple approaches are not satisfying. This motivates the research effort to find suitable models for a better deconvolution which was presented in the related work chapter.
 
-For spatially-variant kernels a segmentation into constant regions with the same blur kernel is necessary. For motion blur this could be done using the depth map of stereo image pairs. Then the methods for a uniform kernel can be applied to each region.
+For spatially-variant kernels a segmentation into constant regions with the same blur kernel is necessary. For motion blur caused by camera shake this could be done using the depth map of stereo image pairs. Then the methods for a uniform kernel can be applied to each region while taking care of region boundaries.
 
 
 Blind Deconvolution
@@ -149,7 +149,7 @@ Blind Deconvolution
 
 If the latent image and the blur kernel is unknown the deconvolution is referred to as blind deconvolution. In this case the PSF has to be estimated.
 
-The majority of blind deconvolution algorithm estimate the latent image and the blur kernel simultaneously. For this a regulariuation framework is used where the blind deblurring problem can be formulated as follows where *B* is the blurred image, :math:`\tilde{I}` is the latent image, :math:`\tilde{k}` is the blur kernel and :math:`\rho(I)` and :math:`\varrho(k)` are regularization terms on the image and kernel :cite:`WANG2016`:
+The majority of blind deconvolution algorithm estimate the latent image and the blur kernel simultaneously. For this a regularization framework is used where the blind deblurring problem can be formulated as equation (3). *B* is the blurred image, :math:`\tilde{I}` is the latent image, :math:`\tilde{k}` is the blur kernel and :math:`\rho(I)` and :math:`\varrho(k)` are regularization terms on the image and kernel :cite:`WANG2016`.
 
 .. math:: :numbered:
     
@@ -160,6 +160,8 @@ This equation minimizes the difference between the blurred image and the latent 
 The regularization terms are crucial to obtain better restoration results and have to be chosen carefully. The regularization for the kernel is typically an :math:`l2`-norm penalty because small values distributed over the kernel are preferred. Whereas the regularization term for the latent image is related to the properties of natural images such as the existence of salient edges.
 
 The equation finally is solved by alternating between kernel estimation and image estimation in an iterative way :cite:`CAMPISI2007`. Whereupon kernel estimation results depend heavily on the image texture. In regions of no texture any blur kernel is possible because blurring a homogeneous region do not affect the region at all.
+
+As before spatially-variant blur has to be estimated for regions of nearly equal blur seperately.
 
 
 Convolution Theorem

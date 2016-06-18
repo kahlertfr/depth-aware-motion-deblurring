@@ -41,7 +41,9 @@ In the end each depth layer is deconvolved with its PSF. This deblurred stereo i
 Reference Implementation
 ++++++++++++++++++++++++
 
-The reference implementation for the depth-aware motion deblurring algorithm provides a command line interface and a C++ library. A OpenCV 3.0 installation is required for this project. For further information please read the *README* of this project. The source code can be found online: *github.com/kruegerfr/depth-aware-motion-deblurring*
+The reference implementation for the depth-aware motion deblurring algorithm provides a command line interface and a C++ library. A OpenCV 3.0 installation is required for this project. For further information please read the *README* of this project. The source code can be found online:
+
+*github.com/kruegerfr/depth-aware-motion-deblurring*
 
 
 
@@ -178,11 +180,13 @@ After PSF estimation for top-level nodes all other mid- and leaf-level nodes can
 
    :label:`mid-est` A PSF selection process for the current mid/leaf-level node (yellow one) containing given parent PSF, intial PSF estimation for current node and sibbling node, candidate selection and finally PSF selection
 
+The computation time of these two steps in the reference implementation is improved by parallel computation of the nodes using threads. This is done while taking care of the necessary node order given by the region tree. The user can specify the number of threads.
+
 
 Joint PSF Estimation
 --------------------
 
-The first step is the initial PSF estimation for the current node. This estimation is done jointly on reference and matching view :math:`\{r,m\}` being more robust against noise. Since natural images typically contain edges, gradient maps of the latent image :math:`\nabla S` and the blurred image :math:`\nabla B` can be used for PSF estimation. In our case :math:`\nabla S` is the salient edge map of the current region deblurred with the parent PSF. This yields the following equation where a Tikhonov regularization is used to prefer small values distributed over the kernel:
+The first step is the initial PSF estimation for the current node. This estimation is done jointly on reference and matching view :math:`\{r,m\}` being more robust against noise. Since natural images typically contain edges, gradient maps of the latent image :math:`\nabla S` and the blurred image :math:`\nabla B` can be used for PSF estimation. In our case :math:`\nabla S` is the salient edge map of the current region deblurred with the parent PSF. This yields the following equation for estimating the blur kernel *k* where a Tikhonov regularization is used to prefer small values distributed over the kernel:
 
 .. math:: :numbered:
     
@@ -202,6 +206,7 @@ There is a closed-form solution for this energy minimization problem using Fouri
 
 
 This equation differs from the one proposed in the paper: :math:`F_{\partial_x B_i}` is used instead of :math:`F_{\partial_x} F_{B_i}` (for :math:`\partial_y` too). This means transforming the spatially computed gradients into the frequency domain instead of separately transforming the gradient filter kernel (sobel kernel) and the blurred image into the frequency domain. Avoiding the computation of the gradients of the blurred region in the frequency domain since this would provoke high gradients at the region boundaries. Instead they are computed before on the whole blurred view and than cropped to the region. Transforming this cropped gradients :math:`\nabla B` into the frequency domain. The same approach is used for :math:`\nabla S`.
+
 
 Candidate PSF Selection
 -----------------------
@@ -262,7 +267,7 @@ For finding the best PSF estimate the current region is deblurred with each cand
         \label{psf-select-example}
     \end{figure}
 
-As mentioned before a natural image mostly contains salient edges thus the correct deblurred image has such edges. It is useful that salient edges are invariant to shock filtering since they are preserved and just weak edges are removed. In order to check if the unblurred image :math:`I^k` has salient edges we can compare it to its shock filtered version :math:`\tilde{I^k}`. Before applying the shock filter the image :math:`I^k` is smoothed with a Gaussian filter to remove noise. The comparison of :math:`I^k` and :math:`\tilde{I^k}` is done by computing the cross-correlation of the gradient magnitudes of both images. The correlation-based energy :math:`E_c(k)` can be expressed as follows:
+As mentioned before a natural image mostly contains salient edges thus the correct deblurred image has such edges. It is useful that salient edges are invariant to shock filtering since they are preserved and just weak edges are removed. In order to check if the unblurred image :math:`I^k` has salient edges we can compare it to its shock filtered version :math:`\tilde{I^k}`. Before applying the shock filter the image :math:`I^k` is smoothed with a Gaussian filter to remove noise. The comparison of :math:`I^k` and :math:`\tilde{I^k}` is done by computing the cross-correlation :math:`corr` of the gradient magnitudes of both images which expresses the similarity of images. Similar images have a high cross-correlation value. The correlation-based energy :math:`E_c(k)` can be expressed as follows:
 
 .. math:: :numbered:
 
@@ -270,8 +275,7 @@ As mentioned before a natural image mostly contains salient edges thus the corre
 
 In the end still blurred images have a higher energy (and lower correlation) because almost all edges will alter through shock filtering. Here again the deconvolution method influences the result. Ringing artifacts produced by deconvolution in the frequency domain ruin the edges and may decrease the correlation too. That's why here the spatial deconvolution using the IRLS algorithm is preferred. The user can change this method to a deconvolution in the frequency domain too.
 
-The kernel with the lowest correlation-based energy :math:`E_c(k)` is chosen as the PSF estimate for the current node. The figure :ref:`psf-select-example` shows three candidate PSFs and details of the regions deconvolved with each kernel. The initial PSF estimate is the chosen one in this example.
-
+The kernel with the lowest correlation-based energy :math:`E_c(k)` is chosen as the PSF estimate for the current node. The figure :ref:`psf-select-example` shows three candidate PSFs and details of the regions deconvolved with each kernel. The initial PSF estimate is the chosen one in this example. 
 
 
 Blur Removal
