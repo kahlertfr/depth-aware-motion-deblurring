@@ -6,12 +6,12 @@ The edge tapered top-level regions (region max set to 3) were saved and used as 
 
 ```bash
 # extent or crop the image to the given size (choose reasonable)
-convert kernel0.png -background black -gravity center -extent 55x55 kernel0.png
+convert kernel0.png -background black -gravity center -extent 35x35 kernel0.png
 ```
 
 ## parameters for the calls
 
-**mouse** psf-width is 35 and layers are 10
+**mouse** psf-width is 35 and layers are 12
 
 
 
