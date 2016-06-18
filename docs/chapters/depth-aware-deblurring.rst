@@ -114,16 +114,16 @@ The regions of the different depth layer can be still very small lacking texture
 
 The region tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and :math:`i = ⌊j/2⌋ * 2` which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached (the default number is 3).
 
-The *RegionTree* class stores binary masks of all depth layer regions in the leaf nodes. The region of every other node can be computed by simply adding the masks of the regions that are contained in the current node. The figure :ref:`regiontree` shows one part of the region tree showing the merging of depth layer 4 to 7 resulting in one top-level node.
+The *RegionTree* class stores binary masks of all depth layer regions in the leaf nodes. The region of every other node can be computed by simply adding the masks of the regions that are contained in the current node. The figure :ref:`regiontree` shows one part of the region tree showing the merging of depth layer 4 to 7 resulting in one top-level node containing a large region.
 
 
 
 PSF Estimation for Top-Level Regions
 ++++++++++++++++++++++++++++++++++++
 
-- uses the two-phase kernel estimation algorithm of Xu :cite:`Xu2010`
-- isn't implemented, as work-around: use provided exe to generate top-level PSFs (or any other kernel estimation algorithm)
-- results of the two-phase kernel estimation algo for top-level regions see figure :ref:`top-level`
+Since the region tree merges similar depth layers to large top-level regions with nearly equal depth a robust estimation of one blur kernel is possible. Any algorithm for uniform blur kernel estimation could be applied for this step. The paper uses the two-phase kernel estimation algorithm by Xu :cite:`Xu2010`. Unfortunately the source code for this algorithm is not available.
+
+Due to a too high time effort the reference implementation does not implement this estimation step. Therefore blur kernels for the top-level nodes are simply loaded. Thus the user has to provide these blur kernels. To stick as near as possible to the paper the supplied executable for the two-phase kernel estimation algorithm is used for all results shown in this study thesis. The figure :ref:`top-level` shows the PSF estimates of this algorithm on the three top-level regions.
 
 .. raw:: LaTex
 
@@ -164,12 +164,7 @@ PSF Estimation for Top-Level Regions
         \label{top-level}
     \end{figure}
 
-**problem (implementation)**:
-
-- regions are of arbitrary shape -> cannot crop image to get just the region
-- region images have black pixel which do not belong to the region
-- high gradients at borders of region would affect PSF estimation
-- two possibilities: mask support (only consider pixel inside region) or fill the pixel not belonging to the region in such a way that reduces high frequencies at the borders (edge tapering)
+As shown in figure :ref:`top-level` the top-level regions are of an arbitrary shape yielding images with black regions. This is a problem for uniform kernel estimation since an estimation algorithm would use the borders between the black regions and the depth layer region as texture information. As shown in the related work chapter many kernel estimation algorithm depend on edge filters. These borders would yield high gradients affecting the PSF estimation. There are two ways to deal with this problem: using an algorithm with mask support considering only pixels inside the specified mask for PSF estimation or filling the black regions with a color that minimizes the gradients at the region borders. The last approach is used in the reference implementation.
 
 
 
