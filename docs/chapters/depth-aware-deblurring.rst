@@ -59,7 +59,7 @@ Disparity maps :math:`d` are computed for the reference view :math:`B_r` and the
     
     E(d) = \| B_m(x - d(x)) - B_r(x)\|^2 + \gamma_d min(\nabla d^2, \tau)
 
-The truncated smoothing function :math:`\gamma_d min(\nabla d^2, \tau)` is used for regularization (:red:`explain regularization and parameter tuning`). This energy minimization problem is solved by graph-cuts :cite:`Kolmogorov2001`. The source code of this stereo matching algorithm was available and is embedded in the reference implementation.
+The truncated smoothing function :math:`\gamma_d min(\nabla d^2, \tau)` is used for regularization to avoid a noisy disparity map. This energy minimization problem is solved by graph-cuts :cite:`Kolmogorov2001`. The source code of this stereo matching algorithm was available and is embedded in the reference implementation.
 
 It is easy to change the stereo matching algorithm to another one in the implementation. So semi global block matching (SGBM) :cite:`Hi2007` were also tested but the graph cut approach yields a better disparity.
 
@@ -222,15 +222,6 @@ For finding the best PSF estimate the current region is deblurred with each cand
 
     E(I^k) = \| I^k \otimes k - B \|^2 +  \gamma \|\nabla I^k \|^2
 
-As mentioned before a natural image mostly contains salient edges thus the correct deblurred image has such edges. It is useful that salient edges are invariant to shock filtering since they are preserved and just weak edges are removed. In order to check if the unblurred image :math:`I^k` has salient edges we can compare it to its shock filtered version :math:`\tilde{I^k}`. Before applying the shock filter the image :math:`I^k` is smoothed with a Gaussian filter to remove noise. The comparison of :math:`I^k` and :math:`\tilde{I^k}` is done by computing the cross-correlation of the gradient magnitudes of both images. The correlation-based energy :math:`E_c(k)` can be expressed as follows:
-
-.. math:: :numbered:
-
-    E_c(k) = 1 - corr(\| \nabla I^k \|_2, \| \nabla \tilde{I^k} \|_2)
-
-In the end still blurred images have a higher energy (and lower correlation) because almost all edges will alter through shock filtering. Here again the deconvolution method influences the result. Ringing artifacts produced by deconvolution in the frequency domain ruin the edges and may decrease the correlation too. That's why here the spatial deconvolution using the IRLS algorithm is preferred. The user can change this method to a deconvolution in the frequency domain too.
-
-The kernel with the lowest correlation-based energy :math:`E_c(k)` is chosen as the PSF estimate for the current node. The figure :ref:`psf-select-example` shows three candidate PSFs and details of the regions deconvolved with each kernel. The initial PSF estimate is the chosen one in this example.
 
 .. raw:: LaTex
 
@@ -267,29 +258,31 @@ The kernel with the lowest correlation-based energy :math:`E_c(k)` is chosen as 
             \includegraphics[width=100pt]{../images/mid-2-deconv-2.png}
             \caption{energy 0.19733}
         \end{subfigure}
-        \caption{PSF selection for one node with 3 candidates and the deconvolved images. The candidate with the smallest correlation-based energy is chosen}
+        \caption{PSF selection for one node with 3 candidates and the deconvolved images. The candidate with the smallest correlation-based energy is chosen.}
         \label{psf-select-example}
     \end{figure}
+
+As mentioned before a natural image mostly contains salient edges thus the correct deblurred image has such edges. It is useful that salient edges are invariant to shock filtering since they are preserved and just weak edges are removed. In order to check if the unblurred image :math:`I^k` has salient edges we can compare it to its shock filtered version :math:`\tilde{I^k}`. Before applying the shock filter the image :math:`I^k` is smoothed with a Gaussian filter to remove noise. The comparison of :math:`I^k` and :math:`\tilde{I^k}` is done by computing the cross-correlation of the gradient magnitudes of both images. The correlation-based energy :math:`E_c(k)` can be expressed as follows:
+
+.. math:: :numbered:
+
+    E_c(k) = 1 - corr(\| \nabla I^k \|_2, \| \nabla \tilde{I^k} \|_2)
+
+In the end still blurred images have a higher energy (and lower correlation) because almost all edges will alter through shock filtering. Here again the deconvolution method influences the result. Ringing artifacts produced by deconvolution in the frequency domain ruin the edges and may decrease the correlation too. That's why here the spatial deconvolution using the IRLS algorithm is preferred. The user can change this method to a deconvolution in the frequency domain too.
+
+The kernel with the lowest correlation-based energy :math:`E_c(k)` is chosen as the PSF estimate for the current node. The figure :ref:`psf-select-example` shows three candidate PSFs and details of the regions deconvolved with each kernel. The initial PSF estimate is the chosen one in this example.
 
 
 
 Blur Removal
 ++++++++++++
 
-- deblurring of each depth layer
+Finally each depth layer has a robust PSF estimation thus the blurred view *B* is deblur using a blur kernel :math:`k^d` for each depth layer *d*:
 
 .. math:: :numbered:
 
     E(I) = \| I \otimes k^d - B \|^2 +  \gamma_f \|\nabla I \|^2
 
-**problem**:
+Since region boundaries are erroneous :math:`\gamma_f` is set three times larger for pixel with distant to the boundary smaller than kernel size. This suppresses visual artifacts. Although the result of the first iteration has some ringing artifacts. That's why a second iteration through the algorithm is done using an improved disparity map from the deblurred views to get more accurate PSF estimates reducing the ringing artifacts.
 
-- region boundaries (because dmaps haven't 100% correct boundaries) -> set :math:`\gamma_f` three times larger for pixel with distant to the boundary smaller than kernel size
-
-
-
-Second Run
-++++++++++
-
-- the deblurred images are used to refine the disparity map
-- then run the other steps again
+The refinement of the disparity estimation is not done in the reference implementation due to bad results which will be discussed in the next chapter.
