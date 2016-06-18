@@ -190,6 +190,8 @@ The first step is the initial PSF estimation for the current node. This estimati
 
 The computation of the **salient edge map** is done as described in the Fast Motion Deblurring paper :cite:`Cho2009`. First the blurred views are deconvolved using a guidance PSF - in our case the parent PSF. The deblurred views are than filtered using a bilateral and a shock filter to remove weak color edges. Hence the gradients of this filtered views contain just salient edges guiding the PSF estimation.
 
+The quality of this edge map is influenced by the chosen non-blind deblurring method. Using the deconvolution in the frequency domain is very fast but yields ringing artifacts affecting the salient edge map. Whereas performing a spatial deconvolution with the Iterative Re-weighted Least Square (IRLS) algorithm yields a better result but it takes some more computational time. In the reference implementation the user can specify which deconvolution method is used. The default one is IRLS because an edge map without edges caused by strong deconvolution artifacts should be preferred since this edges have an influence on the PSF estimation.
+
 There is a closed-form solution for this energy minimization problem using Fourier transform *F* where :math:`F_1` is the Fourier transform of a delta function with a uniform energy distribution:
 
 .. math:: :numbered:
@@ -201,37 +203,34 @@ There is a closed-form solution for this energy minimization problem using Fouri
 
 This equation differs from the one proposed in the paper: :math:`F_{\partial_x B_i}` is used instead of :math:`F_{\partial_x} F_{B_i}` (for :math:`\partial_y` too). This means transforming the spatially computed gradients into the frequency domain instead of separately transforming the gradient filter kernel (sobel kernel) and the blurred image into the frequency domain. Avoiding the computation of the gradients of the blurred region in the frequency domain since this would provoke high gradients at the region boundaries. Instead they are computed before on the whole blurred view and than cropped to the region. Transforming this cropped gradients :math:`\nabla B` into the frequency domain. The same approach is used for :math:`\nabla S`.
 
-
 Candidate PSF Selection
 -----------------------
 
-- major novelty of this paper
-- PSF estimate can be erroneous -> detect incorrect PSFs (mostly very noisy and dense values)
-- PSF entropy
+Besides the region tree the PSF selection using candidates is a major novelty of the depth-aware motion deblurring algorithm. This step ensures that even regions with an erroneous PSF estimate finally get a robust PSF. The candidates for a PSF of a mid- or leaf-level node are its parent PSF, its own PSF estimate and the PSF of its sibling node if it is reliable.
+
+So probably incorrect PSFs are detected by assuming that these PSFs are mostly noisy and have dense values. This can be expressed using the following entropy for the blur kernel *k*:
 
 .. math:: :numbered:
 
     H(k) = - \sum_{x \in k} x \log x
 
-- mark PSF as unreliable if entropy is notably larger than it peers in the same level (through all three sub-trees)
+An incorrect PSF has a notably larger PSF than it peers in the same level of the region tree. So this PSF is marked as unreliable hence it is not used as a candidate for its sibling node PSF selection but it is used as a candidate for its own PSF selection. This avoids removing correct noisy PSFs.
 
-- candidates are: parent and own kernel and sibling kernel if reliable
-
-**problem**:
-
-- PSF candidates available but how to determine what deconvolution has the best result
-- new PSF selection scheme proposed: a correct deblurred image should contain salient edges
-- salient edges are invariant to shock filtering that means they won't be affected -> compare deblurred image with its shock filtered version to check for salient edges
-- (the requirement of salient edges in latent image is mostly satisfied)
-
-**details of psf selection scheme**
-
-- restore latent image :math:`I^k` for each kernel candidate
+For finding the best PSF estimate the current region is deblurred with each candidate PSF yielding the latent image :math:`I^k`:
 
 .. math:: :numbered:
 
     E(I^k) = \| I^k \otimes k - B \|^2 +  \gamma \|\nabla I^k \|^2
 
+As mentioned before a natural image mostly contains salient edges thus the correct deblurred image has such edges. It is useful that salient edges are invariant to shock filtering since they are preserved and just weak edges are removed. In order to check if the unblurred image :math:`I^k` has salient edges we can compare it to its shock filtered version :math:`\tilde{I^k}`. Before applying the shock filter the image :math:`I^k` is smoothed with a Gaussian filter to remove noise. The comparison of :math:`I^k` and :math:`\tilde{I^k}` is done by computing the cross-correlation of the gradient magnitudes of both images. The correlation-based energy :math:`E_c(k)` can be expressed as follows:
+
+.. math:: :numbered:
+
+    E_c(k) = 1 - corr(\| \nabla I^k \|_2, \| \nabla \tilde{I^k} \|_2)
+
+In the end still blurred images have a higher energy (and lower correlation) because almost all edges will alter through shock filtering. Here again the deconvolution method influences the result. Ringing artifacts produced by deconvolution in the frequency domain ruin the edges and may decrease the correlation too. That's why here the spatial deconvolution using the IRLS algorithm is preferred. The user can change this method to a deconvolution in the frequency domain too.
+
+The kernel with the lowest correlation-based energy :math:`E_c(k)` is chosen as the PSF estimate for the current node. The figure :ref:`psf-select-example` shows three candidate PSFs and details of the regions deconvolved with each kernel. The initial PSF estimate is the chosen one in this example.
 
 .. raw:: LaTex
 
@@ -268,17 +267,9 @@ Candidate PSF Selection
             \includegraphics[width=100pt]{../images/mid-2-deconv-2.png}
             \caption{energy 0.19733}
         \end{subfigure}
-        \caption{PSF selection for one node with 3 candidates and the deconvolved images. The candidate with the smallest energy is chosen}
+        \caption{PSF selection for one node with 3 candidates and the deconvolved images. The candidate with the smallest correlation-based energy is chosen}
         \label{psf-select-example}
     \end{figure}
-
-- paper doesn't mention how they compute the latent image
-- fast deconvolution in frequency domain results in ringing artifacts in restored image -> this would affect candidate selection -> use more accurate spatial IRLS-method which is very slow
-- if :math:`I^k` is correct should contain salient edges -> compute :math:`\tilde{I^k}`: Gaussian smoothed (reduce noise) and shock filtered (significant edges)
-
-- cross correlation of gradient magnitudes between :math:`I^k` and :math:`\tilde{I^k}`
-- only salient edges will not be changed significantly: in blurred images almost all edges will alter through shock filtering and in images with ringing artifacts and other structural problems the edges are ruined too -> correlation value decreases
-- example for PSF selection see figure :ref:`psf-select-example`
 
 
 
