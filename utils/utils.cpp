@@ -7,6 +7,59 @@ using namespace std;
 
 namespace deblur {
 
+    float crossCorrelation(Mat& X, Mat& Y, const Mat& mask) {
+        assert(X.type() == CV_32F && "works on float images");
+        assert(X.size() == Y.size() && "both image have the same size");
+
+        Mat region;
+        if (mask.empty()) {
+            // mask with ones of image size
+            region = Mat::ones(X.size(), CV_8U);
+        } else {
+            region = mask;
+        }
+
+        assert(region.type() == CV_8U && "works with on grayvalue mask");
+
+
+        // compute mean of the matrices
+        // use just the pixel inside the mask
+        float meanX = mean(X, mask)[0];
+        float meanY = mean(Y, mask)[0];
+
+        float E = 0;
+
+        // deviation = sqrt(1/N * sum_x(x - μx)²) -> do not use 1/N 
+        float deviationX = 0;
+        float deviationY = 0;
+
+        assert(X.size() == Y.size() && "images of same size");
+        
+        // go through each gradient map and
+        // compute the sums in the computation of expedted values and deviations
+        for (int row = 0; row < X.rows; row++) {
+            for (int col = 0; col < X.cols; col++) {
+                // compute if inside mask
+                if (region.at<uchar>(row, col) > 0) {
+                    float valueX = X.at<float>(row, col) - meanX;
+                    float valueY = Y.at<float>(row, col) - meanY;
+
+                    // expected values (the way matlab calculates it)              
+                    E += valueX * valueY;
+
+                    // deviation
+                    deviationX += (valueX * valueX);
+                    deviationY += (valueY * valueY);
+                }
+            }
+        }
+           
+        deviationX = sqrt(deviationX);
+        deviationY = sqrt(deviationY);
+
+        return E / (deviationX * deviationY);
+    }
+
     void conv2(const Mat& src, Mat& dst, const Mat& kernel, ConvShape shape) {
         int padSizeX = kernel.cols - 1;
         int padSizeY = kernel.rows - 1;

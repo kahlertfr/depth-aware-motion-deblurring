@@ -32,6 +32,8 @@ namespace deblur {
 
       public:
 
+        enum deconvAlgo { FFT, IRLS };
+
         /**
          * Constructor for depth-deblurring of stereo images
          * 
@@ -39,8 +41,10 @@ namespace deblur {
          * @param imageRight blurred right view
          * @param width      approximate PSF width
          * @param _layers    number of different disparity layers/ regions
+         * @param deconvAlgo deconvolution algortihm used in PSF selection (FFT - fast, but ringing, IRLS - slow, but better results)
          */
-        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width, const int _layers);
+        DepthDeblur(const cv::Mat& imageLeft, const cv::Mat& imageRight, const int width, const int _layers,
+                    const deconvAlgo deconvAlgo = IRLS);
 
         /**
          * Disparity estimation of two blurred images
@@ -132,6 +136,11 @@ namespace deblur {
         const int layers;
 
         /**
+         * deconvolution algortihm used for PSF selection
+         */
+        const deconvAlgo deconvAlgoPSFSelection;
+
+        /**
          * quantized disparity maps for left-right and right-left disparity
          */
         std::array<cv::Mat, 2> disparityMaps;
@@ -192,6 +201,17 @@ namespace deblur {
         float computeEntropy(cv::Mat& kernel);
 
         /**
+         * Determined if the PSF of the current node is reliable:
+         * entropy - mean < threshold
+         *
+         * where the mean of the whole level is used
+         * 
+         * @param  id current node
+         * @return    if the psf is reliable
+         */
+        bool isReliablePSF(int id);
+
+        /**
          * Selects candiates for psf selection
          * 
          * The following psfs are candidates:
@@ -235,7 +255,7 @@ namespace deblur {
          * @param  mask   mask of the region
          * @return        correlation value
          */
-        float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask);
+        float gradientCorrelation(cv::Mat& image1, cv::Mat& image2, cv::Mat& mask, int id, int i);
 
 
     //--------------------------------------------------------------------------------------------
@@ -295,6 +315,12 @@ namespace deblur {
          * 
          */
         void midLevelKernelEstimationNode();
+
+        /**
+         * This method is used by threads for parallel mid level psf refinement. It 
+         * uses a thread safe access to the remainingNodes queue.
+         */
+        void midLevelKernelRefinement();
 
         /**
          * Provides a mutex lock to safely get and pop the top item

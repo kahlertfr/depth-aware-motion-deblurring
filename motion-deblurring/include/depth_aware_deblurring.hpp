@@ -30,6 +30,7 @@
 
 #include <string>
 #include <opencv2/opencv.hpp> // cv::Mat
+#include "depth_deblur.hpp"
 
 
 namespace deblur {
@@ -44,11 +45,13 @@ namespace deblur {
      * @param psfWidth          approximate PSF width
      * @param layers            number of regions / disparity layers
      * @param maxTopLevelNodes  maximum of top level nodes in region tree construction
+     * @param deconvAlgo        algorithm used for deconvolution (FFT or IRLS)
      * @param maxDisparity      maximum disparity between left and right view
      */
     void runDepthDeblur(const cv::Mat &blurredLeft, const cv::Mat &blurredRight,
                         cv::Mat& deblurredLeft, cv::Mat& deblurredRight, const int threads = 1,
                         int psfWidth = 35, const int layers = 12, const int maxTopLevelNodes = 3,
+                        const DepthDeblur::deconvAlgo deconvAlgo = DepthDeblur::IRLS,
                         const int maxDisparity = 160);
 
     /**
@@ -58,15 +61,18 @@ namespace deblur {
      * @param filenameLeft        relative or absolute path to blurred left image
      * @param filenameRight       relative or absolute path to blurred right image
      * @param psfWidth            approximate PSF width
-     * @param layers            number of regions / disparity layers
+     * @param layers              number of regions / disparity layers
      * @param maxTopLevelNodes    maximum of top level nodes in region tree construction
+     * @param deconvAlgo          algorithm used for deconvolution (FFT or IRLS)
      * @param maxDisparity        maximum disparity between left and right view
      * @param filenameDeblurLeft  filename for result left
      * @param filenameDeblurRight filename for result right
      */
     void runDepthDeblur(const std::string filenameLeft, const std::string filenameRight,
                         const int threads = 1, int psfWidth = 35, const int layers = 12,
-                        const int maxTopLevelNodes = 3, const int maxDisparity = 160, 
+                        const int maxTopLevelNodes = 3,
+                        const DepthDeblur::deconvAlgo deconvAlgo = DepthDeblur::IRLS,
+                        const int maxDisparity = 160, 
                         const std::string filenameDeblurLeft = "deblur-left.png",
                         const std::string filenameDeblurRight = "deblur-right.png");
 

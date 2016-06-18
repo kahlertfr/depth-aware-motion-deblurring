@@ -15,7 +15,8 @@ namespace deblur {
                        const float weight) {
 
         assert(src.type() == CV_32F && "works on floating point images [0,1]");
-        assert(kernel.type() == CV_32F && "works with energy preserving kernel");
+        assert(kernel.type() == CV_32F && "works with float kernel");
+        // assert(sum(kernel)[0] == 1.0 && "kernel must be energy preserving");
 
         Mat mask;
         if (regionMask.empty()) {
@@ -325,7 +326,7 @@ namespace deblur {
      * @param we     weight
      * @param maxIt  number of iterations
      */
-    void deconvolveChannelIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
+    void deconvolveChannelIRLS(const Mat& src, Mat& dst, const Mat& kernel, const Mat& regionMask,
                                const float we, const int maxIt) {
         assert(src.type() == CV_32F && "works on floating point images [0,1]");
 
@@ -413,14 +414,14 @@ namespace deblur {
     }
 
 
-    void deconvolveIRLS(const Mat& src, Mat& dst, Mat& kernel, const Mat& regionMask,
+    void deconvolveIRLS(const Mat& src, Mat& dst, const Mat& kernel, const Mat& regionMask,
                         const float we, const int maxIt) {
         assert(kernel.type() == CV_32F && "works with energy preserving kernel");
         assert((src.type() == CV_32FC3 || src.type() == CV_32F) && "works with energy preserving kernel");
 
         assert(kernel.rows % 2 == 1 && "odd kernel expected");
         assert(kernel.cols % 2 == 1 && "odd kernel expected");
-
+        // assert(sum(kernel)[0] == 1.0 && "kernel must be energy preserving");
 
         if (src.channels() == 3) {
             // deconvolve each channel of a color image

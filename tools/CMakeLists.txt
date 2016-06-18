@@ -16,3 +16,6 @@ target_link_libraries(psf-selection libmdeblur)
 
 add_executable(shock-filter shock_filter.cpp)
 target_link_libraries(shock-filter libmdeblur)
+
+add_executable(disparity disparity_estimation.cpp)
+target_link_libraries(disparity libmdeblur)

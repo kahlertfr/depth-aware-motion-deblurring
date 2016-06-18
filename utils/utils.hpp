@@ -41,6 +41,15 @@ namespace deblur {
     }
 
     /**
+     * Computes the cross correlation between two images
+     * 
+     * @param  X first iamge
+     * @param  Y second iamge
+     * @return   correlation value
+     */
+    float crossCorrelation(cv::Mat& X, cv::Mat& Y, const cv::Mat& mask = cv::Mat());
+
+    /**
      * Works like matlab conv2
      *
      * The shape parameter controls the result matrix size:

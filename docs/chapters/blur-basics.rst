@@ -1,21 +1,66 @@
-In the recent years, deblurring of motion blurred, or shaken, images has been intensively researched :red:`cites`. We here give a short introduction to the blur formation model and the commonly used notations.
-
+In this chapter we give a short introduction to the blur formation model and the commonly used notations.
 
 Blur
 ++++
 
-Blur is the result of averaged intensities from different real world points in one image point :cite:`Cho2009`.
+Blur is the result of averaged intensities from different real world points in one image point :cite:`Cho2009`. There are two major classes of blur: defocus blur and motion blur.
 
-There are two major classes of blur: the defocus blur and the motion blur. The first one is obviously caused because an object is out of focus. The second one is caused by the relative motion between the camera and the scene during the exposure time.
+Defocus blur
+------------
 
-The **motion blur** can occur due to different reasons: moving objects in the scene (such as vehicles) or a moving camera. The camera could be moved freely in all directions of the room (including rotations) but we will focus on the camera movement parallel to the image plane because this is a common result of the shaking of the hands during the exposure. The result of such shift-invariant blur can be expressed in the following equation:
+Defocus blur is caused by the optics of the camera. Many factors such as lens focal length and camera-to-subject distance can affect the focus range wherein the objects are pictured sharply in the image. Objects that are out of focus are blurred as the background and the near foreground in figure :ref:`d-b`. The distance to the in-focus plane is related to the amount of blur. Objects further away from the in-focus plane are more blurred in the image.
+
+.. raw:: LaTex
+
+    \begin{figure}[!htb]
+        \centering
+        \begin{subfigure}{.33\textwidth}
+            \centering
+            \includegraphics[height=85pt]{../images/defocus-office.jpg}
+            \caption{defocus blur}
+            \label{d-b}
+        \end{subfigure}%
+        \begin{subfigure}{.33\textwidth}
+            \centering
+            \includegraphics[height=85pt]{../images/motion-blur-object.jpg}
+            \caption{object motion}
+            \label{m-b-o}
+        \end{subfigure}%
+        \begin{subfigure}{.33\textwidth}
+            \centering
+            \includegraphics[height=85pt]{../images/mouse_right.jpg}
+            \caption{camera motion}
+            \label{m-b-c}
+        \end{subfigure}
+        \caption{Examples of blurred images}
+    \end{figure}
+
+
+Motion blur
+-----------
+
+Motion blur is caused by relative motion between the camera and the scene during long exposure times. This motion can occur due to different reasons: object movement in the scene (such as vehicles or humans) or camera movement. In images blurred by **object motion** as figure :ref:`m-b-o` each object is affected by different blur. Hence segmentation of the objects is required for deblurring.
+
+Blur caused by **camera motion** depends on properties of the scene and the camera movement. The simplest case is a flat scene and an in-plane camera motion parallel to the scene which results in an image where every pixel is affected by the same blur. That is also called uniform or spatially-invariant blur. A scene with depth variations and an in-plane camera movement as figure :ref:`m-b-c` results in an image where each depth layer is affected by different blur :cite:`Xu2012`. Near objects are blurred more than distant ones. In the case of in-plane camera movement the blur is scaled between the depth layers. An arbitrary camera motion (rotation and translation) would result in completely different blur for each depth layer. These are referred to as non-uniform or spatially-variant blurs. 
+
+The camera motion parallel to the scene is more significant to handle blur caused by shaking of hands during the exposure. This is because in most cases the scene is sufficiently far away to be able to disregard the effect of rotational motion of the camera.
+
+
+
+Blur as Convolution
++++++++++++++++++++
+
+The blurred image *B* of a flat scene can be expressed as a convolution of a sharp (latent) image *I* of this scene with a blur kernel *k*. Such that each pixel of the scene is blurred with the same spatially-invariant blur kernel. Some noise *n* have to be taken into account due camera related noise such as read-out noise and shot noise. Although the noise is often neglected due to simplification.
+
+This blur can be expressed by the following equation:
 
 .. math:: :numbered:
     
     B = I \otimes k + n
 
+The amount of blur depends on the kernel size. An image convolved with a large blur kernel is blurred more than one convolved with a small kernel.
 
-Where *B* is the observation, *I* is the latent (sharp) image convolved with a blur kernel *k* and *n* is some additional noise. If the scene has different depths than there is a blur kernel for each depth layer :cite:`Xu2012`. The blur kernel is also known as point spread function (PSF) which describes how an idealized point-shaped object is mapped through a system. So we can use it to describe the movement of a point on the image plane.
+The blur kernel is also known as Point Spread Function (PSF) which describes how an idealized point-shaped object is mapped through a system :cite:`SMITH2002`. So we can use it to describe the translational camera movement parallel to the scene. The figure :ref:`psf-exp` shows a convolution of a flat scene with a typical hand-shake blur kernel. These kernels are usually very sparse.
 
 .. raw:: LaTex
 
@@ -24,8 +69,8 @@ Where *B* is the observation, *I* is the latent (sharp) image convolved with a b
         \centering
         \begin{subfigure}{.3\textwidth}
             \centering
-            \includegraphics[width=50pt]{../images/image.png}
-            \caption{Object}
+            \includegraphics[width=110pt]{../images/image.png}
+            \caption{scene}
         \end{subfigure}%
         \begin{subfigure}{.3\textwidth}
             \centering
@@ -34,36 +79,104 @@ Where *B* is the observation, *I* is the latent (sharp) image convolved with a b
         \end{subfigure}%
         \begin{subfigure}{.3\textwidth}
             \centering
-            \includegraphics[width=50pt]{../images/conv.png}
-            \caption{Image}
+            \includegraphics[width=110pt]{../images/conv.png}
+            \caption{result}
         \end{subfigure}
-        \caption{Point-shaped objects convolved with a PSF and the result}
+        \caption{Flat scene with arbitrary objects convolved with a typical hand-shake PSF}
+        \label{psf-exp}
     \end{figure}
 
+If the scene is not flat but has different depths than there is a blur kernel :math:`k^z` for each depth *z* thus this is a spatially-variant kernel :cite:`Xu2012`.
 
-Deconvolution
-+++++++++++++
 
-Deblurring is the task of finding the latent image if a blurred image is given. The technique used for this is called deconvolution.
 
-If the latent image and the blur kernel is unknown it is a blind deconvolution. In this case the PSF has to be estimated. Where as in the non-blind deconvolution the blur kernel is known or is assumed to be of an simple form.
+Deblurring
+++++++++++
+Deblurring is the task of finding the sharp image of a blurred one. It is the inverse problem to the convolution of a sharp image with a blur kernel. Thus the technique used for this is called deconvolution. It can be distinguished into non-blind deconvolution for a known blur kernel and blind deconvolution for a unknown blur kernel.
 
-The properties of the blur kernel vary: there are spatial invariant kernels also known as uniform kernels. They are used if the kernel in the image is everywhere the same. On the other hand there are spatially varying kernels also called non-uniform kernels which means that the kernel differs inside the image. This is the case in blurred images of depth scenes where each depth layer has its own kernel.
 
-Deconvolution can be done in different ways: in the frequency domain or spatial domain.
+Non-Blind Deconvolution
+-----------------------
+
+If the blur kernel is known or is assumed to be of a simple form then the deconvolution is referred to as non-blind deconvolution.
+
+Due to the reason that mathematically there is no inverse operation to convolution some other techniques have to be used to perform a deconvolution. One approach is using the **convolution theorem** (see the corresponding chapter) which transforms the problem into the frequency domain where the deconvolution simply becomes a division. The Fourier Transformation *F* is used to transform the blurred image *B* and the kernel *k* into the frequency domain. The result is the sharp image in the frequency domain *F(I)*. To transform it back to the spatial domain the inverse Fourier Transformation is needed. The deconvolution in the frequency domain disregarding any noise is expressed in the following equation:
+
+.. math:: :numbered:
+    
+    F(I) = \frac{F(B)}{F(k)}
+
+This approach is very fast because of efficient Fast Fourier Transformation (FFT) algorithms but is limited to a uniform kernel. This simple equation produces a poor result because no noise is considered. Therefore there are algorithms like the Wiener deconvolution that works in the frequency domain but attempts to minimize the affect of deconvolved noise by attenuating frequencies depending on their signal-to-noise ratio :cite:`JAYA2009`.
+
+There exists also approaches restoring the latent image blurred by an uniform kernel in the spatial domain. Because the deconvolution is an ill-posed problem and the solution may not be unique the latent image can not be computed directly. But iterative approaches like Richardson-Lucy deconvolution try to find the most likely solution for the latent image :cite:`CAMPISI2007`.
+
+.. raw:: LaTex
+
+
+    \begin{figure}[!htb]
+        \centering
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-original.jpg}
+            \caption{original image}
+        \end{subfigure}%
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-blurred.jpg}
+            \caption{blurred image}
+        \end{subfigure}%
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-w.jpg}
+            \caption{Wiener}
+        \end{subfigure}%
+        \begin{subfigure}{.25\textwidth}
+            \centering
+            \includegraphics[width=80pt]{../images/cm-rl.jpg}
+            \caption{Richardson-Lucy}
+        \end{subfigure}
+        \caption{Results of non-blind deconvolution with Wiener Deconvolution and Richardson-Lucy Deconvolution}
+        \label{non-blind-deconv}
+    \end{figure}
+
+As shown in figure :ref:`non-blind-deconv` the restoration of a latent image is not an easy task and the results of these simple approaches are not satisfying. This motivates the research effort to find suitable models for a better deconvolution which was presented in the related work chapter.
+
+For spatially-variant kernels a segmentation into constant regions with the same blur kernel is necessary. For motion blur caused by camera shake this could be done using the depth map of stereo image pairs. Then the methods for a uniform kernel can be applied to each region while taking care of region boundaries.
+
+
+Blind Deconvolution
+-------------------
+
+If the latent image and the blur kernel is unknown the deconvolution is referred to as blind deconvolution. In this case the PSF has to be estimated.
+
+The majority of blind deconvolution algorithm estimate the latent image and the blur kernel simultaneously. For this a regularization framework is used where the blind deblurring problem can be formulated as equation (3). *B* is the blurred image, :math:`\tilde{I}` is the latent image, :math:`\tilde{k}` is the blur kernel and :math:`\rho(I)` and :math:`\varrho(k)` are regularization terms on the image and kernel :cite:`WANG2016`.
+
+.. math:: :numbered:
+    
+    \{\tilde{I}, \tilde{k}\} = arg \min_{I,k} E(I,k) = arg \min_{I,k} ||I \otimes k - B ||_2^2 + \lambda \rho(I) + \gamma \varrho(k)
+
+This equation minimizes the difference between the blurred image and the latent image convolved with the blur kernel using the :math:`l2`-norm while considering assumption on the latent image and blur kernel expressed by regularization terms. This again only holds for a uniform kernel.
+
+The regularization terms are crucial to obtain better restoration results and have to be chosen carefully. The regularization for the kernel is typically an :math:`l2`-norm penalty because small values distributed over the kernel are preferred. Whereas the regularization term for the latent image is related to the properties of natural images such as the existence of salient edges.
+
+The equation finally is solved by alternating between kernel estimation and image estimation in an iterative way :cite:`CAMPISI2007`. Whereupon kernel estimation results depend heavily on the image texture. In regions of no texture any blur kernel is possible because blurring a homogeneous region do not affect the region at all.
+
+As before spatially-variant blur has to be estimated for regions of nearly equal blur seperately.
 
 
 Convolution Theorem
 -------------------
 
-The convolution theorem states that a convolution of in the spatial domain can be expressed as an point-wise multiplication in the frequency domain in the following way:
+The convolution theorem states that a convolution of an image *I* with a kernel *k* in the spatial domain can be expressed as an point-wise multiplication in the frequency domain :cite:`SMITH2002`. The transformation of the image and the kernel into the frequency domain is done by using the Fourier Transformation *F*. For the transformation back into the spatial domain the inverse Fourier Transformation *iF* is used.
+
+This theorem only holds for a uniform kernel and is expressed by the following equation where :math:`\times` is the point-wise multiplication:
 
 .. math:: :numbered:
     
     I \otimes k  = iF(F(I) \times F(k))
 
 
-Where an image *I* should be convolved with a kernel *k*. The transformation of the image and the kernel into the frequency domain is done by using the Fourier Transformation *F*. The transformed kernel *F(k)* has to be of the same size as the image to be able to perform a point-wise multiplication. This could be done e.g. by copying the kernel into a black image with the size of the image *I* before the Fourier transformation. The position of the kernel in the black image doesn't matter because the Fourier transformation is shift-invariant. To transform the result back into the spatial domain the inverse Fourier Transformation *iF* is used.
+The transformed kernel *F(k)* has to be of the same size as the image to be able to perform a point-wise multiplication.
 
 
 

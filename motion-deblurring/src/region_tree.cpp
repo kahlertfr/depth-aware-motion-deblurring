@@ -166,4 +166,47 @@ namespace deblur {
         // create an image with this mask
         images[view]->copyTo(regionImage, mask);
     }
+
+
+    vector<int> RegionTree::getLevelPeers(int id) {
+        // TODO: refactor tree structure for this purpose
+        
+        vector<int> prevLevel;
+        vector<int> level;
+
+        // first level is top-level
+        prevLevel = topLevelNodeIds;
+        
+        // found same level as current id
+        bool elementOfLevel = false;
+
+        // go levelwise through tree
+        while(!elementOfLevel) {
+            // reset level
+            level.clear();
+            
+            // go through previous level to find all child nodes
+            for (int i = 0; i < prevLevel.size(); i++) {
+                // parent and child ids
+                int pid = prevLevel[i];
+                int cid1 = _tree[pid].children.first;
+                int cid2 = _tree[pid].children.second;
+
+                level.push_back(cid1);
+                level.push_back(cid2);
+
+                // if current id is element of this level
+                // the current level is return after all nodes of this level
+                // are added
+                if (cid1 == id || cid2 || id) {
+                    elementOfLevel = true;
+                }
+            }
+
+            prevLevel = level;
+        }
+
+        return level;
+    } 
+
 }

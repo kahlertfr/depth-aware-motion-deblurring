@@ -89,6 +89,13 @@ namespace deblur {
         }
 
         /**
+         * Get all nodes of the same level of the current node
+         * 
+         * @param id  current node
+         */
+        std::vector<int> getLevelPeers(int id);
+
+        /**
          * Creates the binary masks of each disparity layer for each view and sets up the tree
          * 
          * @param quantizedDisparityMapL left-right disparity map with values from [0, layers - 1]

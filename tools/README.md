@@ -25,6 +25,12 @@ deconv <image> <kernel> [<mask>]
 shock-filter <image>
 ```
 
+**disparity** - disparity estimation with SGBM and graph-cut
+
+```bash
+disparity <left view> <right view>
+```
+
 
 
 ## depth-aware deblurring steps

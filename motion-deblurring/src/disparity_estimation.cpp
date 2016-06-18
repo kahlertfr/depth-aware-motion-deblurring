@@ -96,11 +96,9 @@ namespace deblur {
         Mat smallLeftFlipped, smallRightFlipped;
         flip(images[LEFT], smallLeftFlipped, 1);
         flip(images[RIGHT], smallRightFlipped, 1);
-        smallLeftFlipped.copyTo(images[LEFT]);
-        smallRightFlipped.copyTo(images[RIGHT]);
 
         // disparity map for left-right
-        semiGlobalBlockMatching(images[RIGHT], images[LEFT], dMaps[RIGHT]);
+        semiGlobalBlockMatching(smallRightFlipped, smallLeftFlipped, dMaps[RIGHT]);
 
         // flip disparity map back
         Mat disparityFlipped;

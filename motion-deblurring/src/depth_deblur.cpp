@@ -20,10 +20,11 @@ using namespace std;
 
 namespace deblur {
 
-    DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width, const int _layers)
+    DepthDeblur::DepthDeblur(const Mat& imageLeft, const Mat& imageRight, const int width, const int _layers, const deconvAlgo deconvAlgo)
                             : psfWidth((width % 2 == 0) ? width - 1 : width)       // odd psf-width needed
                             , layers((_layers % 2 == 0) ? _layers : _layers - 1)   // psf width should be larger - even layer number needed
                             , images({imageLeft, imageRight})
+                            , deconvAlgoPSFSelection(deconvAlgo)
     {
         assert(imageLeft.type() == imageRight.type() && "images of same type necessary");
 
@@ -93,13 +94,11 @@ namespace deblur {
             double min1; double max1;
             minMaxLoc(smallDMaps[LEFT], &min1, &max1);
             smallDMaps[LEFT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
-            string filenameAlgo = "dmap-algo-left.png";
-            imwrite(filenameAlgo, disparityViewableAlgo);
+            imwrite("dmap-algo-left.png", disparityViewableAlgo);
 
             minMaxLoc(smallDMaps[RIGHT], &min1, &max1);
             smallDMaps[RIGHT].convertTo(disparityViewableAlgo, CV_8U, 255.0/(max1-min1));
-            filenameAlgo = "dmap-algo-right.png";
-            imwrite(filenameAlgo, disparityViewableAlgo);
+            imwrite("dmap-algo-right.png", disparityViewableAlgo);
         #endif
 
         // quantize the image
@@ -113,16 +112,12 @@ namespace deblur {
             minMaxLoc(quantizedDMaps[LEFT], &min, &max);
             quantizedDMaps[LEFT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
-            // imshow("quantized disparity map " + prefix, disparityViewable);
-            string filename = "dmap-final-left.png";
-            imwrite(filename, disparityViewable);
+            imwrite("dmap-final-left.png", disparityViewable);
 
             minMaxLoc(quantizedDMaps[RIGHT], &min, &max);
             quantizedDMaps[RIGHT].convertTo(disparityViewable, CV_8U, 255.0/(max-min));
 
-            // imshow("quantized disparity map " + prefix, disparityViewable);
-            filename = "dmap-final-right.png";
-            imwrite(filename, disparityViewable);
+            imwrite("dmap-final-right.png", disparityViewable);
         #endif
 
         // up sample disparity map to original resolution without interpolation
@@ -158,25 +153,21 @@ namespace deblur {
 
             // #ifdef IMWRITE
             //     // top-level region
-            //     string filename = "top-" + to_string(id) + "-mask.png";
-            //     imwrite(filename, mask);
+            //     imwrite("top-" + to_string(id) + "-mask.png", mask);
 
             //     // tapered image
-            //     filename = "top-" + to_string(id) + "-tapered.png";
-            //     imwrite(filename, taperedRegion);
+            //     imwrite("top-" + to_string(id) + "-tapered.png", taperedRegion);
 
             //     // top-level region
             //     grayImages[LEFT].copyTo(region, mask);
-            //     filename = "top-" + to_string(id) + ".png";
-            //     imwrite(filename, region);
+            //     imwrite("top-" + to_string(id) + ".png", region);
 
             //     // kernel
             //     Mat tmp;
             //     regionTree[id].psf.copyTo(tmp);
             //     tmp *= 1000;
             //     convertFloatToUchar(tmp, tmp);
-            //     filename = "top-" + to_string(id) + "-kernel.png";
-            //     imwrite(filename, tmp);
+            //     imwrite("top-" + to_string(id) + "-kernel.png";, tmp);
             // #endif
 
 
@@ -187,13 +178,11 @@ namespace deblur {
             // // get an image of the top-level region
             // Mat region, mask;
             // regionTree.getRegionImage(id, region, mask, RIGHT);
-            // string name = "mask-right" + to_string(i) + ".jpg";
-            // imwrite(name, mask * 255);
+            // imwrite("mask-right" + to_string(i) + ".jpg", mask * 255);
 
             // Mat regionLeft, maskLeft;
             // regionTree.getRegionImage(id, regionLeft, maskLeft, LEFT);
-            // name = "mask-left" + to_string(i) + ".jpg";
-            // imwrite(name, maskLeft * 255);
+            // imwrite("mask-left" + to_string(i) + ".jpg", maskLeft * 255);
             
             // // edge tapering to remove high frequencies at the border of the region
             // Mat regionUchar, taperedRegion;
@@ -201,14 +190,12 @@ namespace deblur {
             // edgeTaper(regionUchar, taperedRegion, maskLeft, grayImages[LEFT]);
 
             // // use this images for example for the .exe of the two-phase kernel estimation
-            // name = "tapered" + to_string(i) + ".jpg";
-            // imwrite(name, taperedRegion);
+            // imwrite("tapered" + to_string(i) + ".jpg", taperedRegion);
             
             // 2. load kernel images generated with the exe for toplevels
             // load the kernel images which should be named left/right-kerneli.png
             // they should be located in the folder where this algorithm is started
-            string filename = "kernel" + to_string(i) + ".png";
-            Mat kernelImage = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+            Mat kernelImage = imread("kernel" + to_string(i) + ".png", CV_LOAD_IMAGE_GRAYSCALE);
 
             if (!kernelImage.data) {
                 throw runtime_error("Can not load kernel!");
@@ -225,8 +212,7 @@ namespace deblur {
                 Mat region, mask, regionUchar;
                 regionTree.getRegionImage(id, region, mask, LEFT);
                 region.convertTo(regionUchar, CV_8U);
-                string name = "top-" + to_string(i) + "-left.jpg";
-                imwrite(name, regionUchar);
+                imwrite("top-" + to_string(i) + "-left.jpg", regionUchar);
             #endif
         }
     }
@@ -405,21 +391,14 @@ namespace deblur {
         // will be used (we don't want this behavior)
         kernelROI.copyTo(psf);
 
-        // alternative thresholding idea:
-        double min; double max;
-        minMaxLoc(psf, &min, &max);
-        threshold(psf, psf, max / 7, -1, THRESH_TOZERO); 
+        // // alternative thresholding idea:
+        // double min; double max;
+        // minMaxLoc(psf, &min, &max);
+        // threshold(psf, psf, max / 7, -1, THRESH_TOZERO); 
             
         // kernel has to be energy preserving
         // this means: sum(kernel) = 1
         psf /= sum(psf)[0];
-
-        // #ifndef NDEBUG
-        //     Mat kernelUchar;
-        //     convertFloatToUchar(kernel, kernelUchar);
-        //     imshow("full psf", kernelUchar);
-        //     waitKey(0);
-        // #endif
     }
 
 
@@ -466,10 +445,16 @@ namespace deblur {
         // 
         // deblur the current views with psf from parent
         array<Mat, 2> deconv;
-        deconvolveFFT(floatImages[LEFT], deconv[LEFT], parentPSF);
-        deconvolveFFT(floatImages[RIGHT], deconv[RIGHT], parentPSF);
-
-        // FIXME: strong ringing artifacts in deconvoled image (with fft)
+        // compute latent image (only of one view - the other doesn't contain more information)
+        if (deconvAlgoPSFSelection == FFT) {
+            // fast, but ringing artifacts
+            deconvolveFFT(floatImages[LEFT], deconv[LEFT], parentPSF);
+            deconvolveFFT(floatImages[RIGHT], deconv[RIGHT], parentPSF);
+        } else if (deconvAlgoPSFSelection == IRLS) {
+            // slow, but better result
+            deconvolveIRLS(floatImages[LEFT], deconv[LEFT], parentPSF, masks[LEFT]);
+            deconvolveIRLS(floatImages[RIGHT], deconv[RIGHT], parentPSF, masks[RIGHT]);
+        }
     
         // #ifdef IMWRITE
         //     imshow("devonv left", deconv[LEFT]);
@@ -496,21 +481,22 @@ namespace deblur {
             // region images
             Mat region;
             grayImages[LEFT].copyTo(region, masks[LEFT]);
-            string filename = "mid-" + to_string(id) + "-left.png";
-            imwrite(filename, region);
+            imwrite("mid-" + to_string(id) + "-region-left.png", region);
 
             Mat regionR;
             grayImages[RIGHT].copyTo(regionR, masks[RIGHT]);
-            filename = "mid-" + to_string(id) + "-right.png";
-            imwrite(filename, regionR);
+            imwrite("mid-" + to_string(id) + "-region-right.png", regionR);
+
+            // masks
+            imwrite("mid-" + to_string(id) + "-mask-left.png", masks[LEFT] * 255);
+            imwrite("mid-" + to_string(id) + "-mask-right.png", masks[RIGHT] * 255);
 
             // kernels
             Mat tmp;
             psf.copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
-            filename = "mid-" + to_string(id) + "-kernel-init.png";
-            imwrite(filename, tmp);
+            imwrite("mid-" + to_string(id) + "-kernel-init.png", tmp);
         #endif
     }
 
@@ -538,6 +524,32 @@ namespace deblur {
     }
 
 
+    bool DepthDeblur::isReliablePSF(int id) {
+        // psf is reliable if entropy - mean < threshold
+        // 
+        // get mean of whole level
+        vector<int> peers = regionTree.getLevelPeers(id);
+
+        float sum = 0;
+
+        for (int i = 0; i < peers.size(); i++) {
+            int nid = peers[i];
+            sum += regionTree[nid].entropy;
+        }
+
+        float mean = sum / peers.size();
+
+        // empirically choosen threshold
+        float threshold = 0.2 * mean;
+
+        if (regionTree[id].entropy - mean < threshold) {
+            return true;
+        }
+
+        return false;
+    }
+
+
     void DepthDeblur::candidateSelection(vector<Mat>& candiates, int id, int sid) {
         // own psf is added as candidate
         candiates.push_back(regionTree[id].psf);
@@ -547,13 +559,7 @@ namespace deblur {
         candiates.push_back(regionTree[pid].psf);
 
         // add sibbling psf just if it is reliable
-        // this means: entropy - mean < threshold
-        float mean = (regionTree[id].entropy + regionTree[sid].entropy) / 2.0;
-
-        // empirically choosen threshold
-        float threshold = 0.2 * mean;
-
-        if (regionTree[sid].entropy - mean < threshold) {
+        if (isReliablePSF(sid)) {
             candiates.push_back(regionTree[sid].psf);
         }
     }
@@ -564,7 +570,7 @@ namespace deblur {
         int winner = 0;
 
         #ifdef IMWRITE
-            cout << "psf selection for " << id << " with " << candidates.size() << " candidates" << endl;
+            cout << "psf selection for node " << id << " with " << candidates.size() << " candidates" << endl;
         #endif
         
         for (int i = 0; i < candidates.size(); i++) {
@@ -572,10 +578,20 @@ namespace deblur {
             Mat mask;
             regionTree.getMask(id, mask, LEFT);
 
-            // compute latent image
+            // compute latent image (only of one view - the other doesn't contain more information)
             Mat latent;
-            // FIXME: latent image just of one view?
-            deconvolveFFT(floatImages[LEFT], latent, candidates[i]);
+            if (deconvAlgoPSFSelection == FFT) {
+                // fast, but ringing artifacts
+                deconvolveFFT(floatImages[LEFT], latent, candidates[i]);
+            } else if (deconvAlgoPSFSelection == IRLS) {
+                // very slow, but better result
+                deconvolveIRLS(floatImages[LEFT], latent, candidates[i], mask);
+            }
+
+            // convert like matlab imshow([latent])
+            threshold(latent, latent, 0.0, -1, THRESH_TOZERO);
+            threshold(latent, latent, 1.0, -1, THRESH_TRUNC);
+            latent *= 255;
 
             // slightly Gaussian smoothed
             // use the complete image to avoid unwanted effects at the borders
@@ -584,19 +600,30 @@ namespace deblur {
             
             // shock filtered
             Mat shockFiltered;
-            latent *= 255;
             coherenceFilter(smoothed, shockFiltered);
-            
+
             // compute correlation of the latent image and the shockfiltered image
-            float energy = 1 - gradientCorrelation(latent, shockFiltered, mask);
+            float energy = 1 - gradientCorrelation(latent, shockFiltered, mask, id, i);
 
             #ifdef IMWRITE
-                cout << "    energy for " << i << ": " << energy << endl;
+                cout << "    corr-energy for candidate " << i << ": " << energy << endl;
+
+                Mat tmp;
+                latent.convertTo(tmp, CV_8U);
+                imwrite("mid-" + to_string(id) + "-deconv-" + to_string(i) + "-e" + to_string(energy) + ".png", tmp);
+
+                // shockFiltered.convertTo(tmp, CV_8U);
+                // imwrite("mid-" + to_string(id) + "-deconv-" + to_string(i) + "-shockf.png", tmp);
             #endif
 
             if (energy < minEnergy) {
                 minEnergy = energy;
                 winner = i;
+
+                // save latent image of leaf nodes to save time for deblurring
+                if (regionTree[id].children.first == -1 && deconvAlgoPSFSelection == IRLS) {
+                    latent.copyTo(regionDeconv[id]);
+                }
             }
         }
 
@@ -610,20 +637,13 @@ namespace deblur {
             candidates[winner].copyTo(tmp);
             tmp *= 1000;
             convertFloatToUchar(tmp, tmp);
-            string filename = "mid-" + to_string(id) + "-kernel-selection.png";
-            imwrite(filename, tmp);
+            imwrite("mid-" + to_string(id) + "-kernel-selection-" + to_string(winner) + ".png", tmp);
         #endif
     }
 
 
-    float DepthDeblur::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask) {
+    float DepthDeblur::gradientCorrelation(Mat& image1, Mat& image2, Mat& mask, int id, int i) {
         assert(mask.type() == CV_8U && "mask is uchar image with zeros and ones");
-
-        // #ifdef IMWRITE
-        //     imshow("image1", image1);
-        //     imshow("image2", image2);
-        //     waitKey();
-        // #endif
 
         // compute gradients
         // parameter for sobel filtering to obtain gradients
@@ -651,72 +671,22 @@ namespace deblur {
         minMaxLoc(gradients2, &min, &max);
         gradients2 /= max;
 
-        // cut of region
+        // cut regions
         Mat X, Y;
         gradients1.copyTo(X, mask);
         gradients2.copyTo(Y, mask);
 
-       
-        // compute correlation
-        //
-        // compute mean of the matrices
-        // use just the pixel inside the mask
-        float meanX = 0;
-        float meanY = 0;
-        float N = 0;
 
-        for (int row = 0; row < X.rows; row++) {
-            for (int col = 0; col < X.cols; col++) {
-                // compute if inside mask (0 - ouside, 255 -inside)
-                if (mask.at<uchar>(row, col) > 0) {
-                    // expected values                
-                    meanX += X.at<float>(row, col);
-                    meanY += Y.at<float>(row, col);
-                    N++;
-                }
-            }
-        }
+        #ifdef IMWRITE
+            // gradients
+            Mat tmp;
+            X.convertTo(tmp, CV_8U, 255);
+            imwrite("mid" + to_string(id) + "-gradients-" + to_string(i) + ".png", tmp);
+            Y.convertTo(tmp, CV_8U, 255);
+            imwrite("mid" + to_string(id) + "-gradients-" + to_string(i) + "-shockf.png", tmp);
+        #endif
 
-        meanX /= N;
-        meanY /= N;
-        
-        // expected value can be computed using the mean:
-        // E(X - μx) = 1/N * sum_x(x - μx) ... denoted as Ex
-
-        // FIXME: does the paper use the corr2 function of matlab? I think so
-        float E = 0;
-
-        // deviation = sqrt(1/N * sum_x(x - μx)²) -> do not use 1/N 
-        float deviationX = 0;
-        float deviationY = 0;
-
-        assert(X.size() == Y.size() && "images of same size");
-        
-        // go through each gradient map and
-        // compute the sums in the computation of expedted values and deviations
-        for (int row = 0; row < X.rows; row++) {
-            for (int col = 0; col < X.cols; col++) {
-                // compute if inside mask
-                if (mask.at<uchar>(row, col) > 0) {
-                    float valueX = X.at<float>(row, col) - meanX;
-                    float valueY = Y.at<float>(row, col) - meanY;
-
-                    // expected values (the way matlab calculates it)              
-                    E += valueX * valueY;
-
-                    // deviation
-                    deviationX += (valueX * valueX);
-                    deviationY += (valueY * valueY);
-                }
-            }
-        }
-           
-        deviationX = sqrt(deviationX);
-        deviationY = sqrt(deviationY);
-
-        float correlation = E / (deviationX * deviationY);
-
-        return correlation;
+        return crossCorrelation(X, Y, mask);
     }
 
 
@@ -787,10 +757,43 @@ namespace deblur {
                     regionTree[cid2].entropy = computeEntropy(regionTree[cid2].psf);
 
                     #ifdef IMWRITE
-                        cout << "entropy for " << cid1 << ": " << regionTree[cid1].entropy << endl;
-                        cout << "entropy for " << cid2 << ": " << regionTree[cid2].entropy << endl;
+                        cout << "entropy of psf estimate for node " << cid1 << ": " << regionTree[cid1].entropy << endl;
+                        cout << "entropy of psf estimate for node " << cid2 << ": " << regionTree[cid2].entropy << endl;
                     #endif
 
+                    // add children ids to the back of the queue (this has to be thread save)
+                    m.lock();
+                    remainingNodes.push(cid1);
+                    remainingNodes.push(cid2);
+                    m.unlock();
+
+                } else {
+                    mCounter.lock();
+                    visitedLeafs++;
+                    mCounter.unlock();
+                }
+            }
+        }
+    }
+
+
+    void DepthDeblur::midLevelKernelRefinement() {
+        int id;
+
+        if (deconvAlgoPSFSelection == IRLS) {
+            // reset storage for deconvolved leaf nodes
+            regionDeconv.resize(layers);
+        }
+
+        while(visitedLeafs != layers) {
+            if (safeQueueAccess(&remainingNodes, id)) {
+                // get IDs of the child nodes
+                int cid1 = regionTree[id].children.first;
+                int cid2 = regionTree[id].children.second;
+
+                // do PSF computation for a middle node with its children
+                // (leaf nodes doesn't have any children)
+                if (cid1 != -1 && cid2 != -1) {
                     // candiate selection
                     vector<Mat> candiates1, candiates2;
                     candidateSelection(candiates1, cid1, cid2);
@@ -818,73 +821,11 @@ namespace deblur {
                     mCounter.unlock();
                 }
             }
-        }
+        }   
     }
-
+    
 
     void DepthDeblur::midLevelKernelEstimation(int nThreads) {
-        // // // debug --------------------------------------------------------------
-        // Mat src, kernel, dst;
-        // // src = imread("conv-texture-bw.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // // // src = imread("conv-texture-wall-ausschnitt.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // // src.convertTo(src, CV_32F);
-        // // src /= 255;
-
-        // kernel = imread("kernel0.png", CV_LOAD_IMAGE_GRAYSCALE);
-        // kernel.convertTo(kernel, CV_32F);
-        // kernel /= sum(kernel)[0];  // mouse kernel is not energy preserving
-
-        // computeBlurredGradients();
-
-        // // get masks for regions of both views
-        // array<Mat, 2> masks;
-        // masks[LEFT] = imread("mask-left0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // masks[LEFT] /= 255;
-        // masks[RIGHT] = imread("mask-right0.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-        // masks[RIGHT] /= 255;
-
-        // // masks[LEFT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
-        // // masks[RIGHT] = Mat::ones(floatImages[LEFT].size(), CV_8U);
-        
-
-        // Mat parentPSF, psf;
-        // estimateChildPSF(kernel, psf, masks, 0);
-
-        // deconvolveFFT(floatImages[LEFT], dst, psf);
-        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // dst.convertTo(dst, CV_8U, 255);
-        // imwrite("deconv-estimate-fft.png", dst);
-
-        // deconvolveIRLS(floatImages[LEFT], dst, psf, masks[LEFT]);
-        // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // dst.convertTo(dst, CV_8U, 255);
-        // imwrite("deconv-estimate-irls.png", dst);
-        
-        // // deconvolveFFT(floatImages[LEFT], dst, kernel);
-        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // // dst.convertTo(dst, CV_8U, 255);
-        // // imwrite("deconv-original-fft.png", dst);
-        
-        // // // add border with zeros to the mask
-        // // copyMakeBorder(floatImages[LEFT], floatImages[LEFT], 130, 130, 130, 130,
-        // //                BORDER_CONSTANT, Scalar::all(0));
-        // // // add border with zeros to the mask
-        // // copyMakeBorder(masks[LEFT], masks[LEFT], 130, 130, 130, 130,
-        // //                BORDER_CONSTANT, Scalar::all(0));
-
-        // // deconvolveIRLS(floatImages[LEFT], dst, kernel, masks[LEFT]);
-        // // threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        // // threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        // // dst.convertTo(dst, CV_8U, 255);
-        // // imwrite("deconv-original-irls.png", dst);
-
-        // // // end debug ----------------------------------------------------------------
-
-
-
         visitedLeafs = 0;
 
         // we can compute the gradients for each blurred image only ones
@@ -919,6 +860,28 @@ namespace deblur {
         for (int id = 0; id < nrOfWorker; id++) {
             threads[id].join();
         }
+
+
+        // candidate PSF selection
+        // (same process as before)
+        visitedLeafs = 0;
+
+        // init queue with the top-level node IDs
+        for (int i = 0; i < regionTree.topLevelNodeIds.size(); i++) {
+            remainingNodes.push(regionTree.topLevelNodeIds[i]);
+        }
+
+        for (int id = 0; id < nrOfWorker; id++) {
+            // each worker gets the deconvolveRegion method with the regionStack
+            threads[id] = thread(&DepthDeblur::midLevelKernelRefinement, this);
+        }
+
+        midLevelKernelRefinement();
+
+        // wait for all threads to finish
+        for (int id = 0; id < nrOfWorker; id++) {
+            threads[id].join();
+        }
     }
 
 
@@ -948,16 +911,23 @@ namespace deblur {
             Mat mask;
             regionTree.getMask(i, mask, view);
 
-            // get region image (color or grayvalue as float)
-            Mat region;
+            // using whole image with mask for deconv not just region because of
+            // artifacts at the region boundaries
+            Mat image;
 
             if (color) {
-                images[view].copyTo(region, mask);
+                image = images[view];
             } else {
-                floatImages[view].copyTo(region, mask);
+                image = floatImages[view];
             }
 
-            deconvolveIRLS(region, regionDeconv[i], regionTree[i].psf, mask);
+            deconvolveIRLS(image, regionDeconv[i], regionTree[i].psf, mask);
+
+            // threshold the result because it has large negative and positive values
+            // which would result in a very grayish image
+            threshold(regionDeconv[i], regionDeconv[i], 0.0, -1, THRESH_TOZERO);
+            threshold(regionDeconv[i], regionDeconv[i], 1.0, -1, THRESH_TRUNC);
+            regionDeconv[i].convertTo(regionDeconv[i], CV_8U, 255);
         }
     }
 
@@ -995,21 +965,11 @@ namespace deblur {
             Mat mask;
             // the index of the region in regionDeconv and regionTree are the same
             regionTree.getMask(i, mask, view);
-
             regionDeconv[i].copyTo(dst, mask);
         }
 
-        // show and save the deblurred image
-        //
-        // threshold the result because it has large negative and positive values
-        // which would result in a very grayish image
-        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        dst.convertTo(dst, CV_8U, 255);
-
         #ifdef IMWRITE
-            string filename = "deconv-" + to_string(view) + ".png";
-            imwrite(filename, dst);
+            imwrite("deconv-" + to_string(view) + ".png", dst);
         #endif
     }
 
@@ -1017,6 +977,7 @@ namespace deblur {
     void DepthDeblur::deconvolveTopLevel(Mat& dst, view view, int nThreads, bool color) {
         // deconvolve in parallel
         // reset storage for deconvolved images
+        // size of region tree is used because top-level regions have the highest indices
         regionDeconv.resize(regionTree.size());
 
         // set up stack with regions that have to be calculated
@@ -1054,17 +1015,8 @@ namespace deblur {
             regionDeconv[id].copyTo(dst, mask);
         }
 
-        // show and save the deblurred image
-        //
-        // threshold the result because it has large negative and positive values
-        // which would result in a very grayish image
-        threshold(dst, dst, 0.0, -1, THRESH_TOZERO);
-        threshold(dst, dst, 1.0, -1, THRESH_TRUNC);
-        dst.convertTo(dst, CV_8U, 255);
-
         #ifdef IMWRITE
-            string filename = "deconv-" + to_string(view) + ".png";
-            imwrite(filename, dst);
+            imwrite("deconv-" + to_string(view) + ".png", dst);
         #endif
     }
 }
