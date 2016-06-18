@@ -171,12 +171,7 @@ As shown in figure :ref:`top-level` the top-level regions are of an arbitrary sh
 Iterative PSF Computation
 +++++++++++++++++++++++++
 
-- for mid- and leaf level nodes
-- regions become smaller and smaller on the way from top to bottom in the region tree -> PSF estimation isn't robust
-- parent PSF estimate is available to guide child PSF estimation
-- because of erroneous estimates in very small regions a PSF selection scheme is provided
-- lack of texture is a problem too - handled by candidate selection
-- the two steps of iterative PSF computation for each node is described below
+After PSF estimation for top-level nodes all other mid- and leaf-level nodes can be estimated level-wise going through the region tree from top to bottom. Therefore each node has a parent PSF estimate guiding the current PSF estimation. This attenuates the effect that regions are getting smaller in each level of the region tree. This guidance is not enough for very small regions lacking any texture. Therefore a PSF selection scheme taking other PSF candidates into account for the current PSF estimation has to be applied. So the whole process of finding a suitable PSF for each mid- and leaf-level node divides into two steps: the initial PSF estimation and a PSF selection from possible candidates. The figure :ref:`mid-est` illustrates this process.
 
 .. figure:: ../images/mid-level-estimation.jpg
    :width: 170 pt
@@ -187,18 +182,15 @@ Iterative PSF Computation
 Joint PSF Estimation
 --------------------
 
-- guide estimation with salient edge map :math:`\nabla S`
-    - parent PSF is used to compute the edge map
-    - same as P map from Fast Motion Deblurring :cite:`Cho2009` (deblur with parent, bilateral filter, shock filter, gradients)
-- Tikhonov regularization (here L2 regularization for k -> sparsity of kernel)
-- :red:`add variable explanation for coming formulas`
-- objective function is defined jointly on reference and matching view (more robust against noise)
+The first step is the initial PSF estimation for the current node. This estimation is done jointly on reference and matching view :math:`\{r,m\}` being more robust against noise. Since natural images typically contain edges, gradient maps of the latent image :math:`\nabla S` and the blurred image :math:`\nabla B` can be used for PSF estimation. In our case :math:`\nabla S` is the salient edge map of the current region deblurred with the parent PSF. This yields the following equation where a Tikhonov regularization is used to prefer small values distributed over the kernel:
 
 .. math:: :numbered:
     
     E(k) = \sum_{i \in \{r,m\}} \| \nabla S_i \otimes k - \nabla B_i \|^2 + \gamma_k \|k\|^2
 
-- closed-form solution using Fourier Transformations
+The computation of the **salient edge map** is done as described in the Fast Motion Deblurring paper :cite:`Cho2009`. First the blurred views are deconvolved using a guidance PSF - in our case the parent PSF. The deblurred views are than filtered using a bilateral and a shock filter to remove weak color edges. Hence the gradients of this filtered views contain just salient edges guiding the PSF estimation.
+
+There is a closed-form solution for this energy minimization problem using Fourier transform *F* where :math:`F_1` is the Fourier transform of a delta function with a uniform energy distribution:
 
 .. math:: :numbered:
     
@@ -206,10 +198,8 @@ Joint PSF Estimation
         {\sum_i \overline{F_{\partial_x S_i}} F_{\partial_x B_i}  +  \sum_i \overline{F_{\partial_y S_i}} F_{\partial_ y B_i}} 
         {\sum_i (\overline{F_{\partial_x S_i}} F_{\partial_x S_i} + \overline{F_{\partial_y S_i}} F_{\partial_y S_i} )  +  \gamma_k F_{1}^2}
 
-**problem**:
 
-- gradients of regions: border of region results in huge gradient therefore compute gradients always on the whole image and then cut the region
-- same problem appears if the gradient is calculated in Fourier domain -> vary formula of paper to compute gradients of region in spatial to domain to be able to cut of the region
+This equation differs from the one proposed in the paper: :math:`F_{\partial_x B_i}` is used instead of :math:`F_{\partial_x} F_{B_i}` (for :math:`\partial_y` too). This means transforming the spatially computed gradients into the frequency domain instead of separately transforming the gradient filter kernel (sobel kernel) and the blurred image into the frequency domain. Avoiding the computation of the gradients of the blurred region in the frequency domain since this would provoke high gradients at the region boundaries. Instead they are computed before on the whole blurred view and than cropped to the region. Transforming this cropped gradients :math:`\nabla B` into the frequency domain. The same approach is used for :math:`\nabla S`.
 
 
 Candidate PSF Selection
