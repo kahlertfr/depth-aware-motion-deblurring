@@ -27,7 +27,7 @@ Basic Idea
 
 A stereo image pair is used to obtain the necessary depth information for depth-aware deblurring. Stereo matching has a long tradition and many well working algorithms like semi-global block matching or graph-cut approaches were proposed. Using stereo images to obtain depth information thus is a appropriate decision.
 
-A hierarchical approach is used to make the PSF estimation robust for each depth level, even for depth levels with a small number of pixels. Thus a region tree is constructed to guide PSF estimation in small regions. This tree holds all depth layers as leafs and merges them to larger regions. This is feasible due to the fact that the PSF is similar for close by depth levels. PSFs are estimated from larger regions to smaller ones. Because PSF estimation can be still error prone the final PSF is selected from candidates containing parent PSF, estimated PSF and reliable sibbling PSF.
+A hierarchical approach is used to make the PSF estimation robust for each depth level, even for depth levels with a small number of pixels. Thus a region tree is constructed to guide PSF estimation in small regions. This tree holds all depth layers (regions of nearly constant depth) as leafs and merges them to larger regions. This is feasible due to the fact that the PSF is similar for close by depth levels. PSFs are estimated from larger regions to smaller ones. Because PSF estimation can be still error prone the final PSF is selected from candidates containing parent PSF, estimated PSF and reliable sibbling PSF.
 
 In the end each depth layer is deconvolved with its PSF. This deblurred stereo image pair is used to refine the disparity estimation. Due to more accurate depth edges the PSF estimation is improved in a second run. This process is shown in figure :ref:`algo`.
 
@@ -48,7 +48,7 @@ The reference implementation for the depth-aware motion deblurring algorithm pro
 Disparity Estimation
 ++++++++++++++++++++
 
-The main idea of the algorithm is the independent deblurring of each depth layer (region of constant depth) since scenes with depth variations yield spatially-variant blur kernels. As stated before a stereo image pair is used to obtain depth information using stereo matching.
+The main idea of the algorithm is the independent deblurring of each depth layer since scenes with depth variations yield spatially-variant blur kernels. As stated before a stereo image pair is used to obtain depth information using stereo matching.
 
 Disparity Map
 -------------
@@ -59,11 +59,11 @@ Disparity maps :math:`d` are computed for the reference view :math:`B_r` and the
     
     E(d) = \| B_m(x - d(x)) - B_r(x)\|^2 + \gamma_d min(\nabla d^2, \tau)
 
-The truncated smoothing function :math:`\gamma_d min(\nabla d^2, \tau)` is used for regularization (:red:`explain regularization and parameter tuning`). This energy minimization problem is solved by graph-cuts :cite:`Kolmogorov2001`. The source code of this stereo matching algorithm was available and is embedded in this reference implementation.
+The truncated smoothing function :math:`\gamma_d min(\nabla d^2, \tau)` is used for regularization (:red:`explain regularization and parameter tuning`). This energy minimization problem is solved by graph-cuts :cite:`Kolmogorov2001`. The source code of this stereo matching algorithm was available and is embedded in the reference implementation.
 
-It is easy to change the stereo matching algorithm to another one in the reference implementation. So semi global block matching (SGBM) :cite:`Hi2007` were also tested but the graph cut approach yields a better disparity.
+It is easy to change the stereo matching algorithm to another one in the implementation. So semi global block matching (SGBM) :cite:`Hi2007` were also tested but the graph cut approach yields a better disparity.
 
-A general problem of stereo matching are occlusions which leads to errors at object borders. A pixel of an occluded region can not be matched because it is hidden in one view which is caused by objects near to the camera. The occluded regions are determined using cross-checking comparing disparity values of both disparity maps. Different disparity estimations for corresponding pixel indicate occlusion. It is appropriate to fill the occlusions with the smallest neighboring disparity since only objects with a small disparity - indicating they are further away from the camera - can be occluded. The disparity maps with filled occlusion are shown in figure :ref:`dmap-algo`.
+A general problem of stereo matching are occlusions which leads to errors at object borders. A pixel of an occluded region can not be matched because it is hidden in one view. Mainly because it is located behind an object nearer to the camera. The occluded regions are determined using cross-checking comparing disparity values of both disparity maps. Different disparity estimations for corresponding pixels indicate occlusion. It is appropriate to fill the occlusions with the smallest neighboring disparity since only objects with a small disparity - indicating they are further away from the camera - can be occluded. The disparity results of the graph-cut approach are shown in figure :ref:`dmap-algo`.
 
 .. raw:: LaTex
 
@@ -83,46 +83,38 @@ A general problem of stereo matching are occlusions which leads to errors at obj
         \label{dmap-algo}
     \end{figure}
 
-Another problem are the blurred object boundaries which also yields bad depth egdes. This affects all following steps but mainly deblurring since pixel of different depth level are used to estimate a PSF which produces errors. So an separate handling for pixels of region boundaries is necessary. We will see that this is done for deblurring of each depth level. The deblurred images of the first algorithm run are used to improve the object boundaries of the disparity maps for a second run.
+Another problem are the blurred object boundaries which also yields bad depth egdes. This affects all following steps but mainly deblurring since pixel of different depth level are used to estimate a PSF of one depth level producing errors. So an separate handling for pixels of region boundaries is necessary. We will see that this is done for deblurring of each depth level. The deblurred images of the first algorithm run then are used to improve the object boundaries of the disparity maps for a second run.
 
 
 Quantization
 ------------
 
-- PSF estimation is less extensive if the disparity layers are reduced
-- quantize disparity values to l regions, where l is set to approximate PSF width or height -> in practice 12 layers are enough (from paper)
-- using k-means for clustering (both maps together to get same clusters for same depth)
-- sort clusters for representing depth graduation -> see figure :ref:`dmap-quant`
-- finally up-sampled
+The initial disparity map can yield many different levels leading to an extensive PSF estimation. The computation cost can be reduced by decreasing the number of different depth levels. The influence of small disparity changes is negligible for PSF estimation so it adequate to estimate one blur kernel for nearly equal depth levels. Hence the disparity maps are quantized. The paper showed that 12 different depth layers are good enough in practice. 
+
+The reference implementation uses a k-means clustering at once on both disparity maps for ensuring that same depth levels are mapped to the same cluster. Since the cluster assignment is random the clusters are sorted representing the depth graduation. The figure :ref:`dmap-quant` shows the 12 depth layers.
 
 .. figure:: ../images/dmap-final-left.png
    :width: 200 pt
 
    :label:`dmap-quant` quantized disparity map with 12 regions (left view)
 
+This quantization is useful of another aspect than computational cost too. It merges continuous depth changes on an object to one depth layer probably yielding a region with more information (texture) for PSF estimation.
+
 
 
 Region-Tree Construction
 ++++++++++++++++++++++++
 
-The regions of the different depth layer can be very small and therefore robust PSF estimation is not possible. The solution from Xu and Jia is a hierarchical estimation scheme where similar depth layers are merged to form larger regions. The structure for this is called region-tree and in the implementation it is the *RegionTree* class.
-
-- top-down estimation (from huge to small regions)
-- in huge regions robust PSF estimation is possible
-- in small regions PSF estimation is not robust: use parent PSF to guide PSF estimation
+The regions of the different depth layer can be still very small lacking texture information. In these regions robust PSF estimation is not possible. The solution from Xu and Jia is a hierarchical estimation scheme where similar depth layers are merged to form larger regions. Hence the PSF estimation is done from large region where a robust PSF estimation is possible to smaller regions where PSF estimation is guided with the parent estimate. The structure for this is called region tree and in the implementation it is the *RegionTree* class.
 
 .. figure:: ../images/regiontree-detail.jpg
    :width: 300 pt
 
-   :label:`regiontree` one part of the regiontree where the depth layers 4-7 are merged together to one top-level node
+   :label:`regiontree` one part of the region tree where the depth layers 4-7 are merged together to one top-level node
 
-The region-tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and i = ⌊j/2⌋ * 2 which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached. The result is shown in figure :ref:`regiontree`.
+The region tree is a binary tree with all depth layers as leaf nodes. Each mid or top level node is calculated the following way: depth layer S(i) and S(j) are merged if i and j are neighboring numbers and :math:`i = ⌊j/2⌋ * 2` which ensures that the neighbor of the current node is merged only once. If a node do not have any neighbor for merging the node becomes a top level node. This is done until the user specified number of top level nodes are reached (the default number is 3).
 
-The *RegionTree* class stores binary masks of all depth layer regions in the leaf nodes. The region of every other node can be computed by simply adding the masks of the regions that are contained in the current node.
-
-**problem**
-
-- some regions are very small and haven't any texture in them
+The *RegionTree* class stores binary masks of all depth layer regions in the leaf nodes. The region of every other node can be computed by simply adding the masks of the regions that are contained in the current node. The figure :ref:`regiontree` shows one part of the region tree showing the merging of depth layer 4 to 7 resulting in one top-level node.
 
 
 
