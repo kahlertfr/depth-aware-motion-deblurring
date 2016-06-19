@@ -1,60 +1,64 @@
-- run reference implementation on same images as the paper -> cannot achieve the same results -> figure :ref:`result-compare`
+The reference implementation was used to deblur the same stereo image pair as presented in the paper. The reference implementation can not achieve the same results as shown in the paper. Hence this chapter discusses the problems leading to the different results.
+
+Result Comparison
++++++++++++++++++
+
+As shown in figure :ref:`result-compare` the results of the first iteration differ. The reference implementation generates more ringing artifacts resulting in brighter and darker regions. The result of the paper for the left view looks more smooth. The paper unfortunately does not present the result of the right view.
 
 .. raw:: LaTex
 
     \begin{figure}[!htb]
         \centering
-        \begin{subfigure}{.5\textwidth}
-            \centering
-            \includegraphics[width=170pt]{../images/mouse-result-left-gray.jpg}
-            \caption{result of paper}
-        \end{subfigure}%
-        \begin{subfigure}{.5\textwidth}
-            \centering
-            \includegraphics[width=170pt]{../images/deconv-0.png}
-            \caption{reference implementation (first run)}
-        \end{subfigure}
-        \caption{Comparison paper results with reference implementation}
-        \label{result-compare}
-    \end{figure}
-
-- :red:`add results for other sample images of paper?`
-
-- just able to do one run of the algorithm because "refined disparity map" would be much worser than the disparity map of the blurred images -> see figure :ref:`dmap-2`
-
-.. figure:: ../images/dmap-algo-left-2.png
-   :width: 200 pt
-
-   :label:`dmap-2` disparity map of results of first run
-
-**influence deconvolution method**
-
-.. raw:: LaTex
-
-    \begin{figure}[!htb]
-        \centering
-        \begin{subfigure}{.5\textwidth}
-            \centering
-            \includegraphics[width=170pt]{../images/deblur-left-fft.png}
-            \caption{deconvolution using FFT}
-        \end{subfigure}%
         \begin{subfigure}{.5\textwidth}
             \centering
             \includegraphics[width=170pt]{../images/deblur-left-irls.png}
-            \caption{deconvolution using IRLS}
+            \caption{reference implementation (left view)}
+        \end{subfigure}%
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/deblur-right-irls.png}
+            \caption{reference implementation (right view)}
         \end{subfigure}
-        \caption{Influence of chosen deconvolution method (used within the algorithm process)}
-        \label{result-deconv}
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/mouse-result-1it-left-gray.jpg}
+            \caption{result paper (left view)}
+        \end{subfigure}
+        \caption{Comparison results after 1. iteration}
+        \label{result-compare}
     \end{figure}
 
-- child psf estimation used image deconvolved with parent psf
-- psf selection deconvolves images
-- results depends on chosen method -> figure :ref:`result-deconv`
-- the paper doesn't mention how they do the deconvolution
+
+The artifacts in the result of the reference implementation make it impossible to do a second iteration step since the "refined" disparity map computed from the deblurred views is worser than the initial disparity map of the blurred images. The disparity map of the deblurred views is shown in figure :ref:`dmap-2` using the same parameters for disparity estimation with graph-cut :cite:`Kolmogorov2001` as used in the first iteration. Even especially tuned parameters for this disparity estimation yielding a more smoothed result does not refine the initial disparity. 
+
+.. raw:: LaTex
+
+    \begin{figure}[!ht]
+        \centering
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=115pt]{../images/dmap-final-left.png}
+            \caption{initial}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=115pt]{../images/dmap-algo-left-2.png}
+            \caption{2. run}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=115pt]{../images/dmap-algo-left-2-tuned.png}
+            \caption{2. run (tuned)}
+        \end{subfigure}
+        \caption{disparity maps}
+        \label{dmap-2}
+    \end{figure}
 
 
 Problem Discussion
 ++++++++++++++++++
+
+
 
 **depth-layers**
 
@@ -143,4 +147,28 @@ Problem Discussion
 
 - final deconvolution: handling of different regions -> can see regions borders in my result
 
--:red:`other things to discuss?`
+
+**influence deconvolution method**
+
+.. raw:: LaTex
+
+    \begin{figure}[!htb]
+        \centering
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/deblur-left-fft.png}
+            \caption{deconvolution using FFT}
+        \end{subfigure}%
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=170pt]{../images/deblur-left-irls.png}
+            \caption{deconvolution using IRLS}
+        \end{subfigure}
+        \caption{Influence of chosen deconvolution method (used within the algorithm process)}
+        \label{result-deconv}
+    \end{figure}
+
+- child psf estimation used image deconvolved with parent psf
+- psf selection deconvolves images
+- results depends on chosen method -> figure :ref:`result-deconv`
+- the paper doesn't mention how they do the deconvolution
