@@ -21,6 +21,9 @@ using namespace cv;
 
 
 int main(int argc, char** argv) {
+    int layers = 12;
+
+
     Mat left, right, dmap;
 
     if (argc < 3) {
@@ -36,7 +39,7 @@ int main(int argc, char** argv) {
         throw runtime_error("Can not load images!");
     }
 
-    array<Mat, 2> views;
+    array<Mat, 2> views, quants;
     array<Mat, 2> dmaps = { Mat::zeros(views[0].size(), CV_8U),
                             Mat::zeros(views[1].size(), CV_8U)};
 
@@ -56,7 +59,18 @@ int main(int argc, char** argv) {
     dmaps[1].convertTo(dmap, CV_8U, 255.0/(max1-min1));
     imwrite("dmap-sgbm-right.png", dmap);
 
+    // quantize
+    deblur::quantizeImage(dmaps, layers, quants);
 
+    minMaxLoc(quants[0], &min1, &max1);
+    quants[0].convertTo(dmap, CV_8U, 255.0/(max1-min1));
+    imwrite("dmap-quant-sgbm-left.png", dmap);
+    minMaxLoc(quants[1], &min1, &max1);
+    quants[1].convertTo(dmap, CV_8U, 255.0/(max1-min1));
+    imwrite("dmap-quant-sgbm-right.png", dmap);
+
+
+    // disparity using graph-cut
     deblur::disparityFilledMatch(views, dmaps, views[0].cols / 4);
 
     minMaxLoc(dmaps[0], &min1, &max1);
@@ -65,6 +79,16 @@ int main(int argc, char** argv) {
     minMaxLoc(dmaps[1], &min1, &max1);
     dmaps[1].convertTo(dmap, CV_8U, 255.0/(max1-min1));
     imwrite("dmap-graph-cut-right.png", dmap);
+
+    // quantize
+    deblur::quantizeImage(dmaps, layers, quants);
+
+    minMaxLoc(quants[0], &min1, &max1);
+    quants[0].convertTo(dmap, CV_8U, 255.0/(max1-min1));
+    imwrite("dmap-quant-graph-cut-left.png", dmap);
+    minMaxLoc(quants[1], &min1, &max1);
+    quants[1].convertTo(dmap, CV_8U, 255.0/(max1-min1));
+    imwrite("dmap-quant-graph-cut-right.png", dmap);
 
     return 0;
 }

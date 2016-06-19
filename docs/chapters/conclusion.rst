@@ -1,5 +1,3 @@
-:red:`TODO: And conclusion`
+In the end the results of the paper can not be achieved by the current version of the reference implementation. Many difficulties were solved like handling arbitrary shaped regions in PSF estimation or deconvolution but some challenges remains like getting sparse PSF estimates from the mid-/leaf-level PSF estimation. One reason are to many open questions for the details of the single algorithm steps. This emphasizes the need for gaining access to the source code making it more easier to fully understand the proposed algorithm and reproduce the stated research results.
 
-**improvements:**
-
--:red:`manually psf width estimation`: the result depends on correctly estimated kernel size (shown in article "Automatic blur-kernel-size estimation for motion deblurring" from Liu *et al.*)
+Although the results of the paper are not achieved by the reference implementation it contains of several useful modules like from matlab to C++ converted methods (conv2, corr and deconvolution methods from Levin :cite:`Levin2007`). 
