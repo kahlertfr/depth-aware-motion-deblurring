@@ -1,4 +1,4 @@
-The reference implementation was used to deblur the same stereo image pair as presented in the paper. The reference implementation can not achieve the same results as shown in the paper. Hence this chapter discusses the problems leading to the different results.
+The reference implementation was used to deblur the same stereo image pair as presented in the paper. The reference implementation can not achieve the same results as shown in the paper. Hence this chapter discusses the problems leading to the different results and general difficulties of the proposed algorithm.
 
 Result Comparison
 +++++++++++++++++
@@ -87,7 +87,7 @@ The region tree was proposed to guide the PSF estimation. It depends one the **d
 
 Another fact is that small regions mostly lacking any texture like the one of depth layer 11 can not improve the PSF estimation. Therefore they could be ignored.
 
-The main effect on the deconvolution result has the estimated PSF. The **PSF estimation** for the mid-/leaf-level nodes mostly yields blurry kernels as shown in :ref:`psf-estimate` whereas the estimated blur kernels of the paper look very sparse. The authors already used a blur kernel refinement step in one of their other papers :cite:`Xu2010`. A sparse blur kernel is produced by iteratively removing values from the kernel preserving its shap. It seems to be used here too.
+The main effect on the deconvolution result has the estimated PSF. The **PSF estimation** for the mid-/leaf-level nodes mostly yields blurry kernels as shown in :ref:`psf-estimate` whereas the estimated blur kernels of the paper look very sparse. The authors already used a blur kernel refinement step in one of their other papers :cite:`Xu2010`. A sparse blur kernel is produced by iteratively removing values from the kernel preserving its shape. It could be used here too.
 
 .. raw:: LaTex
 
@@ -100,27 +100,16 @@ The main effect on the deconvolution result has the estimated PSF. The **PSF est
         \end{subfigure}%
         \begin{subfigure}{.35\textwidth}
             \centering
-            \includegraphics[width=100pt]{../images/mid-5-region-left.png}
-            \caption{region}
-        \end{subfigure}%
-        \begin{subfigure}{.35\textwidth}
-            \centering
-            \includegraphics[width=100pt]{../images/mid-5-deconv-1-e0.191212.png}
-            \caption{deconvolved region}
+            \includegraphics[width=110pt]{../images/mid-5-region-left.png}
+            \caption{corresponding region}
         \end{subfigure}
 
         \caption{example for blurry PSF estimate}
         \label{psf-estimate}
     \end{figure}
 
-- psf estimates are very blurry -> see figure :ref:`psf-estimate` -> :red:`reason?`
-- maybe they use a psf refinement step of their two-phase kernel estimation paper
 
-
-**psf selection**
-
-- the estimated kernels result in images with high contrast which are prefered by the psf selection scheme due to salient edges
-- human eye would choose result of other kernel -> figure :ref:`wrong-select`
+A general problem of the proposed algorithm lies in the **PSF selection** scheme. The quality measure for correct deblurred images is reduced to the existence of salient edges in the deblurred image. The assumption on salient edges in natural images is right but the measurement prefers images with high contrast due to the salient edges the contrast produces. The figure :ref:`wrong-select` shows an example of the deconvolution of a blurred region with two PSF candidates. The selection scheme prefers the deblurred image with higher contrast whereas a human would prefer the other image. Hence the energy function used for the comparison of deconvolution result could be enhanced by a term preferring images with a moderate contrast.
 
 .. raw:: LaTex
 
@@ -128,12 +117,12 @@ The main effect on the deconvolution result has the estimated PSF. The **PSF est
         \centering
         \begin{subfigure}{.5\textwidth}
             \centering
-            \includegraphics[width=100pt]{../images/mid-10-deconv-0.png}
+            \includegraphics[width=100pt]{../images/mid-16-deconv-0.png}
             \caption{chosen from algo}
         \end{subfigure}%
         \begin{subfigure}{.5\textwidth}
             \centering
-            \includegraphics[width=100pt]{../images/mid-10-deconv-1.png}
+            \includegraphics[width=100pt]{../images/mid-16-deconv-1.png}
             \caption{prefered by human}
         \end{subfigure}
 
@@ -141,12 +130,7 @@ The main effect on the deconvolution result has the estimated PSF. The **PSF est
         \label{wrong-select}
     \end{figure}
 
-**deblurring**
-
-- final deconvolution: handling of different regions -> can see regions borders in my result
-
-
-**influence deconvolution method**
+In the end the result of the whole algorithm is affected by the chosen **deconvolution method** used for the initial PSF estimation of mid-/leaf-level nodes and deblurring of the region with the different candidates in the PSF selection. The figure :ref:`result-deconv` shows the possible results of the first iteration looking at the eyes in detail. As mentioned before the deconvolution in the frequency domain is fast but yields ringing artifacts disturbing the PSF estimation. The spatial deconvolution using IRLS is slower but yields less artifacts (but for artifacts caused by wrong PSF estimation). It is not stated in the paper which method is used for the deconvolution.
 
 .. raw:: LaTex
 
@@ -154,19 +138,31 @@ The main effect on the deconvolution result has the estimated PSF. The **PSF est
         \centering
         \begin{subfigure}{.5\textwidth}
             \centering
-            \includegraphics[width=170pt]{../images/deblur-left-fft.png}
+            \includegraphics[width=160pt]{../images/deblur-left-fft.png}
             \caption{deconvolution using FFT}
         \end{subfigure}%
         \begin{subfigure}{.5\textwidth}
             \centering
-            \includegraphics[width=170pt]{../images/deblur-left-irls.png}
+            \includegraphics[width=100pt]{../images/deblur-left-fft-detail-1.png}
+            \caption{detail (FFT)}
+        \end{subfigure}
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=160pt]{../images/deblur-left-irls.png}
             \caption{deconvolution using IRLS}
+        \end{subfigure}%
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=100pt]{../images/deblur-left-irls-detail-1.png}
+            \caption{detail (IRLS)}
         \end{subfigure}
         \caption{Influence of chosen deconvolution method (used within the algorithm process)}
         \label{result-deconv}
     \end{figure}
 
-- child psf estimation used image deconvolved with parent psf
-- psf selection deconvolves images
-- results depends on chosen method -> figure :ref:`result-deconv`
-- the paper doesn't mention how they do the deconvolution
+A problem of the reference implementation are visible **region boundaries** in the final deconvolution. As shown figure :ref:`borders` the region boundary can be clearly seen. The deconvolution is done region-wise taking the adjusted weight for reducing artifacts into account. But simply merging all deconvolved regions together yields the shown result for some regions. This may by caused by incorrect PSF estimates for some regions resulting in contrast differences to neighboring regions.
+
+.. figure:: ../images/deblur-left-irls-detail-2.png
+   :width: 150 pt
+
+   :label:`borders` region boundaries in final deconvolution
