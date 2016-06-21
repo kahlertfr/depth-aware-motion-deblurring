@@ -39,11 +39,11 @@ the right view.
 
 The artifacts in the result of the reference implementation make it impossible
 to do a second iteration step since the "refined" disparity map computed from
-the deblurred views is worser than the initial disparity map of the blurred
+the deblurred views is worse than the initial disparity map of the blurred
 images. The disparity map of the deblurred views is shown in figure
 :ref:`dmap-2` using the same parameters for disparity estimation with graph-
-cut :cite:`Kolmogorov2001` as used in the first iteration. Even especially
-tuned parameters for this disparity estimation yielding a more smoothed result
+cut :cite:`Kolmogorov2001` as used in the first iteration. Even the result of especially
+tuned parameters for this disparity estimation which yield a more smooth disparity map
 does not refine the initial disparity map. This could be explained by the
 mismatch of corresponding pixels due to different color values caused by the
 artifacts (like in the regions of the ears).
@@ -109,20 +109,21 @@ with a wrong PSF yields ringing artifacts.
         \label{small-layers}
     \end{figure}
 
-The region tree was proposed to guide the PSF estimation. It depends one the
+The region tree was proposed to guide the PSF estimation. It depends on the
 **disparity estimation**. The paper shows very nice disparity estimates for
 their blurred views and the deblurred views in the second iteration.
 Unfortunately it was not mentioned which parameters where used to achieve this
-results. It was not possible to get such good disparity estimates. The initial
-disparity estimation in the reference implementation has some wrong estimates
-especially next to the right ear. These errors affect the depth layers the
-region tree is built on. 12 different depth layers are used to create the
-region tree where layers 0 to 3 belong to the foreground, layers 4 to 7 are of
-medium depth and layers 8 to 11 belong to the background. The figure :ref
-:`small-layers` shows some depth layers yield from this erroneous disparity
-estimation. It can be seen that the depth layers 0 and 3 are used for PSF
-estimation of the foreground but actual belonging to the background. Depth
-layer 3 contains an edge so it influences the result of this estimation.
+results. It was not possible to get such good disparity estimates with our
+implementation. The initial disparity estimation in the reference
+implementation has some wrong estimates especially next to the right ear.
+These errors affect the depth layers the region tree is built on. 12 different
+depth layers are used to create the region tree where layers 0 to 3 belong to
+the foreground, layers 4 to 7 are of medium depth and layers 8 to 11 belong to
+the background. Figure :ref :`small-layers` shows some depth layers of 
+this erroneous disparity estimation. It can be seen that the depth layers
+0 and 3 are used for PSF estimation of the foreground but actual belonging to
+the background. Depth layer 3 contains an edge so it influences the result of
+this estimation.
 
 Another fact is that small regions mostly lacking any texture like the one of
 depth layer 11 can not improve the PSF estimation. Furthermore regions that
@@ -130,7 +131,7 @@ are smaller than the blur kernel size can not be used to estimate the blur
 kernel. Therefore these regions should be ignored. This is not considered
 either in the paper nor in the reference implementation.
 
-The estimated PSF has the main effect on the deconvolution result. The **PSF
+The estimated PSF has a huge effect on the deconvolution result. The **PSF
 estimation** for the mid-/leaf-level nodes mostly yields blurry kernels as
 shown in figure :ref:`psf-estimate` whereas the estimated blur kernels of the
 paper look very sparse. The authors already used a blur kernel refinement step
@@ -159,7 +160,7 @@ this technique is used here too.
 
 
 A general problem of the proposed algorithm lies in the **PSF selection**
-scheme. The quality measure for correct deblurred images is reduced to the
+scheme. The quality measure for correctly deblurred images is reduced to the
 existence of salient edges in the deblurred image. The assumption on salient
 edges in natural images is right but the measurement prefers images with high
 contrast due to the salient edges the contrast produces. Figure :ref:`wrong-
@@ -230,7 +231,7 @@ A problem of the reference implementation are visible **region boundaries** in
 the final deconvolution. As shown in figure :ref:`borders` the region boundary
 can be clearly seen. A region-wise deconvolution is done taking the adjusted
 boundary-weight for reducing artifacts into account. But simply merging all
-deconvolved regions together yields the shown result for some regions. This
+deconvolved regions together yields the shown artifacts for some regions. This
 may be caused by incorrect PSF estimates for some regions resulting in
 contrast differences to neighboring regions.
 

@@ -1,18 +1,18 @@
 In the recent years deblurring of motion blurred images has been intensively
 researched. These works can be divided into single image deblurring and multi-
-image deblurring. Furthermore they can be distinguished into the assumption on
-blur kernels: spatially uniform and non-uniform blur kernels.
+image deblurring. Furthermore they can be distinguished by their assumption on
+blur kernels: spatially uniform or non-uniform blur kernels and known or unkown
+PSFs.
 
-In single image deblurring several approaches using statistical models for
-kernel estimation were proposed :cite:`Fergus2006`, :cite:`Levin2011`. Some of
-them improved the estimation by predicting sharp edges using filters
-:cite:`Joshi2008`, :cite:`Cho2009`, :cite:`Xu2010` or reweighting strong edges
-:cite:`Shan2008`. In non-blind deconvolution where the PSF is known sparse
-natural image priors were used to improve image restoration. Therefore
-Iteratively Re-weighted Least Squares (IRLS) :cite:`Levin2007` were employed
-to constrain the solution. A method to improve estimated PSFs is shown by Zhu
+Several approaches were proposed for single image deblurring with an unknown blur 
+kernel. The majority of these algortihms use statistical models for the necessary
+kernel estimation :cite:`Fergus2006`, :cite:`Levin2011`. Some of
+them improved the estimation by considering the presence of sharp edges in unblurred images
+:cite:`Joshi2008`, :cite:`Cho2009`, :cite:`Xu2010`,
+:cite:`Shan2008`. A method to improve estimated PSFs is shown by Zhu
 *et al.* :cite:`Zhu2012` where the PSF is also deconvolved because it is
-affected by blur itself.
+affected by blur itself. In non-blind deconvolution where the PSF is known sparse
+natural image priors were used to improve image restoration :cite:`Levin2007`.
 
 These methods assumes that all pixels are blurred with the same (uniform) blur
 kernel. However blur at a specific position is highly correlated with camera
@@ -28,7 +28,7 @@ motion model were also introduced by Gupta *et al.* :cite:`Gupta2010`. However
 camera translation which causes significant image blur is not handled in these
 approaches. Because translation depends on scene depth some works already
 computed depth maps by multi-image approaches. Favaro *et al.*
-:cite:`Favaro2004` modeled motion-blur and defocus of a scene from a
+:cite:`Favaro2004` modeled motion blur and defocus blur of a scene from a
 collection of blurred images. Sorel *et al.* :cite:`Sorel2008` proposed an
 algorithm estimating a sharp image and a depth map simultaneously, based on
 the minimization of a cost function. It uses multiple blurred images and a
@@ -39,7 +39,7 @@ spatially-varying blur from a single photograph. Another algorithm from Hu
 model for depth-involved deblurring.
 
 There are also works that take both rotation and translation into
-consideration like Joshi *et al.* :cite:`Joshi2010` where a inertial sensor is
+consideration like Joshi *et al.* :cite:`Joshi2010` where an inertial sensor is
 used to measure the camera motion. Tai *et al.* :cite:`Tai2010` used labeled
 cues to estimate the camera motion. Bae *et al.* :cite:`Bae2013` combined a
 depth sensor (Microsoft Kinect) and an inertial sensor to recover the real

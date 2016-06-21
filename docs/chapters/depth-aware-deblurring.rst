@@ -1,10 +1,10 @@
 The depth-aware motion deblurring algorithm from Xu and Jia :cite:`Xu2012`
 deblurs a stereo image pair of a scene with depth variations as shown in
-figure :ref:`input`. The challenge of this setup is the unknown camera motion
-restricted to be parallel to the scene. The depth variations of the scene
-makes it necessary to estimate spatially-variant blur kernels - a PSF for each
-depth level. A great issue of this process is PSF estimation from depth levels
-with a small number of pixels.
+figure :ref:`input`. The challenge of this setup is the unknown camera motion.
+The proposed algorithm restricts this motion to be parallel to the scene. The depth
+variations of the scene makes it necessary to estimate spatially-variant blur
+kernels - a PSF for each depth level. A great issue of this process is PSF
+estimation from depth levels with a small number of pixels.
 
 The basic idea of the proposed method to deblur this challeging setup will be
 presented in this chapter. Furthermore we will discuss the difficulties of
@@ -35,9 +35,9 @@ Basic Idea
 
 A stereo image pair is used to obtain the necessary depth information for
 depth-aware deblurring. Stereo matching has a long tradition and many well
-working algorithms were proposed like semi-global block matching or graph-cut
-approaches. Hence using stereo images to obtain depth information is a
-appropriate decision.
+working algorithms were proposed like semi-global matching :cite:`Hi2007` or
+graph-cut :cite:`Kolmogorov2001` approaches. Hence using stereo images to
+obtain depth information is a appropriate decision.
 
 A hierarchical approach is used to make the PSF estimation robust for each
 depth level - even for depth levels with a small number of pixels. Thus a
@@ -78,15 +78,15 @@ Disparity Estimation
 
 The main idea of the algorithm is the independent deblurring of each depth
 layer since scenes with depth variations yield spatially-variant blur kernels.
-As stated before a stereo image pair is used to obtain depth information using
-stereo matching.
+A stereo image pair is used to obtain depth information using stereo matching.
 
 Disparity Map
 -------------
 
 Disparity maps :math:`d` are computed for the reference view :math:`B_r` and
-the matching view :math:`B_m` of the stereo image pair. This is done by
-minimizing the following energy function:
+the matching view :math:`B_m` of the stereo image pair. Because pixels of the
+same depth level are blurred equally in both views a disparity estimation
+using by minimizing the following energy function is possible:
 
 .. math:: :numbered:
     
@@ -99,12 +99,12 @@ source code of this stereo matching algorithm was available and is embedded in
 the reference implementation.
 
 It is easy to change the stereo matching algorithm to another one in the
-implementation. Semi global block matching (SGBM) :cite:`Hi2007` were also
+implementation. Semi global block matching (SGBM) :cite:`Hi2007` was also
 tested but the graph cut approach yields a better disparity map.
 
 A general problem of stereo matching are occlusions which lead to errors at
 object borders. A pixel of an occluded region can not be matched because it is
-hidden in one view - mainly because it is located behind an object nearer to
+hidden in one view - because it is located behind an object nearer to
 the camera. The occluded regions are determined using cross-checking by
 comparing disparity values of both disparity maps. Different disparity
 estimations for corresponding pixels indicate occlusion. It is appropriate to
@@ -145,7 +145,7 @@ Quantization
 ------------
 
 The initial disparity map can yield many different levels leading to an
-extensive PSF estimation. The computation cost can be reduced by decreasing
+many PSF estimations. The computation cost can be reduced by decreasing
 the number of different depth levels. The influence of small disparity changes
 is negligible for PSF estimation so it is adequate to estimate one blur kernel
 for nearly equal depth levels. Hence the disparity maps are quantized. The
@@ -210,13 +210,11 @@ Since the region tree merges similar depth layers to large top-level regions
 of nearly equal depth, a robust estimation of one blur kernel is possible. Any
 algorithm for uniform blur kernel estimation could be applied for this step.
 The paper uses the two-phase kernel estimation algorithm from Xu
-:cite:`Xu2010`. Unfortunately the source code for this algorithm is not
-available.
+:cite:`Xu2010`. 
 
-Due to a too high time effort the reference implementation does not implement
-this estimation step. Therefore blur kernels for the top-level nodes are
-simply loaded. Thus the user has to provide these blur kernels. To stick as
-near as possible to the paper the supplied executable for the two-phase kernel
+The reference implementation simply loads the blur kernels for the top-level
+nodes. Thus the user has to provide these blur kernels. To stick as near as
+possible to the paper the supplied executable for the two-phase kernel
 estimation algorithm is used for all results shown in this study thesis. The
 figure :ref:`top-level` shows the PSF estimates of this algorithm on the three
 top-level regions.
@@ -269,9 +267,9 @@ filters. These borders would yield high gradients affecting the PSF
 estimation. There are two ways to deal with this problem: using an algorithm
 with mask support considering only pixels inside the specified mask for PSF
 estimation or filling the black regions with a color that minimizes the
-gradients at the region borders. The last approach is used in the reference
-implementation since the executable used for obtaining the PSF estimates can
-not be modified to feature mask support.
+gradients at the region borders. The latter approach is used in the reference
+implementation allowing to profit from the used executable of the two-phase
+kernel estimation algorithm.
 
 
 
@@ -287,12 +285,7 @@ regions lacking any texture. Therefore a PSF selection scheme taking other PSF
 candidates into account for the current PSF estimation has to be applied. So
 the whole process of finding a suitable PSF for each mid- and leaf-level node
 divides into two steps: the initial PSF estimation and a PSF selection from
-possible candidates. The figure :ref:`mid-est` illustrates this process.
-
-.. figure:: ../images/mid-level-estimation.jpg
-   :width: 170 pt
-
-   :label:`mid-est` A PSF selection process for the current mid-/leaf-level node (yellow) containing given parent PSF, initial PSF estimation for current node and sibling node, candidate selection and final PSF selection
+possible candidates. The figure :ref:`algo` (e) illustrates this process.
 
 The computation time of these two steps in the reference implementation is
 improved by parallel computation of the nodes using threads. This is done
@@ -334,9 +327,10 @@ used. The default one is IRLS because an edge map without edges caused by
 strong deconvolution artifacts should be preferred since this edges have an
 influence on the PSF estimation.
 
-There is a closed-form solution for this energy minimization problem using
-Fourier transform *F* where :math:`F_1` is the Fourier transform of a delta
-function with a uniform energy distribution:
+It exists a closed-form solution for the energy minimization problem (6)
+using the deconvolution theorem. *F* denotes the Fourier transform and
+:math:`F_1` is the Fourier transform of a delta function with a uniform energy
+distribution:
 
 .. math:: :numbered:
     
@@ -367,7 +361,7 @@ regions with an erroneous PSF estimate finally get a robust PSF. The
 candidates for a PSF of a mid- or leaf-level node are its parent PSF, its own
 PSF estimate and the PSF of its sibling node if it is reliable.
 
-So probably incorrect PSFs are detected by assuming that these PSFs are mostly
+Probably incorrect PSFs are detected by assuming that these PSFs are mostly
 noisy and have dense values. This can be expressed using the following entropy
 for the blur kernel *k*:
 
@@ -375,7 +369,7 @@ for the blur kernel *k*:
 
     H(k) = - \sum_{x \in k} x \log x
 
-An incorrect PSF has a notably larger PSF than it peers in the same level of
+An incorrect PSF has a notably larger entropy than it peers in the same level of
 the region tree. So this PSF is marked as unreliable hence it is not used as a
 candidate for its sibling node PSF selection but it is used as a candidate for
 its own PSF selection. This avoids removing correct noisy PSFs.

@@ -62,13 +62,13 @@ blur. A scene with depth variations and an in-plane camera movement as figure
 different blur :cite:`Xu2012`. Near objects are blurred more than distant
 ones. In the case of in-plane camera movement the blur is scaled between the
 depth layers. An arbitrary camera motion (rotation and translation) would
-result in completely different blur for each depth layer. These are referred
-to as non-uniform or spatially-variant blurs.
+result in completely different blur for each depth layer - even for each pixel.
+These are referred to as non-uniform or spatially-variant blurs.
 
 The camera motion parallel to the scene is more significant for handling blur
 caused by shaking of hands during the exposure. In most cases the scene is
 sufficiently far away to be able to disregard the effect of rotational motion
-of the camera.
+of the camera. :cite:`Whyte2010`
 
 
 
@@ -80,7 +80,8 @@ sharp (latent) image *I* of this scene with a blur kernel *k*. Thus each pixel
 of the scene is blurred with the same spatially-invariant blur kernel. Some
 noise *n* have to be taken into account due camera related noise such as read-
 out noise and shot noise. Although the noise is often neglected due to
-simplification.
+simplification. However neglecting noise in deblurring will result in severe visual
+artifacts.
 
 This blur can be expressed by the following equation:
 
@@ -94,7 +95,7 @@ blur kernel is blurred more than one convolved with a small kernel.
 The blur kernel is also known as Point Spread Function (PSF) which describes
 how an idealized point-shaped object is mapped through a system
 :cite:`SMITH2002`. So we can use it to describe the translational camera
-movement parallel to the scene. The figure :ref:`psf-exp` shows a convolution
+movement parallel to the scene. Figure :ref:`psf-exp` illustrates a convolution
 of a flat scene with a typical blur kernel caused by shaking of hands. These
 kernels are usually very sparse.
 
@@ -122,9 +123,9 @@ kernels are usually very sparse.
         \label{psf-exp}
     \end{figure}
 
-If the scene is not flat but has different depths than there is a blur kernel
-:math:`k^z` for each depth *z* thus this is a spatially-variant kernel
-:cite:`Xu2012`.
+If the scene is not flat but has different depths and the camera movement is
+translational than there is a blur kernel :math:`k^z` for each depth *z* thus
+this is a spatially-variant kernel :cite:`Xu2012`.
 
 
 
@@ -135,7 +136,7 @@ Deblurring is the task of restoring the sharp image from a blurred one. It is
 the inverse problem to the convolution of a sharp image with a blur kernel.
 Thus the technique used for deblurring is called deconvolution. It can be
 distinguished into non-blind deconvolution for a known blur kernel and blind
-deconvolution for a unknown blur kernel.
+deconvolution for an unknown blur kernel.
 
 
 Non-Blind Deconvolution
@@ -144,14 +145,29 @@ Non-Blind Deconvolution
 If the blur kernel is known or is assumed to be of a simple form then the
 deconvolution is referred to as non-blind deconvolution.
 
-Due to the reason that there is no mathematical inverse operation to
+Due to the reason that there is no simple mathematical inverse operation to
 convolution some other techniques have to be used to perform a deconvolution.
-One approach is to use the **convolution theorem** (see the corresponding
-chapter) which transforms the problem into the frequency domain where the
-deconvolution simply becomes a division. The Fourier transform *F* is used to
-transform the blurred image *B* and the kernel *k* into the frequency domain.
-The result is the sharp image in the frequency domain *F(I)*. To transform it
-back to the spatial domain the inverse Fourier transform is needed. The
+One approach is to use the **convolution theorem** which states that a
+convolution of an image *I* with a kernel *k* in the spatial domain can be
+expressed as an point-wise multiplication in the frequency domain
+:cite:`SMITH2002`. The transformation
+of the image and the kernel into the frequency domain is done by using the
+Fourier transform *F*. For the backwards transformation into the spatial
+domain the inverse Fourier transform :math:`F^{-1}` is used.
+
+This theorem only holds for a uniform kernel and is expressed by the following
+equation where :math:`\times` is the point-wise multiplication:
+
+.. math:: :numbered:
+    
+    I \otimes k  = F^{-1}(F(I) \times F(k))
+
+
+The transformed kernel *F(k)* has to be of the same size as the image to be
+able to perform a point-wise multiplication.
+
+By using the convolution theorem the deconvolution simply becomes a division.
+The result is the sharp image in the frequency domain *F(I)*. The
 deconvolution in the frequency domain disregarding any noise is expressed in
 the following equation:
 
@@ -163,10 +179,10 @@ This approach is very fast because of efficient Fast Fourier Transform (FFT)
 algorithms but is limited to a uniform kernel. This simple equation produces a
 poor result because no noise is considered. Hence there are algorithms like
 the Wiener deconvolution that works in the frequency domain but attempts to
-minimize the affect of deconvolved noise by attenuating frequencies depending
+minimize the effect of deconvolved noise by attenuating frequencies depending
 on their signal-to-noise ratio :cite:`JAYA2009`.
 
-There exists further approaches restoring the latent image blurred by an
+There exists further approaches restoring the latent image blurred by a
 uniform kernel in the spatial domain. Because the deconvolution is an ill-
 posed problem and the solution may not be unique, the latent image can not be
 computed directly. But iterative approaches like Richardson-Lucy deconvolution
@@ -221,7 +237,7 @@ referred to as blind deconvolution. In this case the PSF has to be estimated.
 
 The majority of blind deconvolution algorithm estimate the latent image and
 the blur kernel simultaneously. For this a regularization framework is used
-where the blind deblurring problem can be formulated as equation (3). *B* is
+where the blind deblurring problem can be formulated as equation (4). *B* is
 the blurred image, :math:`\tilde{I}` is the latent image, :math:`\tilde{k}` is
 the blur kernel and :math:`\rho(I)` and :math:`\varrho(k)` are regularization
 terms on the image and kernel :cite:`WANG2016`.
@@ -250,29 +266,7 @@ not affect the region at all.
 As before spatially-variant blur has to be estimated for regions of nearly
 equal blur seperately.
 
-
-Convolution Theorem
--------------------
-
-The convolution theorem states that a convolution of an image *I* with a
-kernel *k* in the spatial domain can be expressed as an point-wise
-multiplication in the frequency domain :cite:`SMITH2002`. The transformation
-of the image and the kernel into the frequency domain is done by using the
-Fourier transform *F*. For the backwards transformation into the spatial
-domain the inverse Fourier transform :math:`F^{-1}` is used.
-
-This theorem only holds for a uniform kernel and is expressed by the following
-equation where :math:`\times` is the point-wise multiplication:
-
-.. math:: :numbered:
-    
-    I \otimes k  = F^{-1}(F(I) \times F(k))
-
-
-The transformed kernel *F(k)* has to be of the same size as the image to be
-able to perform a point-wise multiplication.
-
-
+:red:`local minima depend on initialization`
 
 .. Fourier Transformation
 .. ----------------------
