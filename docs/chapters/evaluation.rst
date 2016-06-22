@@ -84,7 +84,10 @@ texture. Thus the PSF estimation is guided by these edges. In regions with
 less texture like the foots of the mouse there are no edges and therefore the
 estimation of the correct blur kernel is difficult and introduces errors.
 Because this region has a smooth color gradient the deconvolution of this area
-with a wrong PSF yields ringing artifacts.
+with a wrong PSF yields ringing artifacts. Whereas the deconvolution of a
+homogeneous regions with any blur kernel does not change the region. However
+the region boundaries are affected by wrong kernel estimates because they are
+not homogeneous.
 
 .. raw:: LaTex
 
@@ -131,14 +134,6 @@ are smaller than the blur kernel size can not be used to estimate the blur
 kernel. Therefore these regions should be ignored. This is not considered
 either in the paper nor in the reference implementation.
 
-The estimated PSF has a huge effect on the deconvolution result. The **PSF
-estimation** for the mid-/leaf-level nodes mostly yields blurry kernels as
-shown in figure :ref:`psf-estimate` whereas the estimated blur kernels of the
-paper look very sparse. The authors already used a blur kernel refinement step
-in one of their other papers :cite:`Xu2010`. A sparse blur kernel is produced
-by iteratively removing values from the kernel preserving its shape. Maybe
-this technique is used here too.
-
 .. raw:: LaTex
 
     \begin{figure}[!ht]
@@ -163,17 +158,13 @@ this technique is used here too.
         \label{psf-estimate}
     \end{figure}
 
-
-A general problem of the proposed algorithm lies in the **PSF selection**
-scheme. The quality measure for correctly deblurred images is reduced to the
-existence of salient edges in the deblurred image. The assumption on salient
-edges in natural images is right but the measurement prefers images with high
-contrast due to the salient edges the contrast produces. Figure :ref:`wrong-
-select` shows an example of the deconvolution of a blurred region with two PSF
-candidates. The selection scheme prefers the deblurred image with higher
-contrast whereas a human would prefer the other image. Hence the energy
-function used for the comparison of deconvolution results could be enhanced by
-a term preferring images with a moderate contrast.
+The estimated PSF has a huge effect on the deconvolution result. The **PSF
+estimation** for the mid-/leaf-level nodes mostly yields blurry kernels as
+shown in figure :ref:`psf-estimate` whereas the estimated blur kernels of the
+paper look sparse. The authors already used a blur kernel refinement step
+in one of their other papers :cite:`Xu2010`. A sparse blur kernel is produced
+by iteratively removing values from the kernel preserving its shape. Maybe
+this technique is used here too.
 
 .. raw:: LaTex
 
@@ -194,15 +185,19 @@ a term preferring images with a moderate contrast.
         \label{wrong-select}
     \end{figure}
 
-In the end the result of the whole algorithm is affected by the chosen
-**deconvolution method** used for the initial PSF estimation of mid-/leaf-
-level nodes and for deblurring of the region with the different candidates in
-the PSF selection. Figure :ref:`result-deconv` shows the possible results of
-the first iteration with focus on the eyes. As mentioned before the
-deconvolution in the frequency domain is fast but yields ringing artifacts
-disturbing the PSF estimation. The spatial deconvolution using IRLS is slower
-but yields less artifacts (but for artifacts caused by wrong PSF estimation).
-It is not stated in the paper which method is used for the deconvolution.
+A general problem of the proposed algorithm lies in the **PSF selection**
+scheme. The quality measure for correctly deblurred images is reduced to the
+existence of salient edges in the deblurred image. The assumption on salient
+edges in natural images is right but the measurement prefers images with high
+contrast due to the salient edges the contrast produces. Figure :ref:`wrong-
+select` shows an example of the deconvolution of a blurred region with two PSF
+candidates. The selection scheme prefers the deblurred image with higher
+contrast whereas a human would prefer the other image since it looks more
+natural. Hence the energy function used for the comparison of deconvolution
+results could be refined by a term preferring images with a moderate
+contrast. But the correlation of the gradients of the deblurred image and its
+shock filtered version should have the the larger influence to ensure that the
+deblurred image contains salient edges.
 
 .. raw:: LaTex
 
@@ -232,6 +227,21 @@ It is not stated in the paper which method is used for the deconvolution.
         \label{result-deconv}
     \end{figure}
 
+In the end the result of the whole algorithm is affected by the chosen
+**deconvolution method** used for the initial PSF estimation of mid-/leaf-
+level nodes and for deblurring of the region with the different candidates in
+the PSF selection. Figure :ref:`result-deconv` shows the possible results of
+the first iteration with focus on the eyes. As mentioned before the
+deconvolution in the frequency domain is fast but yields ringing artifacts
+disturbing the PSF estimation. The spatial deconvolution using IRLS is slower
+but yields less artifacts (but for artifacts caused by wrong PSF estimation).
+It is not stated in the paper which method is used for the deconvolution.
+
+.. figure:: ../images/deblur-left-irls-detail-2.png
+   :width: 130 pt
+
+   :label:`borders` region boundaries in final deconvolution
+
 A problem of the reference implementation are visible **region boundaries** in
 the final deconvolution. As shown in figure :ref:`borders` the region boundary
 can be clearly seen. A region-wise deconvolution is done taking the adjusted
@@ -239,8 +249,3 @@ boundary-weight for reducing artifacts into account. But simply merging all
 deconvolved regions together yields the shown artifacts for some regions. This
 may be caused by incorrect PSF estimates for some regions resulting in
 contrast differences to neighboring regions.
-
-.. figure:: ../images/deblur-left-irls-detail-2.png
-   :width: 130 pt
-
-   :label:`borders` region boundaries in final deconvolution

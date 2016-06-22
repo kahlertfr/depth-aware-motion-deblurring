@@ -396,7 +396,7 @@ regions with an erroneous PSF estimate finally get a robust PSF. The
 candidates for a PSF of a mid- or leaf-level node are its parent PSF, its own
 PSF estimate and the PSF of its sibling node if it is reliable.
 
-Probably incorrect PSFs are detected by assuming that these PSFs are mostly
+Unreliable PSFs are detected by assuming that these PSFs are mostly
 noisy and have dense values. This can be expressed using the following entropy
 for the blur kernel *k*:
 
@@ -404,13 +404,14 @@ for the blur kernel *k*:
 
     H(k) = - \sum_{x \in k} x \log x
 
-An incorrect PSF has a notably larger entropy than it peers in the same level of
-the region tree. So this PSF is marked as unreliable hence it is not used as a
-candidate for its sibling node PSF selection but it is used as a candidate for
-its own PSF selection. This avoids removing correct noisy PSFs.
+An incorrect PSF has a notably larger entropy *H* than it peers in the same level
+of the region tree. So this PSF is marked as unreliable hence it is not used
+as a candidate for its sibling node PSF selection but it is used as a
+candidate for its own PSF selection. This avoids removing correct noisy PSFs.
 
 For finding the best PSF estimate the current region is deblurred with each
-candidate PSF yielding the latent image :math:`I^k`:
+candidate PSF. The deblurred image :math:`I^k` is calculated by minimizing
+the following energy function:
 
 .. math:: :numbered:
 
@@ -457,16 +458,17 @@ candidate PSF yielding the latent image :math:`I^k`:
     \end{figure}
 
 As mentioned before a natural image mostly contains salient edges thus the
-correct deblurred image has such edges. It is useful that salient edges are
-invariant to shock filtering since they are preserved and just weak edges are
-removed. In order to check if the deblurred image :math:`I^k` has salient
-edges we can compare it to its shock filtered version :math:`\tilde{I^k}`.
+correct deblurred image has such edges. In order to check if the deblurred
+image :math:`I^k` has salient edges we can compare it to its shock filtered
+version :math:`\tilde{I^k}`. It is useful that salient edges are invariant to
+shock filtering since they are preserved and just weak edges are removed.
 Before applying the shock filter the image :math:`I^k` is smoothed with a
-Gaussian filter to remove noise. The comparison of :math:`I^k` and
-:math:`\tilde{I^k}` is done by computing the cross-correlation :math:`corr` of
-the gradient magnitudes of both images which expresses the similarity of
-images. Similar images have a high cross-correlation value. The correlation-
-based energy :math:`E_c(k)` can be expressed as follows:
+Gaussian filter to remove noise. To finally compare :math:`I^k` with
+:math:`\tilde{I^k}` we have to define a similarity measure. Here we use the
+cross-correlation :math:`corr` of the gradient magnitudes of both images.
+Similar images have a high cross-correlation value. In the end we want to do
+an energy minimization that is why we define the correlation-based energy
+:math:`E_c(k)` as follows:
 
 .. math:: :numbered:
 
