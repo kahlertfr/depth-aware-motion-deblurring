@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
     int maxTopLevelNodes;
     int maxDisparity;
     int layers;
-    deblur::DepthDeblur::deconvAlgo deconvAlgo;
+    deblur::DepthDeblur::deconvAlgo deconvAlgo = deblur::DepthDeblur::IRLS;
 
     // parse command line arguments
     int exitcode = 0;
