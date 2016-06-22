@@ -146,15 +146,20 @@ this technique is used here too.
         \begin{subfigure}{.35\textwidth}
             \centering
             \includegraphics[width=35pt]{../images/mid-5-kernel-selection-1.png}
-            \caption{psf estimate}
+            \caption{psf estimate reference implementation}
         \end{subfigure}%
         \begin{subfigure}{.35\textwidth}
             \centering
             \includegraphics[width=110pt]{../images/mid-5-region-left.png}
             \caption{corresponding region}
+        \end{subfigure}%
+        \begin{subfigure}{.35\textwidth}
+            \centering
+            \includegraphics[width=35pt]{../images/sparse-psf.png}
+            \caption{psf estimate from paper}
         \end{subfigure}
 
-        \caption{example for blurry PSF estimate}
+        \caption{example for blurry PSF estimate of reference implementation}
         \label{psf-estimate}
     \end{figure}
 

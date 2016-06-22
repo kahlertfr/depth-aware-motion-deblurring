@@ -257,16 +257,19 @@ have to be chosen carefully. The regularization for the kernel is typically an
 preferred. Whereas the regularization term for the latent image is related to
 the properties of natural images such as the existence of salient edges.
 
-Finally the equation is solved by alternating between kernel estimation and
-image estimation in an iterative way :cite:`CAMPISI2007`. Whereupon kernel
-estimation results depend heavily on the image texture. In regions of no
-texture any blur kernel is possible because blurring a homogeneous region do
-not affect the region at all.
+Since this is a non-convex problem we iteratively solve the equation by
+alternating between kernel estimation and image estimation
+:cite:`CAMPISI2007`. This approach heavily depends on the initialization of
+the latent image and the blur kernel respectively. Thus it can be stuck in
+local minima.
+
+The kernel estimation results are influenced by the image texture. In regions
+of no texture any blur kernel is possible because blurring a homogeneous
+region do not affect the region at all.
 
 As before spatially-variant blur has to be estimated for regions of nearly
 equal blur seperately.
 
-:red:`local minima depend on initialization`
 
 .. Fourier Transformation
 .. ----------------------

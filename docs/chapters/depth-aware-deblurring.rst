@@ -271,6 +271,10 @@ gradients at the region borders. The latter approach is used in the reference
 implementation allowing to profit from the used executable of the two-phase
 kernel estimation algorithm.
 
+These top-level PSF estimates heavily influence the further PSF estimation of
+the other nodes since they are used to create the latent image for the kernel
+estimation. Thus the result of the whole algorithm depends on the
+initialization of the region tree with these blur kernels.
 
 
 Iterative PSF Computation
@@ -310,12 +314,13 @@ values distributed over the kernel:
     
     E(k) = \sum_{i \in \{r,m\}} \| \nabla S_i \otimes k - \nabla B_i \|^2 + \gamma_k \|k\|^2
 
-The computation of the **salient edge map** is done as described in the Fast
-Motion Deblurring paper :cite:`Cho2009`. First the blurred views are
-deconvolved using a guidance PSF - in our case the parent PSF. Then the
-deblurred views are filtered using a bilateral and a shock filter to remove
-weak color edges. Hence the gradients of this filtered views contain just
-salient edges guiding the PSF estimation.
+The reference implementation provides a module called *edge map* which
+computes the **salient edge map** as described in the Fast Motion Deblurring
+paper :cite:`Cho2009`. First the blurred views are deconvolved using a
+guidance PSF - in our case the parent PSF. Then the deblurred views are
+filtered using a bilateral and a shock filter to remove weak color edges.
+Hence the gradients of this filtered views contain just salient edges guiding
+the PSF estimation.
 
 The quality of this edge map is influenced by the chosen non-blind deblurring
 method. Using the deconvolution in the frequency domain is very fast but
@@ -350,6 +355,36 @@ boundaries. Instead the gradients are computed on the whole blurred view
 before and then cropped to the region. Afterwards this cropped gradients
 :math:`\nabla B` are transformed into the frequency domain. The same approach
 is used for :math:`\nabla S`.
+
+.. raw:: LaTex
+
+    \begin{figure}[!ht]
+        \centering
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=110pt]{../images/deconv-mask-region.jpg}
+            \caption{region image as input}
+        \end{subfigure}%
+        \begin{subfigure}{.5\textwidth}
+            \centering
+            \includegraphics[width=110pt]{../images/deconv-mask-whole.jpg}
+            \caption{whole image as input}
+        \end{subfigure}
+        \caption{different deconvolution results of IRLS algorithm using a mask}
+        \label{deconv-region}
+    \end{figure}
+    
+Since the deconvolution in the reference implementation is done with IRLS, it
+has to use a mask determining which pixels belong to the current region. The
+IRLS algorithm without considering a mask optimizes the deconvolution result
+for the whole image which leads to errors due to the fact that the blur kernel
+is different for each depth layer. Thus a mask suppressing pixels not
+belonging to the current region is applied. Furthermore it is reasonable to
+use the whole blurred view rather than the cut out region as input for the
+deconvolution. Using the region image with black areas for the deconvolution
+yields artifacts at the region boundaries due to black values used for the
+deconvolution as illustrated in figure :ref:`deconv-region`.
+
 
 
 Candidate PSF Selection
