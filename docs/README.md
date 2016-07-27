@@ -29,7 +29,7 @@ For a fancy syntax highlighting in Sublime Text, you can install *RestructuredTe
 ### Generate PDF from restructured Text
 
 ```bash
-# activate virutal environment
+# activate virtual environment
 workon study-thesis
 
 # compile study-thesis.rst
